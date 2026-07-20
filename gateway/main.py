@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from gateway.config import settings
 from gateway.payment import get_pricing, verify_transaction
+from gateway.storage import get_storage_provider
 
 app = FastAPI(
     title="IPFS Pay-to-Pin Gateway",
@@ -16,6 +17,9 @@ app = FastAPI(
 # Caches for challenges and spent transactions
 challenges = {}
 spent_txns = set()
+
+# Initialize active storage provider
+storage = get_storage_provider()
 
 # Cleanup task for expired challenges
 def cleanup_expired_challenges():
@@ -119,13 +123,13 @@ async def verify_payment(payload: PinVerificationRequest):
     challenge["paid"] = True
     spent_txns.add(tx_id)
 
-    # Simulated successful pinning output
-    mock_ipfs_cid = "QmYwAPJzv5CZ1sAXXtDURmBNBAeXnuL13xNu18q1eLd8d5"
+    # Store file to pluggable storage provider and receive mock CID
+    cid = storage.store_file(challenge["content"], challenge["filename"])
 
     return {
         "status": "success",
         "message": "Payment verified. File pinned permanently.",
         "filename": challenge["filename"],
-        "ipfs_cid": mock_ipfs_cid,
-        "gateway_url": f"https://ipfs.io/ipfs/{mock_ipfs_cid}"
+        "ipfs_cid": cid,
+        "gateway_url": f"https://ipfs.io/ipfs/{cid}"
     }
