@@ -6,7 +6,7 @@ This document tracks the epics, user stories, and specs required to take the IPF
 
 ## Batch 1: Core Escrow Smart Contract & Mock Verification
 
-- [ ] **AB-PP-001: Pricing & Configuration Contract**
+- [x] **AB-PP-001: Pricing & Configuration Contract**
   * As a gateway operator, I want to deploy an Algorand smart contract (`algopy`) that securely manages base-price and per-byte pricing, so that my service fee structure is on-chain, auditable, and easily adjustable.
 - [ ] **AB-PP-002: x402 Dynamic Payment Challenge & Local Verification**
   * As a client application, I want to upload a file to the gateway, receive a standard HTTP 402 challenge with size-calculated fees, and submit an on-chain transaction reference to verify and complete my file write, so that I pay exactly for the resources I use.

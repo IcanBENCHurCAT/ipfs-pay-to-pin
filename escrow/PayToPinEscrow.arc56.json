@@ -1,0 +1,191 @@
+{
+    "name": "PayToPinEscrow",
+    "structs": {},
+    "methods": [
+        {
+            "name": "create",
+            "args": [],
+            "returns": {
+                "type": "void"
+            },
+            "actions": {
+                "create": [
+                    "NoOp"
+                ],
+                "call": []
+            },
+            "readonly": false,
+            "events": [],
+            "recommendations": {}
+        },
+        {
+            "name": "update_pricing",
+            "args": [
+                {
+                    "type": "uint64",
+                    "name": "new_base"
+                },
+                {
+                    "type": "uint64",
+                    "name": "new_byte_price"
+                }
+            ],
+            "returns": {
+                "type": "void"
+            },
+            "actions": {
+                "create": [],
+                "call": [
+                    "NoOp"
+                ]
+            },
+            "readonly": false,
+            "desc": "Allows contract owner to update storage rates.",
+            "events": [],
+            "recommendations": {}
+        },
+        {
+            "name": "withdraw_fees",
+            "args": [
+                {
+                    "type": "uint64",
+                    "name": "amount"
+                },
+                {
+                    "type": "address",
+                    "name": "receiver"
+                }
+            ],
+            "returns": {
+                "type": "void"
+            },
+            "actions": {
+                "create": [],
+                "call": [
+                    "NoOp"
+                ]
+            },
+            "readonly": false,
+            "desc": "Allows contract owner to withdraw accumulated service fees to a treasury account.",
+            "events": [],
+            "recommendations": {}
+        }
+    ],
+    "arcs": [
+        22,
+        28
+    ],
+    "desc": "\n    Algorand Smart Contract for IPFS Pay-to-Pin Gateway management.\n    Handles pricing rates, registry of authorized gateway operators, and treasury payouts.\n    ",
+    "networks": {},
+    "state": {
+        "schema": {
+            "global": {
+                "ints": 2,
+                "bytes": 1
+            },
+            "local": {
+                "ints": 0,
+                "bytes": 0
+            }
+        },
+        "keys": {
+            "global": {
+                "owner": {
+                    "keyType": "AVMString",
+                    "valueType": "address",
+                    "key": "b3duZXI="
+                },
+                "base_price": {
+                    "keyType": "AVMString",
+                    "valueType": "AVMUint64",
+                    "key": "YmFzZV9wcmljZQ=="
+                },
+                "byte_price": {
+                    "keyType": "AVMString",
+                    "valueType": "AVMUint64",
+                    "key": "Ynl0ZV9wcmljZQ=="
+                }
+            },
+            "local": {},
+            "box": {}
+        },
+        "maps": {
+            "global": {},
+            "local": {},
+            "box": {}
+        }
+    },
+    "bareActions": {
+        "create": [],
+        "call": []
+    },
+    "sourceInfo": {
+        "approval": {
+            "sourceInfo": [
+                {
+                    "pc": [
+                        120
+                    ],
+                    "errorMessage": "Only owner can update pricing"
+                },
+                {
+                    "pc": [
+                        161
+                    ],
+                    "errorMessage": "Only owner can withdraw fees"
+                },
+                {
+                    "pc": [
+                        126,
+                        167
+                    ],
+                    "errorMessage": "Transaction must not rekey the account"
+                },
+                {
+                    "pc": [
+                        118,
+                        159
+                    ],
+                    "errorMessage": "check self.owner exists"
+                },
+                {
+                    "pc": [
+                        153
+                    ],
+                    "errorMessage": "invalid number of bytes for arc4.static_array<arc4.uint8, 32>"
+                },
+                {
+                    "pc": [
+                        102,
+                        111,
+                        143
+                    ],
+                    "errorMessage": "invalid number of bytes for arc4.uint64"
+                }
+            ],
+            "pcOffsetMethod": "none"
+        },
+        "clear": {
+            "sourceInfo": [],
+            "pcOffsetMethod": "none"
+        }
+    },
+    "source": {
+        "approval": "I3ByYWdtYSB2ZXJzaW9uIDExCiNwcmFnbWEgdHlwZXRyYWNrIGZhbHNlCgovLyBhbGdvcHkuYXJjNC5BUkM0Q29udHJhY3QuYXBwcm92YWxfcHJvZ3JhbSgpIC0+IHVpbnQ2NDoKbWFpbjoKICAgIGludGNibG9jayAxIDggMAogICAgYnl0ZWNibG9jayAib3duZXIiICJiYXNlX3ByaWNlIiAiYnl0ZV9wcmljZSIKICAgIC8vIGVzY3Jvdy9jb250cmFjdC5weTozCiAgICAvLyBjbGFzcyBQYXlUb1BpbkVzY3JvdyhBUkM0Q29udHJhY3QpOgogICAgdHhuIE9uQ29tcGxldGlvbgogICAgIQogICAgYXNzZXJ0CiAgICB0eG4gQXBwbGljYXRpb25JRAogICAgYnogbWFpbl9jcmVhdGVfTm9PcEA4CiAgICBwdXNoYnl0ZXNzIDB4MGU0MTk3MDEgMHhmZTBiN2EyMCAvLyBtZXRob2QgInVwZGF0ZV9wcmljaW5nKHVpbnQ2NCx1aW50NjQpdm9pZCIsIG1ldGhvZCAid2l0aGRyYXdfZmVlcyh1aW50NjQsYWRkcmVzcyl2b2lkIgogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMAogICAgbWF0Y2ggdXBkYXRlX3ByaWNpbmcgd2l0aGRyYXdfZmVlcwogICAgZXJyCgptYWluX2NyZWF0ZV9Ob09wQDg6CiAgICAvLyBlc2Nyb3cvY29udHJhY3QucHk6MwogICAgLy8gY2xhc3MgUGF5VG9QaW5Fc2Nyb3coQVJDNENvbnRyYWN0KToKICAgIHB1c2hieXRlcyAweDRjNWM2MWJhIC8vIG1ldGhvZCAiY3JlYXRlKCl2b2lkIgogICAgdHhuYSBBcHBsaWNhdGlvbkFyZ3MgMAogICAgbWF0Y2ggY3JlYXRlCiAgICBlcnIKCgovLyBjb250cmFjdC5QYXlUb1BpbkVzY3Jvdy5jcmVhdGVbcm91dGluZ10oKSAtPiB2b2lkOgpjcmVhdGU6CiAgICAvLyBlc2Nyb3cvY29udHJhY3QucHk6MTUKICAgIC8vIHNlbGYub3duZXIudmFsdWUgPSBUeG4uc2VuZGVyCiAgICBieXRlY18wIC8vICJvd25lciIKICAgIHR4biBTZW5kZXIKICAgIGFwcF9nbG9iYWxfcHV0CiAgICAvLyBlc2Nyb3cvY29udHJhY3QucHk6MTYKICAgIC8vIHNlbGYuYmFzZV9wcmljZS52YWx1ZSA9IFVJbnQ2NCgxMDAwKSAgIyBiYXNlIG1pY3JvQUxHTyBwcmljZQogICAgYnl0ZWNfMSAvLyAiYmFzZV9wcmljZSIKICAgIHB1c2hpbnQgMTAwMAogICAgYXBwX2dsb2JhbF9wdXQKICAgIC8vIGVzY3Jvdy9jb250cmFjdC5weToxNwogICAgLy8gc2VsZi5ieXRlX3ByaWNlLnZhbHVlID0gVUludDY0KDEpICAgICAjIG1pY3JvQUxHT3MgcGVyIGJ5dGUKICAgIGJ5dGVjXzIgLy8gImJ5dGVfcHJpY2UiCiAgICBpbnRjXzAgLy8gMQogICAgYXBwX2dsb2JhbF9wdXQKICAgIC8vIGVzY3Jvdy9jb250cmFjdC5weToxMwogICAgLy8gQGFyYzQuYWJpbWV0aG9kKGNyZWF0ZT0icmVxdWlyZSIpCiAgICBpbnRjXzAgLy8gMQogICAgcmV0dXJuCgoKLy8gY29udHJhY3QuUGF5VG9QaW5Fc2Nyb3cudXBkYXRlX3ByaWNpbmdbcm91dGluZ10oKSAtPiB2b2lkOgp1cGRhdGVfcHJpY2luZzoKICAgIC8vIGVzY3Jvdy9jb250cmFjdC5weToxOQogICAgLy8gQGFyYzQuYWJpbWV0aG9kCiAgICB0eG5hIEFwcGxpY2F0aW9uQXJncyAxCiAgICBkdXAKICAgIGxlbgogICAgaW50Y18xIC8vIDgKICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQudWludDY0CiAgICBidG9pCiAgICB0eG5hIEFwcGxpY2F0aW9uQXJncyAyCiAgICBkdXAKICAgIGxlbgogICAgaW50Y18xIC8vIDgKICAgID09CiAgICBhc3NlcnQgLy8gaW52YWxpZCBudW1iZXIgb2YgYnl0ZXMgZm9yIGFyYzQudWludDY0CiAgICBidG9pCiAgICAvLyBlc2Nyb3cvY29udHJhY3QucHk6MjQKICAgIC8vIGFzc2VydCBUeG4uc2VuZGVyID09IHNlbGYub3duZXIudmFsdWUsICJPbmx5IG93bmVyIGNhbiB1cGRhdGUgcHJpY2luZyIKICAgIHR4biBTZW5kZXIKICAgIGludGNfMiAvLyAwCiAgICBieXRlY18wIC8vICJvd25lciIKICAgIGFwcF9nbG9iYWxfZ2V0X2V4CiAgICBhc3NlcnQgLy8gY2hlY2sgc2VsZi5vd25lciBleGlzdHMKICAgID09CiAgICBhc3NlcnQgLy8gT25seSBvd25lciBjYW4gdXBkYXRlIHByaWNpbmcKICAgIC8vIGVzY3Jvdy9jb250cmFjdC5weToyNQogICAgLy8gYXNzZXJ0IFR4bi5yZWtleV90byA9PSBHbG9iYWwuemVyb19hZGRyZXNzLCAiVHJhbnNhY3Rpb24gbXVzdCBub3QgcmVrZXkgdGhlIGFjY291bnQiCiAgICB0eG4gUmVrZXlUbwogICAgZ2xvYmFsIFplcm9BZGRyZXNzCiAgICA9PQogICAgYXNzZXJ0IC8vIFRyYW5zYWN0aW9uIG11c3Qgbm90IHJla2V5IHRoZSBhY2NvdW50CiAgICAvLyBlc2Nyb3cvY29udHJhY3QucHk6MjYKICAgIC8vIHNlbGYuYmFzZV9wcmljZS52YWx1ZSA9IG5ld19iYXNlCiAgICBieXRlY18xIC8vICJiYXNlX3ByaWNlIgogICAgdW5jb3ZlciAyCiAgICBhcHBfZ2xvYmFsX3B1dAogICAgLy8gZXNjcm93L2NvbnRyYWN0LnB5OjI3CiAgICAvLyBzZWxmLmJ5dGVfcHJpY2UudmFsdWUgPSBuZXdfYnl0ZV9wcmljZQogICAgYnl0ZWNfMiAvLyAiYnl0ZV9wcmljZSIKICAgIHN3YXAKICAgIGFwcF9nbG9iYWxfcHV0CiAgICAvLyBlc2Nyb3cvY29udHJhY3QucHk6MTkKICAgIC8vIEBhcmM0LmFiaW1ldGhvZAogICAgaW50Y18wIC8vIDEKICAgIHJldHVybgoKCi8vIGNvbnRyYWN0LlBheVRvUGluRXNjcm93LndpdGhkcmF3X2ZlZXNbcm91dGluZ10oKSAtPiB2b2lkOgp3aXRoZHJhd19mZWVzOgogICAgLy8gZXNjcm93L2NvbnRyYWN0LnB5OjI5CiAgICAvLyBAYXJjNC5hYmltZXRob2QKICAgIHR4bmEgQXBwbGljYXRpb25BcmdzIDEKICAgIGR1cAogICAgbGVuCiAgICBpbnRjXzEgLy8gOAogICAgPT0KICAgIGFzc2VydCAvLyBpbnZhbGlkIG51bWJlciBvZiBieXRlcyBmb3IgYXJjNC51aW50NjQKICAgIGJ0b2kKICAgIHR4bmEgQXBwbGljYXRpb25BcmdzIDIKICAgIGR1cAogICAgbGVuCiAgICBwdXNoaW50IDMyCiAgICA9PQogICAgYXNzZXJ0IC8vIGludmFsaWQgbnVtYmVyIG9mIGJ5dGVzIGZvciBhcmM0LnN0YXRpY19hcnJheTxhcmM0LnVpbnQ4LCAzMj4KICAgIC8vIGVzY3Jvdy9jb250cmFjdC5weTozNAogICAgLy8gYXNzZXJ0IFR4bi5zZW5kZXIgPT0gc2VsZi5vd25lci52YWx1ZSwgIk9ubHkgb3duZXIgY2FuIHdpdGhkcmF3IGZlZXMiCiAgICB0eG4gU2VuZGVyCiAgICBpbnRjXzIgLy8gMAogICAgYnl0ZWNfMCAvLyAib3duZXIiCiAgICBhcHBfZ2xvYmFsX2dldF9leAogICAgYXNzZXJ0IC8vIGNoZWNrIHNlbGYub3duZXIgZXhpc3RzCiAgICA9PQogICAgYXNzZXJ0IC8vIE9ubHkgb3duZXIgY2FuIHdpdGhkcmF3IGZlZXMKICAgIC8vIGVzY3Jvdy9jb250cmFjdC5weTozNQogICAgLy8gYXNzZXJ0IFR4bi5yZWtleV90byA9PSBHbG9iYWwuemVyb19hZGRyZXNzLCAiVHJhbnNhY3Rpb24gbXVzdCBub3QgcmVrZXkgdGhlIGFjY291bnQiCiAgICB0eG4gUmVrZXlUbwogICAgZ2xvYmFsIFplcm9BZGRyZXNzCiAgICA9PQogICAgYXNzZXJ0IC8vIFRyYW5zYWN0aW9uIG11c3Qgbm90IHJla2V5IHRoZSBhY2NvdW50CiAgICAvLyBlc2Nyb3cvY29udHJhY3QucHk6MzctNDIKICAgIC8vICMgSW1wbGVtZW50IGZlZSB3aXRoZHJhd2FsIGlubmVyIHRyYW5zYWN0aW9uIGxvZ2ljIGhlcmUuCiAgICAvLyBpdHhuLlBheW1lbnQoCiAgICAvLyAgICAgYW1vdW50PWFtb3VudCwKICAgIC8vICAgICByZWNlaXZlcj1yZWNlaXZlciwKICAgIC8vICAgICBmZWU9MCwKICAgIC8vICkuc3VibWl0KCkKICAgIGl0eG5fYmVnaW4KICAgIGl0eG5fZmllbGQgUmVjZWl2ZXIKICAgIGl0eG5fZmllbGQgQW1vdW50CiAgICAvLyBlc2Nyb3cvY29udHJhY3QucHk6MzctMzgKICAgIC8vICMgSW1wbGVtZW50IGZlZSB3aXRoZHJhd2FsIGlubmVyIHRyYW5zYWN0aW9uIGxvZ2ljIGhlcmUuCiAgICAvLyBpdHhuLlBheW1lbnQoCiAgICBpbnRjXzAgLy8gcGF5CiAgICBpdHhuX2ZpZWxkIFR5cGVFbnVtCiAgICAvLyBlc2Nyb3cvY29udHJhY3QucHk6NDEKICAgIC8vIGZlZT0wLAogICAgaW50Y18yIC8vIDAKICAgIGl0eG5fZmllbGQgRmVlCiAgICAvLyBlc2Nyb3cvY29udHJhY3QucHk6MzctNDIKICAgIC8vICMgSW1wbGVtZW50IGZlZSB3aXRoZHJhd2FsIGlubmVyIHRyYW5zYWN0aW9uIGxvZ2ljIGhlcmUuCiAgICAvLyBpdHhuLlBheW1lbnQoCiAgICAvLyAgICAgYW1vdW50PWFtb3VudCwKICAgIC8vICAgICByZWNlaXZlcj1yZWNlaXZlciwKICAgIC8vICAgICBmZWU9MCwKICAgIC8vICkuc3VibWl0KCkKICAgIGl0eG5fc3VibWl0CiAgICAvLyBlc2Nyb3cvY29udHJhY3QucHk6MjkKICAgIC8vIEBhcmM0LmFiaW1ldGhvZAogICAgaW50Y18wIC8vIDEKICAgIHJldHVybgo=",
+        "clear": "I3ByYWdtYSB2ZXJzaW9uIDExCiNwcmFnbWEgdHlwZXRyYWNrIGZhbHNlCgovLyBhbGdvcHkuYXJjNC5BUkM0Q29udHJhY3QuY2xlYXJfc3RhdGVfcHJvZ3JhbSgpIC0+IHVpbnQ2NDoKbWFpbjoKICAgIHB1c2hpbnQgMQogICAgcmV0dXJuCg=="
+    },
+    "byteCode": {
+        "approval": "CyADAQgAJgMFb3duZXIKYmFzZV9wcmljZQpieXRlX3ByaWNlMRkURDEYQQAWggIEDkGXAQT+C3ogNhoAjgIAHQBGAIAETFxhujYaAI4BAAEAKDEAZymB6AdnKiJnIkM2GgFJFSMSRBc2GgJJFSMSRBcxACQoZUQSRDEgMgMSRClPAmcqTGciQzYaAUkVIxJEFzYaAkkVgSASRDEAJChlRBJEMSAyAxJEsbIHsggishAksgGzIkM=",
+        "clear": "C4EBQw=="
+    },
+    "compilerInfo": {
+        "compiler": "puya",
+        "compilerVersion": {
+            "major": 5,
+            "minor": 8,
+            "patch": 1
+        }
+    },
+    "events": [],
+    "templateVariables": {}
+}
