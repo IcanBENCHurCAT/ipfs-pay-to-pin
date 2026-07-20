@@ -15,6 +15,9 @@ class Settings:
     STORAGE_ADAPTER: str = os.getenv("STORAGE_ADAPTER", "local")
     PINATA_JWT: str = os.getenv("PINATA_JWT", "")
     PINATA_ENDPOINT: str = os.getenv("PINATA_ENDPOINT", "https://api.pinata.cloud/pinning/pinFileToIPFS")
+    # Storage settings from main
+    STORAGE_PROVIDER: str = os.getenv("STORAGE_PROVIDER", "local")
+    LOCAL_STORAGE_DIR: str = os.getenv("LOCAL_STORAGE_DIR", "tmp/mock_storage")
 
 settings = Settings()
 
