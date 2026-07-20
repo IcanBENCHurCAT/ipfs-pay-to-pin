@@ -23,4 +23,30 @@ The gateway can be configured using environment variables (or a `.env` file):
 - `STORAGE_ADAPTER`: Choose between `local` (simulated pinning, default) and `pinata` (production pinning via Pinata).
 - `PINATA_JWT`: Your Pinata JWT authorization token (required if `STORAGE_ADAPTER=pinata`).
 - `PINATA_ENDPOINT`: Pinata API endpoint (defaults to `https://api.pinata.cloud/pinning/pinFileToIPFS`).
+- `DATABASE_PATH`: File path for the persistent SQLite database (defaults to `gateway.db`).
+- `ALGOD_ADDRESS`: The URL of the primary Algod node provider (defaults to `http://localhost:4001`).
+- `ALGOD_TOKEN`: The API token for the primary Algod node provider.
+- `ALGOD_FALLBACK_ADDRESSES`: A comma-separated list of fallback Algod node provider URLs to query in case of high availability / rate limit recovery.
+
+## Database Structure
+
+The gateway uses SQLite to persist state across service restarts.
+
+### 1. `processed_transactions` Table
+Tracks successfully verified on-chain payments to prevent double-spend attacks:
+- `txn_id` (TEXT, Primary Key): The 52-character base32 Algorand transaction ID.
+- `sender` (TEXT): Wallet address of the payer.
+- `receiver` (TEXT): Escrow address of the gateway.
+- `amount` (INTEGER): Amount paid in microALGOs.
+- `reference_id` (TEXT): The unique reference ID generated during the x402 challenge.
+- `timestamp` (TEXT): ISO 8601 UTC timestamp when recorded.
+
+### 2. `verification_challenges` Table
+Stores challenge statuses and expiration details:
+- `reference_id` (TEXT, Primary Key): Unique challenge identifier.
+- `expected_amount` (INTEGER): Expected microALGO fee.
+- `escrow_address` (TEXT): Destination address.
+- `status` (TEXT): Status of the challenge (`PENDING`, `VERIFIED`, `REJECTED`, `EXPIRED`).
+- `expires_at` (TEXT): ISO 8601 UTC expiration timestamp.
+
 

@@ -12,3 +12,5 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+*.db
+*.sqlite*
