@@ -40,16 +40,12 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-- [ ] **Smart Contract Language**: Are all smart contracts written in Algorand Python and compiled via the Puya compiler? (AVM 12+)
+- [ ] **Smart Contract Language**: Are all smart contracts written in Algorand Python (`algopy`) and compiled via the Puya compiler?
 - [ ] **RekeyTo Protection**: Are all state-modifying contract methods protected by RekeyTo checks (`Txn.rekey_to() == Account(0)`)?
-- [ ] **Box Storage Limits**: Are keys and storage sizes inside boxes strictly limited (Proof URL <= 512 bytes, Proof JSON <= 2048 bytes, Dispute Reason <= 256 bytes)?
-- [ ] **Karma Ledger Gatekeeping**: If the feature creates or claims bounties, does it integrate with the Karma Ledger and enforce karma tier rules?
-- [ ] **Escrow Funding Verification**: Does it implement dual-layer verification (transaction group validation + application balance check) for funding new escrows?
-- [ ] **Atomic Payout Group**: Are all payout, refund, or split operations structured as atomic groups (app call + contract-as-sender payment)?
-- [ ] **OIDC Security**: Are GitHub Actions automated tests validated securely using GitHub JWKS OIDC tokens?
-- [ ] **Database Compatibility**: Do database operations support both production PostgreSQL (`postgresql+asyncpg://`) and local SQLite?
-- [ ] **Continuous Worker Setup**: Does the background worker/indexer run continuously in a non-throttled GCP Cloud Run environment?
-- [ ] **Mediator Fee Safety Net**: If the feature touches payouts, fees, or claims, does it implement the safety nets (refunding the 0.25% fee to the worker under HITM or undisputed Auto modes, and only splitting/paying mediators if a dispute is mediated in Auto mode)?
+- [ ] **Owner-only Configuration**: Are base-price and per-byte pricing adjustments securely restricted to the contract owner?
+- [ ] **HTTP x402 Protocol Compliance**: Does the API return standard HTTP 402 with appropriate JSON body and standard `X-Algorand-*` headers?
+- [ ] **IPFS Pinning Integration**: Does the pinning workflow output valid IPFS CIDs after verifying the payment on-chain?
+
 
 ## Project Structure
 
