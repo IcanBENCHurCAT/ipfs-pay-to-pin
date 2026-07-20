@@ -12,4 +12,8 @@ class Settings:
     ALGOD_ADDRESS: str = os.getenv("ALGOD_ADDRESS", "http://localhost:4001")
     ALGOD_TOKEN: str = os.getenv("ALGOD_TOKEN", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
 
+    # Storage settings
+    STORAGE_PROVIDER: str = os.getenv("STORAGE_PROVIDER", "local")
+    LOCAL_STORAGE_DIR: str = os.getenv("LOCAL_STORAGE_DIR", "tmp/mock_storage")
+
 settings = Settings()
