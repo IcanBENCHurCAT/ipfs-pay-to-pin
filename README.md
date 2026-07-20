@@ -15,3 +15,12 @@ This service allows developers, dApps, and creators to upload and pin files dire
 - **Smart Contract**: Algorand Python (`algopy`)
 - **Decentralized Storage**: IPFS (via Pinata / local IPFS node)
 - **Testing**: Pytest, local sandbox verification
+
+## Configuration
+
+The gateway can be configured using environment variables (or a `.env` file):
+
+- `STORAGE_ADAPTER`: Choose between `local` (simulated pinning, default) and `pinata` (production pinning via Pinata).
+- `PINATA_JWT`: Your Pinata JWT authorization token (required if `STORAGE_ADAPTER=pinata`).
+- `PINATA_ENDPOINT`: Pinata API endpoint (defaults to `https://api.pinata.cloud/pinning/pinFileToIPFS`).
+
