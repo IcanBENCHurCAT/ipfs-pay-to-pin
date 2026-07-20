@@ -8,21 +8,21 @@ This document tracks the epics, user stories, and specs required to take the IPF
 
 - [x] **AB-PP-001: Pricing & Configuration Contract**
   * As a gateway operator, I want to deploy an Algorand smart contract (`algopy`) that securely manages base-price and per-byte pricing, so that my service fee structure is on-chain, auditable, and easily adjustable.
-- [ ] **AB-PP-002: x402 Dynamic Payment Challenge & Local Verification**
+- [x] **AB-PP-002: x402 Dynamic Payment Challenge & Local Verification**
   * As a client application, I want to upload a file to the gateway, receive a standard HTTP 402 challenge with size-calculated fees, and submit an on-chain transaction reference to verify and complete my file write, so that I pay exactly for the resources I use.
-- [ ] **AB-PP-003: Pluggable Storage & Mock Adapter**
+- [x] **AB-PP-003: Pluggable Storage & Mock Adapter**
   * As a test suite runner, I want a pluggable storage interface with a local file storage mock, so that I can test the API and client flows without active cloud credentials or network latency.
 
 ---
 
 ## Batch 2: Integrations & Production Clients
 
-- [ ] **AB-PP-004: Pinata IPFS Pinning Integration**
+- [x] **AB-PP-004: Pinata IPFS Pinning Integration**
   * As a Web3 gateway operator, I want my storage adapter to forward uploads to Pinata's API, so that verified files are permanently pinned to the decentralized IPFS network.
 - [ ] **AB-PP-005: Production Chain Verification Indexer**
   * As a production gateway host, I want the transaction verification indexer to query live testnet/mainnet node providers (via `algokit-utils`), handle block latency, and double-check transaction notes, so that I prevent double-spend or spoofed payment bypasses.
-- [ ] **AB-PP-006: GCS Storage Adapter Option**
-  * As a private enterprise gateway operator, I want the option to configure Google Cloud Storage as the storage backend instead of IPFS, so that I can run a highly cost-effective, centralized storage fallback.
+- [ ] **AB-PP-006: Supabase Postgres Storage Adapter & Heroku Deployment Option**
+  * As a gateway operator, I want to use Supabase Postgres as a persistent backend storage adapter (instead of GCP) and deploy the gateway to Heroku using Heroku's Postgres integration, so that I can run the service on a free/affordable tier with persistent data structures.
 
 ---
 

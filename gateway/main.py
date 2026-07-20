@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from gateway.config import settings
 from gateway.payment import get_pricing, verify_transaction
-from gateway.storage import get_storage_provider
+from gateway.storage import get_storage_adapter, StorageException
 
 app = FastAPI(
     title="IPFS Pay-to-Pin Gateway",
@@ -14,12 +14,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Initialize storage adapter
+storage_adapter = get_storage_adapter()
+
 # Caches for challenges and spent transactions
 challenges = {}
 spent_txns = set()
-
-# Initialize active storage provider
-storage = get_storage_provider()
 
 # Cleanup task for expired challenges
 def cleanup_expired_challenges():
@@ -123,13 +123,28 @@ async def verify_payment(payload: PinVerificationRequest):
     challenge["paid"] = True
     spent_txns.add(tx_id)
 
-    # Store file to pluggable storage provider and receive mock CID
-    cid = storage.store_file(challenge["content"], challenge["filename"])
+    # Pin file content using configured storage adapter
+    try:
+        ipfs_cid = await storage_adapter.pin_file(
+            content=challenge["content"],
+            filename=challenge["filename"]
+        )
+    except StorageException as e:
+        # Revert paid status if pinning failed so they can retry verification
+        challenge["paid"] = False
+        spent_txns.remove(tx_id)
+        raise HTTPException(status_code=e.status_code, detail=str(e))
+    except Exception as e:
+        challenge["paid"] = False
+        spent_txns.remove(tx_id)
+        raise HTTPException(status_code=500, detail=f"Unexpected pinning error: {str(e)}")
 
     return {
         "status": "success",
         "message": "Payment verified. File pinned permanently.",
         "filename": challenge["filename"],
-        "ipfs_cid": cid,
-        "gateway_url": f"https://ipfs.io/ipfs/{cid}"
+        "ipfs_cid": ipfs_cid,
+        "gateway_url": f"https://ipfs.io/ipfs/{ipfs_cid}"
     }
+
+
