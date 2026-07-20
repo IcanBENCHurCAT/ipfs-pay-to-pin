@@ -1,14 +1,28 @@
 import pytest
+import sqlite3
 from fastapi.testclient import TestClient
-from gateway.main import app, challenges, spent_txns
+from gateway.main import app, challenges
 from gateway.config import settings
+from gateway.database import init_db, get_db_connection
 
 client = TestClient(app)
 
-def test_request_pin_payment_challenge():
+@pytest.fixture(autouse=True)
+def setup_and_cleanup_db():
+    # Initialize the database schema
+    init_db()
+    # Clear the tables before each test to ensure test isolation
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM processed_transactions")
+    cursor.execute("DELETE FROM verification_challenges")
+    conn.commit()
+    conn.close()
+    # Clear the in-memory challenges cache
     challenges.clear()
-    spent_txns.clear()
+    yield
 
+def test_request_pin_payment_challenge():
     file_content = b"Hello World"
     file_size = len(file_content)
 
@@ -39,9 +53,6 @@ def test_request_pin_payment_challenge():
     assert json_data["amount"] == expected_amount
 
 def test_verify_payment_success():
-    challenges.clear()
-    spent_txns.clear()
-
     # 1. Create a challenge
     response = client.post(
         "/api/v1/pin",
@@ -62,9 +73,6 @@ def test_verify_payment_success():
     assert "gateway_url" in json_data
 
 def test_verify_payment_not_found():
-    challenges.clear()
-    spent_txns.clear()
-
     verify_resp = client.post(
         "/api/v1/verify",
         json={"reference_id": "non-existent-uuid", "tx_id": "MOCKED_VALID_TX_123"}
@@ -73,9 +81,6 @@ def test_verify_payment_not_found():
     assert verify_resp.json()["detail"] == "Challenge reference not found."
 
 def test_verify_payment_already_paid():
-    challenges.clear()
-    spent_txns.clear()
-
     # Create challenge
     response = client.post(
         "/api/v1/pin",
@@ -99,9 +104,6 @@ def test_verify_payment_already_paid():
     assert verify_resp2.json()["detail"] == "This challenge has already been paid."
 
 def test_verify_payment_double_spend():
-    challenges.clear()
-    spent_txns.clear()
-
     # Create challenge 1
     resp1 = client.post(
         "/api/v1/pin",
@@ -129,12 +131,9 @@ def test_verify_payment_double_spend():
         json={"reference_id": ref_id2, "tx_id": "MOCKED_VALID_TX_123"}
     )
     assert verify_resp2.status_code == 400
-    assert verify_resp2.json()["detail"] == "Transaction ID has already been spent."
+    assert verify_resp2.json()["detail"] == "Double-spend detected: Transaction already processed."
 
 def test_verify_payment_validation_fails():
-    challenges.clear()
-    spent_txns.clear()
-
     # Create challenge
     response = client.post(
         "/api/v1/pin",
@@ -147,5 +146,5 @@ def test_verify_payment_validation_fails():
         "/api/v1/verify",
         json={"reference_id": ref_id, "tx_id": "MOCKED_WRONG_AMT_TX_123"}
     )
-    assert verify_resp.status_code == 400
-    assert verify_resp.json()["detail"] == "Transaction verification failed."
+    assert verify_resp.status_code == 402
+    assert "Insufficient payment" in verify_resp.json()["detail"]
