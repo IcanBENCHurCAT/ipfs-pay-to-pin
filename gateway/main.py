@@ -1,8 +1,11 @@
 import os
 import uuid
-from fastapi import FastAPI, UploadFile, File, HTTPException, status
+import time
+from fastapi import FastAPI, UploadFile, File, HTTPException, status, BackgroundTasks
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from gateway.config import settings
+from gateway.payment import get_pricing, verify_transaction
 
 app = FastAPI(
     title="IPFS Pay-to-Pin Gateway",
@@ -10,52 +13,67 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# In-memory store for pending payment challenges (replace with Redis/DB in prod)
+# Caches for challenges and spent transactions
 challenges = {}
+spent_txns = set()
+
+# Cleanup task for expired challenges
+def cleanup_expired_challenges():
+    now = time.time()
+    expired_keys = [
+        k for k, v in challenges.items()
+        if not v["paid"] and now > v["created_at"] + 600  # 10 minutes TTL
+    ]
+    for k in expired_keys:
+        del challenges[k]
 
 class PinVerificationRequest(BaseModel):
     reference_id: str
     tx_id: str
 
 @app.post("/api/v1/pin", status_code=status.HTTP_402_PAYMENT_REQUIRED)
-async def request_pin(file: UploadFile = File(...)):
+async def request_pin(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     """
     Receives file upload, caches it, and issues an x402 Payment Challenge.
     """
+    # Evict expired challenges asynchronously
+    background_tasks.add_task(cleanup_expired_challenges)
+
     try:
         content = await file.read()
         file_size = len(content)
-        
-        # Simple dynamic pricing logic (1 microALGO base + 1 microALGO per 1KB)
-        base_price = 1000  # microALGOs
-        kb_price = 1000
-        total_price = base_price + int((file_size / 1024) * kb_price)
-        
-        # Generate challenge reference
+
+        # Retrieve dynamic pricing rates from contract/cache
+        base_price, byte_price = get_pricing(settings.ESCROW_APP_ID)
+        total_price = base_price + file_size * byte_price
+
+        # Generate a unique challenge reference
         ref_id = str(uuid.uuid4())
-        
-        # Cache file content & size mapped to ref_id
+
+        # Cache file content & details mapped to reference_id
         challenges[ref_id] = {
             "content": content,
             "filename": file.filename,
             "size": file_size,
             "price": total_price,
-            "paid": False
+            "paid": False,
+            "created_at": time.time()
         }
-        
+
+        # Build custom HTTP x402 headers
         headers = {
-            "X-Algorand-Address": os.getenv("ESCROW_ADDRESS", "MOCKED_ESCROW_ADDRESS"),
+            "X-Algorand-Address": settings.ESCROW_ADDRESS,
             "X-Algorand-Amount": str(total_price),
             "X-Algorand-Txn-Ref": ref_id
         }
-        
+
         return JSONResponse(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
             content={
                 "message": "Payment required to pin file.",
                 "amount": total_price,
                 "currency": "microALGO",
-                "escrow": os.getenv("ESCROW_ADDRESS", "MOCKED_ESCROW_ADDRESS"),
+                "escrow": settings.ESCROW_ADDRESS,
                 "reference_id": ref_id
             },
             headers=headers
@@ -66,27 +84,44 @@ async def request_pin(file: UploadFile = File(...)):
 @app.post("/api/v1/verify", status_code=status.HTTP_201_CREATED)
 async def verify_payment(payload: PinVerificationRequest):
     """
-    Verifies the on-chain transaction ID matches the challenge reference and price.
-    Pins the file to IPFS upon success.
+    Verifies on-chain transaction matches challenge details.
+    Triggers simulated file pinning on success.
     """
     ref_id = payload.reference_id
+    tx_id = payload.tx_id
+
+    # 1. Validate challenge reference exists
     if ref_id not in challenges:
         raise HTTPException(status_code=404, detail="Challenge reference not found.")
-        
+
     challenge = challenges[ref_id]
+
+    # 2. Check if challenge was already paid
     if challenge["paid"]:
         raise HTTPException(status_code=400, detail="This challenge has already been paid.")
-        
-    # TODO: Verify tx_id on-chain using Algorand Indexer/Algod client.
-    # Check that:
-    # 1. Receiver matches ESCROW_ADDRESS
-    # 2. Amount matches challenge["price"]
-    # 3. Note field or transaction reference matches ref_id
-    
-    # Simulate verification and pinning
+
+    # 3. Prevent double spend of transaction ID
+    if tx_id in spent_txns:
+        raise HTTPException(status_code=400, detail="Transaction ID has already been spent.")
+
+    # 4. Verify transaction properties on-chain
+    is_valid = verify_transaction(
+        tx_id=tx_id,
+        expected_amount=challenge["price"],
+        expected_receiver=settings.ESCROW_ADDRESS,
+        expected_reference=ref_id
+    )
+
+    if not is_valid:
+        raise HTTPException(status_code=400, detail="Transaction verification failed.")
+
+    # Mark as completed
     challenge["paid"] = True
-    mock_ipfs_cid = f"QmYwAPJzv5CZ1sAXXtDURmBNBAeXnuL13xNu18q1eLd8d5"
-    
+    spent_txns.add(tx_id)
+
+    # Simulated successful pinning output
+    mock_ipfs_cid = "QmYwAPJzv5CZ1sAXXtDURmBNBAeXnuL13xNu18q1eLd8d5"
+
     return {
         "status": "success",
         "message": "Payment verified. File pinned permanently.",
