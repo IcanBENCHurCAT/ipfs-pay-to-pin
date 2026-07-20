@@ -19,7 +19,7 @@ This document tracks the epics, user stories, and specs required to take the IPF
 
 - [x] **AB-PP-004: Pinata IPFS Pinning Integration**
   * As a Web3 gateway operator, I want my storage adapter to forward uploads to Pinata's API, so that verified files are permanently pinned to the decentralized IPFS network.
-- [ ] **AB-PP-005: Production Chain Verification Indexer**
+- [x] **AB-PP-005: Production Chain Verification Indexer**
   * As a production gateway host, I want the transaction verification indexer to query live testnet/mainnet node providers (via `algokit-utils`), handle block latency, and double-check transaction notes, so that I prevent double-spend or spoofed payment bypasses.
 - [ ] **AB-PP-006: Supabase Postgres Storage Adapter & Heroku Deployment Option**
   * As a gateway operator, I want to use Supabase Postgres as a persistent backend storage adapter (instead of GCP) and deploy the gateway to Heroku using Heroku's Postgres integration, so that I can run the service on a free/affordable tier with persistent data structures.
@@ -28,7 +28,41 @@ This document tracks the epics, user stories, and specs required to take the IPF
 
 ## Batch 3: Turnkey Deployment & SDKs
 
-- [ ] **AB-PP-007: Docker Compose & Deployment Automation**
+- [/] **AB-PP-007: Docker Compose & Deployment Automation** (Procfile and requirements.txt created)
   * As a system administrator, I want a single-command Docker Compose setup that spins up the FastAPI app, compiles the contract, and exposes the gateway, so that deployment onto cloud hosts is turnkey and automated.
 - [ ] **AB-PP-008: Client SDK & CLI Integration**
   * As an application developer, I want a lightweight Python library or CLI client that automates the `POST file -> Sign x402 transaction -> POST verification -> Receive CID` lifecycle, so that I can integrate pay-per-request storage in less than 5 lines of code.
+
+---
+
+## MVP: Heroku Testnet Deployment (Today)
+
+To deploy the gateway to Heroku for Testnet validation:
+
+### 1. Heroku Environment Variables
+Configure the following env vars in your Heroku App Dashboard (Settings > Config Vars) or via CLI:
+- `ALGORAND_NETWORK=testnet`
+- `ALGOD_ADDRESS=https://testnet-api.algonode.cloud` *(Free, high-reliability testnet provider)*
+- `ALGOD_TOKEN=""` *(Algonode does not require a token)*
+- `ESCROW_ADDRESS=YOUR_TESTNET_ESCROW_ADDRESS` *(The deployed smart contract escrow account)*
+- `ESCROW_APP_ID=YOUR_TESTNET_APP_ID`
+- `STORAGE_ADAPTER=pinata` *(or local if testing mock pinning)*
+- `PINATA_JWT=YOUR_PINATA_JWT`
+- `DATABASE_PATH=/app/gateway.db` *(Temporary SQLite path on the dyno ephemeral storage)*
+
+> [!WARNING]
+> Heroku Dyno ephemeral storage resets database records on daily restarts. To solve this for production, configure a PostgreSQL addon and implement a Postgres storage adapter (described in `AB-PP-006`).
+
+### 2. Deployment Command Checklist
+```bash
+# Add new deployment files
+git add Procfile requirements.txt next_steps.md
+git commit -m "deploy: add Procfile, requirements.txt, and update next steps"
+
+# Create a Heroku App (if not already done)
+heroku create ipfs-pay-to-pin-gateway
+
+# Push branch to Heroku main branch
+git push heroku 004-chain-verification:main
+```
+
