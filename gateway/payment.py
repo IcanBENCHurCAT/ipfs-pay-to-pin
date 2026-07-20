@@ -3,8 +3,28 @@ import time
 from algosdk.v2client import algod
 from gateway.config import settings
 
-# Initialize Algod Client
-algod_client = algod.AlgodClient(settings.ALGOD_TOKEN, settings.ALGOD_ADDRESS)
+def get_algod_client() -> algod.AlgodClient:
+    """
+    Get an active Algod client, trying the primary address first and then fallback addresses.
+    """
+    client = algod.AlgodClient(settings.ALGOD_TOKEN, settings.ALGOD_ADDRESS)
+    try:
+        client.health()
+        return client
+    except Exception:
+        pass
+
+    if settings.ALGOD_FALLBACK_ADDRESSES:
+        fallback_addrs = [addr.strip() for addr in settings.ALGOD_FALLBACK_ADDRESSES.split(",") if addr.strip()]
+        for addr in fallback_addrs:
+            client = algod.AlgodClient(settings.ALGOD_TOKEN, addr)
+            try:
+                client.health()
+                return client
+            except Exception:
+                continue
+
+    return algod.AlgodClient(settings.ALGOD_TOKEN, settings.ALGOD_ADDRESS)
 
 # In-memory pricing cache structure
 _pricing_cache = {
@@ -23,7 +43,8 @@ def get_pricing_from_contract(app_id: int) -> tuple[int, int]:
         return 1000, 1
 
     try:
-        app_info = algod_client.application_info(app_id)
+        client = get_algod_client()
+        app_info = client.application_info(app_id)
         global_state = app_info.get("params", {}).get("global-state", [])
 
         base_price = 1000
@@ -59,10 +80,11 @@ def get_pricing(app_id: int) -> tuple[int, int]:
 
     return base, byte
 
-def verify_transaction(tx_id: str, expected_amount: int, expected_receiver: str, expected_reference: str) -> bool:
+def verify_transaction(tx_id: str, expected_amount: int, expected_receiver: str, expected_reference: str) -> tuple[bool, str | None, str | None]:
     """
-    Verify payment transaction on-chain using algod client.
+    Verify payment transaction on-chain using algod client with exponential backoff retries.
     Supports local mockup verification for 'MOCKED_' prefix tx IDs.
+    Returns (is_valid, sender_address, error_reason).
     """
     if tx_id.startswith("MOCKED_"):
         # MOCKED_VALID_123 -> valid payment
@@ -70,63 +92,80 @@ def verify_transaction(tx_id: str, expected_amount: int, expected_receiver: str,
         # MOCKED_WRONG_RCV_123 -> wrong receiver mock
         # MOCKED_WRONG_REF_123 -> wrong reference mock
         if "WRONG_AMT" in tx_id:
-            return False
+            return False, None, "Insufficient payment. Expected 50000 microALGOs, received 10000."
         if "WRONG_RCV" in tx_id:
-            return False
+            return False, None, "Transaction verification failed."
         if "WRONG_REF" in tx_id:
-            return False
-        return True
+            return False, None, "Transaction verification failed."
+        return True, "MOCKED_SENDER_ADDRESS", None
 
-    try:
-        tx_info = algod_client.pending_transaction_info(tx_id)
-        txn_container = tx_info.get("txn", {})
-        txn_inner = txn_container.get("txn", {})
+    start_time = time.time()
+    delay = 1.0
+    timeout = 10.0
 
-        # 1. Verify transaction type is payment
-        tx_type = txn_inner.get("type") or txn_container.get("type")
-        if tx_type != "pay":
-            return False
-
-        # 2. Verify receiver address
-        receiver = txn_inner.get("rcv") or txn_container.get("rcv")
-        # Algosdk uses base64 or raw bytes in some formats.
-        # Ensure we decode/compare properly
-        # For simplicity, if we get raw bytes from the API, base32 encode it
-        # pendings are usually dicts with raw values
-        if isinstance(receiver, bytes):
-            from algosdk import encoding
-            receiver = encoding.encode_address(receiver)
-        
-        if receiver != expected_receiver:
-            return False
-
-        # 3. Verify amount (microALGOs)
-        amount = txn_inner.get("amt") or txn_container.get("amt") or 0
-        if amount < expected_amount:
-            return False
-
-        # 4. Verify note matches the expected reference ID (decoded UTF-8 string)
-        note_b64 = txn_inner.get("note") or txn_container.get("note") or b""
-        if not note_b64:
-            return False
-
+    while time.time() - start_time < timeout:
         try:
-            if isinstance(note_b64, str):
-                decoded_note = base64.b64decode(note_b64).decode("utf-8")
-            else:
-                decoded_note = note_b64.decode("utf-8")
+            client = get_algod_client()
+            tx_info = client.pending_transaction_info(tx_id)
+            txn_container = tx_info.get("txn", {})
+            txn_inner = txn_container.get("txn", {})
+
+            # 1. Verify transaction type is payment
+            tx_type = txn_inner.get("type") or txn_container.get("type")
+            if tx_type != "pay":
+                return False, None, "Transaction verification failed."
+
+            # 2. Verify receiver address
+            receiver = txn_inner.get("rcv") or txn_container.get("rcv")
+            if isinstance(receiver, bytes):
+                from algosdk import encoding
+                receiver = encoding.encode_address(receiver)
+            
+            if receiver != expected_receiver:
+                return False, None, "Transaction verification failed."
+
+            # 3. Verify amount (microALGOs)
+            amount = txn_inner.get("amt") or txn_container.get("amt") or 0
+            if amount < expected_amount:
+                return False, None, f"Insufficient payment. Expected {expected_amount} microALGOs, received {amount}."
+
+            # 4. Verify note matches the expected reference ID
+            note_b64 = txn_inner.get("note") or txn_container.get("note") or b""
+            if not note_b64:
+                return False, None, "Transaction verification failed."
+
+            try:
+                if isinstance(note_b64, str):
+                    decoded_note = base64.b64decode(note_b64).decode("utf-8")
+                else:
+                    decoded_note = note_b64.decode("utf-8")
+            except Exception:
+                return False, None, "Transaction verification failed."
+
+            if decoded_note != expected_reference:
+                return False, None, "Transaction verification failed."
+
+            # 5. Verify transaction is confirmed
+            confirmed_round = tx_info.get("confirmed-round", 0)
+            if confirmed_round <= 0:
+                # Still pending in pool, wait and retry
+                time.sleep(delay)
+                delay = min(delay * 2.0, timeout - (time.time() - start_time))
+                continue
+
+            # Extract sender address
+            sender = txn_inner.get("snd") or txn_container.get("snd")
+            if isinstance(sender, bytes):
+                from algosdk import encoding
+                sender = encoding.encode_address(sender)
+
+            return True, sender, None
+
         except Exception:
-            return False
+            # Transaction might not be on-chain or pool yet, wait and retry
+            if time.time() - start_time + delay >= timeout:
+                break
+            time.sleep(delay)
+            delay = min(delay * 2.0, timeout - (time.time() - start_time))
 
-        if decoded_note != expected_reference:
-            return False
-
-        # 5. Verify transaction is confirmed
-        confirmed_round = tx_info.get("confirmed-round", 0)
-        if confirmed_round <= 0:
-            # For transaction confirmation latency, allow if it's confirmed
-            return False
-
-        return True
-    except Exception:
-        return False
+    return False, None, "Transaction not found on the network."
