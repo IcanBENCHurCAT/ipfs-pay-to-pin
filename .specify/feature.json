@@ -1,5 +1,3 @@
 {
-  "id": "AB-PP-001",
-  "title": "Pricing & Configuration Contract",
-  "description": "As a gateway operator, I want to deploy an Algorand smart contract (algopy) that securely manages base-price and per-byte pricing, so that my service fee structure is on-chain, auditable, and easily adjustable."
+  "feature_directory": "specs/001-pricing-contract"
 }
