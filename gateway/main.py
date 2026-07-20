@@ -17,7 +17,6 @@ app = FastAPI(
 # Initialize storage adapter
 storage_adapter = get_storage_adapter()
 
-
 # Caches for challenges and spent transactions
 challenges = {}
 spent_txns = set()
@@ -147,4 +146,5 @@ async def verify_payment(payload: PinVerificationRequest):
         "ipfs_cid": ipfs_cid,
         "gateway_url": f"https://ipfs.io/ipfs/{ipfs_cid}"
     }
+
 
