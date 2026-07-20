@@ -17,7 +17,7 @@ This document tracks the epics, user stories, and specs required to take the IPF
 
 ## Batch 2: Integrations & Production Clients
 
-- [ ] **AB-PP-004: Pinata IPFS Pinning Integration**
+- [x] **AB-PP-004: Pinata IPFS Pinning Integration**
   * As a Web3 gateway operator, I want my storage adapter to forward uploads to Pinata's API, so that verified files are permanently pinned to the decentralized IPFS network.
 - [ ] **AB-PP-005: Production Chain Verification Indexer**
   * As a production gateway host, I want the transaction verification indexer to query live testnet/mainnet node providers (via `algokit-utils`), handle block latency, and double-check transaction notes, so that I prevent double-spend or spoofed payment bypasses.
