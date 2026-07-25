@@ -55,7 +55,7 @@ def test_request_pin_payment_challenge():
     # Verify JSON payload
     json_data = response.json()
     assert json_data["message"] == "Payment required to pin file."
-    assert json_data["currency"] == "microALGO"
+    assert json_data["currency"] == settings.PAYMENT_CURRENCY
     assert json_data["escrow"] == settings.ESCROW_ADDRESS
     assert "reference_id" in json_data
     assert json_data["reference_id"] == response.headers["X-Algorand-Txn-Ref"]
@@ -150,3 +150,13 @@ def test_verify_payment_validation_fails():
     )
     assert verify_resp.status_code == 402
     assert "Insufficient payment" in verify_resp.json()["detail"]
+
+def test_request_pin_exceeds_max_file_size():
+    with patch.object(settings, "MAX_FILE_SIZE_BYTES", 10):
+        response = client.post(
+            "/api/v1/pin",
+            files={"file": ("too_large.txt", b"123456789012345", "text/plain")}
+        )
+        assert response.status_code == 413
+        assert "File size exceeds maximum allowed limit" in response.json()["detail"]
+
