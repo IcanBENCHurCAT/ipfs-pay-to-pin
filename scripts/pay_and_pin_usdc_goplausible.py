@@ -17,7 +17,7 @@ USDC_ID = 31566704
 CAIP2_NETWORK = "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8="
 
 def main():
-    # 1. Create a small 20x20 badge image
+    # 1. Create a small badge image
     img = Image.new('RGB', (20, 20), color='teal')
     buffer = BytesIO()
     img.save(buffer, format='PNG')
@@ -63,7 +63,7 @@ def main():
     print(f" - Escrow Address: {escrow_address}")
     print(f" - Reference ID: {ref_id}")
 
-    # 3. Construct USDC AssetTransferTxn (axfer) on Mainnet
+    # 3. Construct USDC AssetTransferTxn (axfer)
     params = client.suggested_params()
     note_bytes = ref_id.encode("utf-8")
 
@@ -80,14 +80,7 @@ def main():
     tx_id = signed_txn.get_txid()
     raw_signed_b64 = encoding.msgpack_encode(signed_txn)
 
-    print(f"Submitting USDC AssetTransferTxn to Mainnet... Tx ID: {tx_id}")
-    client.send_transaction(signed_txn)
-
-    print("Waiting for Mainnet transaction confirmation...")
-    confirmed = transaction.wait_for_confirmation(client, tx_id, 5)
-    print(f"Confirmed in round: {confirmed['confirmed-round']}")
-
-    # 4. Submit Verification Payload to GoPlausible Facilitator /verify
+    # 4. FIRST: Submit Verification Payload to GoPlausible Facilitator /verify BEFORE on-chain submission
     print("\n" + "="*60)
     print("SUBMITTING VERIFICATION TO GOPLAUSIBLE FACILITATOR...")
     print("="*60)
@@ -108,7 +101,7 @@ def main():
             "network": CAIP2_NETWORK,
             "payTo": escrow_address,
             "amount": str(amount),
-            "asset": asset_id,
+            "asset": str(asset_id),
             "reference": ref_id,
             "resourceUrl": f"{MAINNET_HEROKU_URL}/api/v1/pin",
             "method": "POST"
@@ -126,7 +119,15 @@ def main():
     except Exception as e:
         print(f"GoPlausible request error: {e}")
 
-    # 5. Verify with Heroku Gateway API to finalize pinning
+    # 5. NOW: Submit Txn to Mainnet
+    print(f"\nSubmitting USDC AssetTransferTxn to Mainnet... Tx ID: {tx_id}")
+    client.send_transaction(signed_txn)
+
+    print("Waiting for Mainnet transaction confirmation...")
+    confirmed = transaction.wait_for_confirmation(client, tx_id, 5)
+    print(f"Confirmed in round: {confirmed['confirmed-round']}")
+
+    # 6. Verify with Heroku Gateway API to finalize pinning
     print("\nVerifying with Heroku Gateway API to finalize pin...")
     verify_resp = requests.post(
         f"{MAINNET_HEROKU_URL}/api/v1/verify",
