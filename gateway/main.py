@@ -4,9 +4,12 @@ import time
 import json
 import base64
 from typing import Optional
-from fastapi import FastAPI, UploadFile, File, HTTPException, status, BackgroundTasks, Header
+from fastapi import FastAPI, UploadFile, File, HTTPException, status, BackgroundTasks, Header, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 from gateway.config import settings
 from gateway.payment import get_pricing, verify_transaction
@@ -20,16 +23,20 @@ from gateway.database import (
     update_challenge_status
 )
 
+limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
     title="IPFS Pay-to-Pin Gateway",
     description="An x402-gated API to pin files to IPFS using Algorand micropayments",
     version="1.0.0"
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.on_event("startup")
 def on_startup():
     init_db()
+    os.makedirs(settings.TEMP_CHALLENGE_DIR, exist_ok=True)
 
 @app.get("/")
 def root():
@@ -39,8 +46,6 @@ def root():
         "network": settings.ALGORAND_NETWORK,
         "docs_url": "/docs"
     }
-
-
 
 # Initialize storage adapter
 storage_adapter = get_storage_adapter()
@@ -56,6 +61,12 @@ def cleanup_expired_challenges():
         if not v["paid"] and now > v["created_at"] + 600  # 10 minutes TTL
     ]
     for k in expired_keys:
+        filepath = challenges[k].get("filepath")
+        if filepath and os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
         del challenges[k]
 
 class PinVerificationRequest(BaseModel):
@@ -63,9 +74,11 @@ class PinVerificationRequest(BaseModel):
     tx_id: Optional[str] = None
 
 @app.post("/api/v1/pin", status_code=status.HTTP_402_PAYMENT_REQUIRED)
-async def request_pin(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+@limiter.limit(settings.RATE_LIMIT_PIN)
+async def request_pin(request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...)):
     """
-    Receives file upload, caches it, and issues an x402 Payment Challenge.
+    Receives file upload, caches it to ephemeral temp disk, and issues an x402 Payment Challenge.
+    Enforces maximum file size limit and rate limiting.
     """
     # Evict expired challenges asynchronously
     background_tasks.add_task(cleanup_expired_challenges)
@@ -74,6 +87,13 @@ async def request_pin(background_tasks: BackgroundTasks, file: UploadFile = File
         content = await file.read()
         file_size = len(content)
 
+        if file_size > settings.MAX_FILE_SIZE_BYTES:
+            max_mb = settings.MAX_FILE_SIZE_BYTES // (1024 * 1024)
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File size exceeds maximum allowed limit of {max_mb} MB."
+            )
+
         # Retrieve dynamic pricing rates from contract/cache
         base_price, byte_price = get_pricing(settings.ESCROW_APP_ID)
         total_price = base_price + file_size * byte_price
@@ -81,9 +101,14 @@ async def request_pin(background_tasks: BackgroundTasks, file: UploadFile = File
         # Generate a unique challenge reference
         ref_id = str(uuid.uuid4())
 
-        # Cache file content & details mapped to reference_id
+        # Save payload to ephemeral temp disk cache to prevent RAM exhaustion
+        os.makedirs(settings.TEMP_CHALLENGE_DIR, exist_ok=True)
+        filepath = os.path.join(settings.TEMP_CHALLENGE_DIR, f"{ref_id}.tmp")
+        with open(filepath, "wb") as f:
+            f.write(content)
+
         challenges[ref_id] = {
-            "content": content,
+            "filepath": filepath,
             "filename": file.filename,
             "size": file_size,
             "price": total_price,
@@ -91,7 +116,7 @@ async def request_pin(background_tasks: BackgroundTasks, file: UploadFile = File
             "created_at": time.time()
         }
 
-        # Create challenge in SQLite database
+        # Create challenge in database
         create_challenge(
             reference_id=ref_id,
             expected_amount=total_price,
@@ -133,6 +158,8 @@ async def request_pin(background_tasks: BackgroundTasks, file: UploadFile = File
             },
             headers=headers
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -144,8 +171,7 @@ async def verify_payment(
 ):
     """
     Verifies on-chain transaction matches challenge details.
-    Triggers simulated file pinning on success.
-    Supports both JSON body and PAYMENT-SIGNATURE HTTP header formats.
+    Triggers file pinning on success.
     """
     sig_header = payment_signature or x_payment
     ref_id = None
@@ -167,17 +193,25 @@ async def verify_payment(
         else:
             raise HTTPException(status_code=400, detail="Missing payment verification reference_id or tx_id.")
 
-
-    # 1. Validate challenge reference exists in-memory cache
-    if ref_id not in challenges:
-        raise HTTPException(status_code=404, detail="Challenge reference not found.")
-
-    challenge = challenges[ref_id]
-
-    # Retrieve challenge metadata from database
+    # 1. Validate challenge reference exists in database
     db_challenge = get_challenge(ref_id)
     if not db_challenge:
         raise HTTPException(status_code=404, detail="Challenge reference not found.")
+
+    filepath = os.path.join(settings.TEMP_CHALLENGE_DIR, f"{ref_id}.tmp")
+    if ref_id in challenges:
+        challenge = challenges[ref_id]
+    else:
+        # Reconstruct challenge from database + disk for multi-worker support
+        challenge = {
+            "filepath": filepath,
+            "filename": f"pinned_{ref_id[:8]}.jpg",
+            "price": db_challenge["expected_amount"],
+            "paid": db_challenge["status"] == "VERIFIED",
+            "created_at": time.time()
+        }
+        challenges[ref_id] = challenge
+
 
     # 2. Check if challenge is expired
     import datetime
@@ -187,7 +221,6 @@ async def verify_payment(
     if datetime.datetime.now(datetime.UTC) > expires_at_dt:
         update_challenge_status(ref_id, "EXPIRED")
         raise HTTPException(status_code=404, detail="Challenge reference not found.")
-
 
     # Check if challenge was already paid
     if db_challenge["status"] == "VERIFIED" or challenge["paid"]:
@@ -213,6 +246,14 @@ async def verify_payment(
         update_challenge_status(ref_id, "REJECTED")
         raise HTTPException(status_code=400, detail=error_reason or "Transaction verification failed.")
 
+    # Retrieve content from disk temp storage or in-memory fallback
+    filepath = challenge.get("filepath")
+    if filepath and os.path.exists(filepath):
+        with open(filepath, "rb") as f:
+            file_content = f.read()
+    else:
+        file_content = challenge.get("content", b"")
+
     # Mark as completed
     challenge["paid"] = True
     update_challenge_status(ref_id, "VERIFIED")
@@ -227,9 +268,15 @@ async def verify_payment(
     # Pin file content using configured storage adapter
     try:
         ipfs_cid = await storage_adapter.pin_file(
-            content=challenge["content"],
+            content=file_content,
             filename=challenge["filename"]
         )
+        # Clean up temp file on successful pin
+        if filepath and os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception:
+                pass
     except StorageException as e:
         # Revert paid status if pinning failed so they can retry verification
         challenge["paid"] = False
@@ -243,7 +290,6 @@ async def verify_payment(
         from gateway.database import delete_transaction
         delete_transaction(tx_id)
         raise HTTPException(status_code=500, detail=f"Unexpected pinning error: {str(e)}")
-
 
     return {
         "status": "success",

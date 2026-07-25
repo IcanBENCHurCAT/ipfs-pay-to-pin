@@ -26,10 +26,14 @@ class Settings:
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
 
-    # Fallback Algod nodes (comma-separated list)
-    ALGOD_FALLBACK_ADDRESSES: str = os.getenv("ALGOD_FALLBACK_ADDRESSES", "")
-
-
+    # Protection & Limit Settings
+    MAX_FILE_SIZE_BYTES: int = int(os.getenv("MAX_FILE_SIZE_BYTES", str(50 * 1024 * 1024)))  # Default 50 MB
+    RATE_LIMIT_PIN: str = os.getenv("RATE_LIMIT_PIN", "10/minute")
+    TEMP_CHALLENGE_DIR: str = os.getenv("TEMP_CHALLENGE_DIR", "")
 
 settings = Settings()
+if not settings.TEMP_CHALLENGE_DIR:
+    import tempfile
+    settings.TEMP_CHALLENGE_DIR = os.path.join(tempfile.gettempdir(), "pay_to_pin_challenges")
+
 
