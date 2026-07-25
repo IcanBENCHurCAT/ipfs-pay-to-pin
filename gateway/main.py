@@ -142,6 +142,8 @@ async def request_pin(request: Request, background_tasks: BackgroundTasks, file:
             "asset": str(settings.USDC_ASSET_ID),
             "reference": ref_id,
             "facilitator": "https://facilitator.goplausible.xyz",
+            "resourceUrl": f"{request.base_url}api/v1/pin",
+            "method": "POST",
             "name": "IPFS Pay-to-Pin Gateway",
             "resourceName": "IPFS File Pinning Service",
             "provider": "IPFS Pay-to-Pin",
@@ -150,6 +152,7 @@ async def request_pin(request: Request, background_tasks: BackgroundTasks, file:
             "icon": "https://amber-extensive-crawdad-745.mypinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy",
             "image": "https://amber-extensive-crawdad-745.mypinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy"
         }
+
 
         encoded_spec = base64.b64encode(json.dumps(x402_spec).encode("utf-8")).decode("utf-8")
 
