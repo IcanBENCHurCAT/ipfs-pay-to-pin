@@ -31,9 +31,17 @@ class Settings:
     RATE_LIMIT_PIN: str = os.getenv("RATE_LIMIT_PIN", "10/minute")
     TEMP_CHALLENGE_DIR: str = os.getenv("TEMP_CHALLENGE_DIR", "")
 
+    # USDC & Asset Configuration (31566704 on Mainnet, 10458941 on Testnet)
+    USDC_ASSET_ID: int = int(os.getenv(
+        "USDC_ASSET_ID",
+        "31566704" if os.getenv("ALGORAND_NETWORK", "localnet").lower() == "mainnet" else "10458941"
+    ))
+    PAYMENT_CURRENCY: str = os.getenv("PAYMENT_CURRENCY", "USDC")
+
 settings = Settings()
 if not settings.TEMP_CHALLENGE_DIR:
     import tempfile
     settings.TEMP_CHALLENGE_DIR = os.path.join(tempfile.gettempdir(), "pay_to_pin_challenges")
+
 
 

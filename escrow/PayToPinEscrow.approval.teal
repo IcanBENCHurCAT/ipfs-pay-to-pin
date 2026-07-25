@@ -3,109 +3,203 @@
 
 // algopy.arc4.ARC4Contract.approval_program() -> uint64:
 main:
-    intcblock 1 8 0
+    intcblock 0 1 8 4
     bytecblock "owner" "base_price" "byte_price"
-    // escrow/contract.py:3
+    // contract.py:3
+    // class PayToPinEscrow(ARC4Contract):
+    pushbytess 0xb53e2593 0x33b3499e // method "update_application()void", method "delete_application()void"
+    txna ApplicationArgs 0
+    match main_update_application_route@4 main_delete_application_route@5
+
+main_switch_case_next@6:
+    // contract.py:3
     // class PayToPinEscrow(ARC4Contract):
     txn OnCompletion
     !
     assert
     txn ApplicationID
-    bz main_create_NoOp@8
-    pushbytess 0x0e419701 0xfe0b7a20 // method "update_pricing(uint64,uint64)void", method "withdraw_fees(uint64,address)void"
+    bz main_create_NoOp@13
+    pushbytess 0x0e419701 0xe3cdef3b 0xfe0b7a20 0xa4c3a09a // method "update_pricing(uint64,uint64)void", method "opt_in_asset(uint64)void", method "withdraw_fees(uint64,address)void", method "withdraw_assets(uint64,uint64,address)void"
     txna ApplicationArgs 0
-    match update_pricing withdraw_fees
+    match update_pricing opt_in_asset withdraw_fees withdraw_assets
     err
 
-main_create_NoOp@8:
-    // escrow/contract.py:3
+main_create_NoOp@13:
+    // contract.py:3
     // class PayToPinEscrow(ARC4Contract):
     pushbytes 0x4c5c61ba // method "create()void"
     txna ApplicationArgs 0
     match create
     err
 
+main_delete_application_route@5:
+    // contract.py:81
+    // @arc4.abimethod(allow_actions=["DeleteApplication"])
+    txn OnCompletion
+    pushint 5 // DeleteApplication
+    ==
+    txn ApplicationID
+    &&
+    assert
+    b delete_application
+
+main_update_application_route@4:
+    // contract.py:73
+    // @arc4.abimethod(allow_actions=["UpdateApplication"])
+    txn OnCompletion
+    intc_3 // UpdateApplication
+    ==
+    txn ApplicationID
+    &&
+    assert
+    b update_application
+
 
 // contract.PayToPinEscrow.create[routing]() -> void:
 create:
-    // escrow/contract.py:15
+    // contract.py:15
     // self.owner.value = Txn.sender
     bytec_0 // "owner"
     txn Sender
     app_global_put
-    // escrow/contract.py:16
-    // self.base_price.value = UInt64(1000)  # base microALGO price
+    // contract.py:16
+    // self.base_price.value = UInt64(1000)  # base microALGO / microUSDC price
     bytec_1 // "base_price"
     pushint 1000
     app_global_put
-    // escrow/contract.py:17
-    // self.byte_price.value = UInt64(1)     # microALGOs per byte
+    // contract.py:17
+    // self.byte_price.value = UInt64(1)     # microALGOs / microUSDCs per byte
     bytec_2 // "byte_price"
-    intc_0 // 1
+    intc_1 // 1
     app_global_put
-    // escrow/contract.py:13
+    // contract.py:13
     // @arc4.abimethod(create="require")
-    intc_0 // 1
+    intc_1 // 1
     return
 
 
 // contract.PayToPinEscrow.update_pricing[routing]() -> void:
 update_pricing:
-    // escrow/contract.py:19
+    // contract.py:19
     // @arc4.abimethod
     txna ApplicationArgs 1
     dup
     len
-    intc_1 // 8
+    intc_2 // 8
     ==
     assert // invalid number of bytes for arc4.uint64
     btoi
     txna ApplicationArgs 2
     dup
     len
-    intc_1 // 8
+    intc_2 // 8
     ==
     assert // invalid number of bytes for arc4.uint64
     btoi
-    // escrow/contract.py:24
+    // contract.py:24
     // assert Txn.sender == self.owner.value, "Only owner can update pricing"
     txn Sender
-    intc_2 // 0
+    intc_0 // 0
     bytec_0 // "owner"
     app_global_get_ex
     assert // check self.owner exists
     ==
     assert // Only owner can update pricing
-    // escrow/contract.py:25
+    // contract.py:25
     // assert Txn.rekey_to == Global.zero_address, "Transaction must not rekey the account"
     txn RekeyTo
     global ZeroAddress
     ==
     assert // Transaction must not rekey the account
-    // escrow/contract.py:26
+    // contract.py:26
     // self.base_price.value = new_base
     bytec_1 // "base_price"
     uncover 2
     app_global_put
-    // escrow/contract.py:27
+    // contract.py:27
     // self.byte_price.value = new_byte_price
     bytec_2 // "byte_price"
     swap
     app_global_put
-    // escrow/contract.py:19
+    // contract.py:19
     // @arc4.abimethod
-    intc_0 // 1
+    intc_1 // 1
+    return
+
+
+// contract.PayToPinEscrow.opt_in_asset[routing]() -> void:
+opt_in_asset:
+    // contract.py:29
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    // contract.py:34
+    // assert Txn.sender == self.owner.value, "Only owner can opt in to assets"
+    txn Sender
+    intc_0 // 0
+    bytec_0 // "owner"
+    app_global_get_ex
+    assert // check self.owner exists
+    ==
+    assert // Only owner can opt in to assets
+    // contract.py:35
+    // assert Txn.rekey_to == Global.zero_address, "Transaction must not rekey the account"
+    txn RekeyTo
+    global ZeroAddress
+    ==
+    assert // Transaction must not rekey the account
+    // contract.py:37-42
+    // itxn.AssetTransfer(
+    //     xfer_asset=asset,
+    //     asset_amount=0,
+    //     asset_receiver=Global.current_application_address,
+    //     fee=0,
+    // ).submit()
+    itxn_begin
+    // contract.py:40
+    // asset_receiver=Global.current_application_address,
+    global CurrentApplicationAddress
+    itxn_field AssetReceiver
+    // contract.py:39
+    // asset_amount=0,
+    intc_0 // 0
+    itxn_field AssetAmount
+    itxn_field XferAsset
+    // contract.py:37
+    // itxn.AssetTransfer(
+    intc_3 // axfer
+    itxn_field TypeEnum
+    // contract.py:41
+    // fee=0,
+    intc_0 // 0
+    itxn_field Fee
+    // contract.py:37-42
+    // itxn.AssetTransfer(
+    //     xfer_asset=asset,
+    //     asset_amount=0,
+    //     asset_receiver=Global.current_application_address,
+    //     fee=0,
+    // ).submit()
+    itxn_submit
+    // contract.py:29
+    // @arc4.abimethod
+    intc_1 // 1
     return
 
 
 // contract.PayToPinEscrow.withdraw_fees[routing]() -> void:
 withdraw_fees:
-    // escrow/contract.py:29
+    // contract.py:44
     // @arc4.abimethod
     txna ApplicationArgs 1
     dup
     len
-    intc_1 // 8
+    intc_2 // 8
     ==
     assert // invalid number of bytes for arc4.uint64
     btoi
@@ -115,23 +209,22 @@ withdraw_fees:
     pushint 32
     ==
     assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
-    // escrow/contract.py:34
+    // contract.py:49
     // assert Txn.sender == self.owner.value, "Only owner can withdraw fees"
     txn Sender
-    intc_2 // 0
+    intc_0 // 0
     bytec_0 // "owner"
     app_global_get_ex
     assert // check self.owner exists
     ==
     assert // Only owner can withdraw fees
-    // escrow/contract.py:35
+    // contract.py:50
     // assert Txn.rekey_to == Global.zero_address, "Transaction must not rekey the account"
     txn RekeyTo
     global ZeroAddress
     ==
     assert // Transaction must not rekey the account
-    // escrow/contract.py:37-42
-    // # Implement fee withdrawal inner transaction logic here.
+    // contract.py:52-56
     // itxn.Payment(
     //     amount=amount,
     //     receiver=receiver,
@@ -140,24 +233,167 @@ withdraw_fees:
     itxn_begin
     itxn_field Receiver
     itxn_field Amount
-    // escrow/contract.py:37-38
-    // # Implement fee withdrawal inner transaction logic here.
+    // contract.py:52
     // itxn.Payment(
-    intc_0 // pay
+    intc_1 // pay
     itxn_field TypeEnum
-    // escrow/contract.py:41
+    // contract.py:55
     // fee=0,
-    intc_2 // 0
+    intc_0 // 0
     itxn_field Fee
-    // escrow/contract.py:37-42
-    // # Implement fee withdrawal inner transaction logic here.
+    // contract.py:52-56
     // itxn.Payment(
     //     amount=amount,
     //     receiver=receiver,
     //     fee=0,
     // ).submit()
     itxn_submit
-    // escrow/contract.py:29
+    // contract.py:44
     // @arc4.abimethod
-    intc_0 // 1
+    intc_1 // 1
+    return
+
+
+// contract.PayToPinEscrow.withdraw_assets[routing]() -> void:
+withdraw_assets:
+    // contract.py:58
+    // @arc4.abimethod
+    txna ApplicationArgs 1
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 2
+    dup
+    len
+    intc_2 // 8
+    ==
+    assert // invalid number of bytes for arc4.uint64
+    btoi
+    txna ApplicationArgs 3
+    dup
+    len
+    pushint 32
+    ==
+    assert // invalid number of bytes for arc4.static_array<arc4.uint8, 32>
+    // contract.py:63
+    // assert Txn.sender == self.owner.value, "Only owner can withdraw asset fees"
+    txn Sender
+    intc_0 // 0
+    bytec_0 // "owner"
+    app_global_get_ex
+    assert // check self.owner exists
+    ==
+    assert // Only owner can withdraw asset fees
+    // contract.py:64
+    // assert Txn.rekey_to == Global.zero_address, "Transaction must not rekey the account"
+    txn RekeyTo
+    global ZeroAddress
+    ==
+    assert // Transaction must not rekey the account
+    // contract.py:66-71
+    // itxn.AssetTransfer(
+    //     xfer_asset=asset,
+    //     asset_amount=amount,
+    //     asset_receiver=receiver,
+    //     fee=0,
+    // ).submit()
+    itxn_begin
+    itxn_field AssetReceiver
+    itxn_field AssetAmount
+    itxn_field XferAsset
+    // contract.py:66
+    // itxn.AssetTransfer(
+    intc_3 // axfer
+    itxn_field TypeEnum
+    // contract.py:70
+    // fee=0,
+    intc_0 // 0
+    itxn_field Fee
+    // contract.py:66-71
+    // itxn.AssetTransfer(
+    //     xfer_asset=asset,
+    //     asset_amount=amount,
+    //     asset_receiver=receiver,
+    //     fee=0,
+    // ).submit()
+    itxn_submit
+    // contract.py:58
+    // @arc4.abimethod
+    intc_1 // 1
+    return
+
+
+// contract.PayToPinEscrow.update_application[routing]() -> void:
+update_application:
+    // contract.py:78
+    // assert Txn.sender == self.owner.value, "Only owner can update contract"
+    txn Sender
+    intc_0 // 0
+    bytec_0 // "owner"
+    app_global_get_ex
+    assert // check self.owner exists
+    ==
+    assert // Only owner can update contract
+    // contract.py:79
+    // assert Txn.rekey_to == Global.zero_address, "Transaction must not rekey the account"
+    txn RekeyTo
+    global ZeroAddress
+    ==
+    assert // Transaction must not rekey the account
+    // contract.py:73
+    // @arc4.abimethod(allow_actions=["UpdateApplication"])
+    intc_1 // 1
+    return
+
+
+// contract.PayToPinEscrow.delete_application[routing]() -> void:
+delete_application:
+    // contract.py:86
+    // assert Txn.sender == self.owner.value, "Only owner can delete contract"
+    txn Sender
+    intc_0 // 0
+    bytec_0 // "owner"
+    app_global_get_ex
+    assert // check self.owner exists
+    swap
+    dig 1
+    ==
+    assert // Only owner can delete contract
+    // contract.py:87
+    // assert Txn.rekey_to == Global.zero_address, "Transaction must not rekey the account"
+    txn RekeyTo
+    global ZeroAddress
+    ==
+    assert // Transaction must not rekey the account
+    // contract.py:89-93
+    // itxn.Payment(
+    //     receiver=self.owner.value,
+    //     close_remainder_to=self.owner.value,
+    //     fee=0,
+    // ).submit()
+    itxn_begin
+    dup
+    itxn_field CloseRemainderTo
+    itxn_field Receiver
+    // contract.py:89
+    // itxn.Payment(
+    intc_1 // pay
+    itxn_field TypeEnum
+    // contract.py:92
+    // fee=0,
+    intc_0 // 0
+    itxn_field Fee
+    // contract.py:89-93
+    // itxn.Payment(
+    //     receiver=self.owner.value,
+    //     close_remainder_to=self.owner.value,
+    //     fee=0,
+    // ).submit()
+    itxn_submit
+    // contract.py:81
+    // @arc4.abimethod(allow_actions=["DeleteApplication"])
+    intc_1 // 1
     return

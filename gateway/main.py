@@ -124,17 +124,24 @@ async def request_pin(request: Request, background_tasks: BackgroundTasks, file:
             ttl_seconds=600
         )
 
-        # Build GoPlausible x402 standard spec
+        # Build GoPlausible x402 standard spec using CAIP-2 network format
+        network_id = f"algorand-{settings.ALGORAND_NETWORK}"
+        if settings.ALGORAND_NETWORK == "mainnet":
+            network_id = "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8="
+        elif settings.ALGORAND_NETWORK == "testnet":
+            network_id = "algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI="
+
         x402_spec = {
             "version": "1.0",
             "scheme": "exact",
-            "network": f"algorand-{settings.ALGORAND_NETWORK}",
+            "network": network_id,
             "payTo": settings.ESCROW_ADDRESS,
             "amount": str(total_price),
-            "asset": 0,
+            "asset": settings.USDC_ASSET_ID,
             "reference": ref_id,
             "facilitator": "https://facilitator.goplausible.xyz"
         }
+
         encoded_spec = base64.b64encode(json.dumps(x402_spec).encode("utf-8")).decode("utf-8")
 
         # Build HTTP x402 headers
@@ -143,6 +150,7 @@ async def request_pin(request: Request, background_tasks: BackgroundTasks, file:
             "X-Payment-Required": encoded_spec,
             "X-Algorand-Address": settings.ESCROW_ADDRESS,
             "X-Algorand-Amount": str(total_price),
+            "X-Algorand-Asset": str(settings.USDC_ASSET_ID),
             "X-Algorand-Txn-Ref": ref_id
         }
 
@@ -151,13 +159,15 @@ async def request_pin(request: Request, background_tasks: BackgroundTasks, file:
             content={
                 "message": "Payment required to pin file.",
                 "amount": total_price,
-                "currency": "microALGO",
+                "currency": settings.PAYMENT_CURRENCY,
+                "asset_id": settings.USDC_ASSET_ID,
                 "escrow": settings.ESCROW_ADDRESS,
                 "reference_id": ref_id,
                 "x402_spec": x402_spec
             },
             headers=headers
         )
+
     except HTTPException:
         raise
     except Exception as e:
