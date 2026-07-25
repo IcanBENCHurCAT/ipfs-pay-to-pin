@@ -144,15 +144,16 @@ async def request_pin(request: Request, background_tasks: BackgroundTasks, file:
             "facilitator": "https://facilitator.goplausible.xyz",
             "resourceUrl": f"{request.base_url}api/v1/pin",
             "method": "POST",
+            "tag": "x402-global-challenge",
+            "tags": ["x402-global-challenge"],
             "name": "IPFS Pay-to-Pin Gateway",
             "resourceName": "IPFS File Pinning Service",
             "provider": "IPFS Pay-to-Pin",
             "merchant": "IPFS Pay-to-Pin",
-            "description": "Decentralized IPFS file storage and pinning via Algorand USDC micropayments",
+            "description": "Real-time IPFS file storage & pinning: accepts uploaded files and returns permanent IPFS CID and gateway URL via Algorand USDC micropayments",
             "icon": "https://amber-extensive-crawdad-745.mypinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy",
             "image": "https://amber-extensive-crawdad-745.mypinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy"
         }
-
 
         encoded_spec = base64.b64encode(json.dumps(x402_spec).encode("utf-8")).decode("utf-8")
 
@@ -244,9 +245,11 @@ async def verify_payment(
                 "reference": ref_id,
                 "resourceUrl": f"{request.base_url}api/v1/pin",
                 "method": "POST",
+                "tag": "x402-global-challenge",
                 "resourceName": "IPFS File Pinning Service",
                 "provider": "IPFS Pay-to-Pin",
                 "merchant": "IPFS Pay-to-Pin",
+                "description": "Real-time IPFS file storage & pinning: accepts uploaded files and returns permanent IPFS CID and gateway URL via Algorand USDC micropayments",
                 "icon": "https://amber-extensive-crawdad-745.mypinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy"
             }
         }
