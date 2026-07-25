@@ -23,11 +23,13 @@ def deploy():
 
     # Load account
     try:
+        from algosdk import account
         private_key = mnemonic.to_private_key(deployer_mnemonic)
-        sender_address = mnemonic.to_public_key(deployer_mnemonic)
+        sender_address = account.address_from_private_key(private_key)
     except Exception as e:
         print(f"ERROR loading deployer mnemonic: {e}")
         return
+
 
     print(f"Deployer account: {sender_address}")
 
@@ -70,9 +72,10 @@ def deploy():
     global_schema = transaction.StateSchema(num_uints=2, num_byte_slices=1)
     local_schema = transaction.StateSchema(num_uints=0, num_byte_slices=0)
 
-    # PayToPinEscrow.create() is an ARC-4 abi method with no arguments
-    # ABI method signature: create()void
-    # We can create it using a standard ApplicationCreateTxn
+    # PayToPinEscrow.create() is an ARC-4 abi method: create()void
+    # Selector bytes: 0x4c5c61ba (sha256("create()void")[:4])
+    create_selector = bytes.fromhex("4c5c61ba")
+
     txn = transaction.ApplicationCreateTxn(
         sender=sender_address,
         sp=params,
@@ -81,7 +84,9 @@ def deploy():
         clear_program=clear_bytes,
         global_schema=global_schema,
         local_schema=local_schema,
+        app_args=[create_selector],
     )
+
 
     # Sign transaction
     signed_txn = txn.sign(private_key)
