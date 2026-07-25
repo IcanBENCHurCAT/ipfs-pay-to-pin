@@ -72,6 +72,8 @@ def cleanup_expired_challenges():
 class PinVerificationRequest(BaseModel):
     reference_id: Optional[str] = None
     tx_id: Optional[str] = None
+    raw_signed_b64: Optional[str] = None
+    paymentPayload: Optional[dict] = None
 
 @app.post("/api/v1/pin", status_code=status.HTTP_402_PAYMENT_REQUIRED)
 @limiter.limit(settings.RATE_LIMIT_PIN)
@@ -132,12 +134,12 @@ async def request_pin(request: Request, background_tasks: BackgroundTasks, file:
             network_id = "algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI="
 
         x402_spec = {
-            "version": "1.0",
+            "version": "2.0",
             "scheme": "exact",
             "network": network_id,
             "payTo": settings.ESCROW_ADDRESS,
             "amount": str(total_price),
-            "asset": settings.USDC_ASSET_ID,
+            "asset": str(settings.USDC_ASSET_ID),
             "reference": ref_id,
             "facilitator": "https://facilitator.goplausible.xyz"
         }
@@ -175,6 +177,7 @@ async def request_pin(request: Request, background_tasks: BackgroundTasks, file:
 
 @app.post("/api/v1/verify", status_code=status.HTTP_201_CREATED)
 async def verify_payment(
+    request: Request,
     payload: Optional[PinVerificationRequest] = None,
     payment_signature: Optional[str] = Header(None, alias="PAYMENT-SIGNATURE"),
     x_payment: Optional[str] = Header(None, alias="X-PAYMENT")
@@ -197,7 +200,7 @@ async def verify_payment(
             pass
 
     if not ref_id or not tx_id:
-        if payload and payload.reference_id and payload.tx_id:
+        if payload and payload.reference_id:
             ref_id = payload.reference_id
             tx_id = payload.tx_id
         else:
@@ -207,6 +210,41 @@ async def verify_payment(
     db_challenge = get_challenge(ref_id)
     if not db_challenge:
         raise HTTPException(status_code=404, detail="Challenge reference not found.")
+
+    # 1b. Optional GoPlausible auto-settlement proxying if raw signed txn is provided
+    if payload and (payload.raw_signed_b64 or payload.paymentPayload):
+        network_id = "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=" if settings.ALGORAND_NETWORK == "mainnet" else "algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI="
+        gp_payload = payload.paymentPayload or {
+            "paymentPayload": {
+                "x402Version": 2,
+                "scheme": "exact",
+                "network": network_id,
+                "payload": {
+                    "paymentGroup": [payload.raw_signed_b64],
+                    "paymentIndex": 0
+                }
+            },
+            "paymentRequirements": {
+                "x402Version": 2,
+                "scheme": "exact",
+                "network": network_id,
+                "payTo": settings.ESCROW_ADDRESS,
+                "amount": str(db_challenge["expected_amount"]),
+                "asset": str(settings.USDC_ASSET_ID),
+                "reference": ref_id,
+                "resourceUrl": f"{request.base_url}api/v1/pin",
+                "method": "POST"
+            }
+        }
+        try:
+            import requests as req_lib
+            settle_res = req_lib.post("https://facilitator.goplausible.xyz/settle", json=gp_payload, timeout=5)
+            if settle_res.status_code == 200:
+                s_data = settle_res.json()
+                if s_data.get("transaction"):
+                    tx_id = s_data.get("transaction")
+        except Exception:
+            pass
 
     filepath = os.path.join(settings.TEMP_CHALLENGE_DIR, f"{ref_id}.tmp")
     if ref_id in challenges:
