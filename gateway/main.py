@@ -1,9 +1,13 @@
 import os
 import uuid
 import time
-from fastapi import FastAPI, UploadFile, File, HTTPException, status, BackgroundTasks
+import json
+import base64
+from typing import Optional
+from fastapi import FastAPI, UploadFile, File, HTTPException, status, BackgroundTasks, Header
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
+
 from gateway.config import settings
 from gateway.payment import get_pricing, verify_transaction
 from gateway.storage import get_storage_adapter, StorageException
@@ -55,8 +59,8 @@ def cleanup_expired_challenges():
         del challenges[k]
 
 class PinVerificationRequest(BaseModel):
-    reference_id: str
-    tx_id: str
+    reference_id: Optional[str] = None
+    tx_id: Optional[str] = None
 
 @app.post("/api/v1/pin", status_code=status.HTTP_402_PAYMENT_REQUIRED)
 async def request_pin(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
@@ -95,8 +99,23 @@ async def request_pin(background_tasks: BackgroundTasks, file: UploadFile = File
             ttl_seconds=600
         )
 
-        # Build custom HTTP x402 headers
+        # Build GoPlausible x402 standard spec
+        x402_spec = {
+            "version": "1.0",
+            "scheme": "exact",
+            "network": f"algorand-{settings.ALGORAND_NETWORK}",
+            "payTo": settings.ESCROW_ADDRESS,
+            "amount": str(total_price),
+            "asset": 0,
+            "reference": ref_id,
+            "facilitator": "https://facilitator.goplausible.xyz"
+        }
+        encoded_spec = base64.b64encode(json.dumps(x402_spec).encode("utf-8")).decode("utf-8")
+
+        # Build HTTP x402 headers
         headers = {
+            "PAYMENT-REQUIRED": encoded_spec,
+            "X-Payment-Required": encoded_spec,
             "X-Algorand-Address": settings.ESCROW_ADDRESS,
             "X-Algorand-Amount": str(total_price),
             "X-Algorand-Txn-Ref": ref_id
@@ -109,7 +128,8 @@ async def request_pin(background_tasks: BackgroundTasks, file: UploadFile = File
                 "amount": total_price,
                 "currency": "microALGO",
                 "escrow": settings.ESCROW_ADDRESS,
-                "reference_id": ref_id
+                "reference_id": ref_id,
+                "x402_spec": x402_spec
             },
             headers=headers
         )
@@ -117,13 +137,36 @@ async def request_pin(background_tasks: BackgroundTasks, file: UploadFile = File
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/verify", status_code=status.HTTP_201_CREATED)
-async def verify_payment(payload: PinVerificationRequest):
+async def verify_payment(
+    payload: Optional[PinVerificationRequest] = None,
+    payment_signature: Optional[str] = Header(None, alias="PAYMENT-SIGNATURE"),
+    x_payment: Optional[str] = Header(None, alias="X-PAYMENT")
+):
     """
     Verifies on-chain transaction matches challenge details.
     Triggers simulated file pinning on success.
+    Supports both JSON body and PAYMENT-SIGNATURE HTTP header formats.
     """
-    ref_id = payload.reference_id
-    tx_id = payload.tx_id
+    sig_header = payment_signature or x_payment
+    ref_id = None
+    tx_id = None
+
+    if sig_header:
+        try:
+            decoded_bytes = base64.b64decode(sig_header)
+            decoded_json = json.loads(decoded_bytes.decode("utf-8"))
+            ref_id = decoded_json.get("reference") or decoded_json.get("reference_id")
+            tx_id = decoded_json.get("txId") or decoded_json.get("txn_id") or decoded_json.get("tx_id")
+        except Exception:
+            pass
+
+    if not ref_id or not tx_id:
+        if payload and payload.reference_id and payload.tx_id:
+            ref_id = payload.reference_id
+            tx_id = payload.tx_id
+        else:
+            raise HTTPException(status_code=400, detail="Missing payment verification reference_id or tx_id.")
+
 
     # 1. Validate challenge reference exists in-memory cache
     if ref_id not in challenges:
