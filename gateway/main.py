@@ -129,9 +129,12 @@ async def verify_payment(payload: PinVerificationRequest):
     # 2. Check if challenge is expired
     import datetime
     expires_at_dt = datetime.datetime.fromisoformat(db_challenge["expires_at"])
-    if datetime.datetime.utcnow() > expires_at_dt:
+    if expires_at_dt.tzinfo is None:
+        expires_at_dt = expires_at_dt.replace(tzinfo=datetime.UTC)
+    if datetime.datetime.now(datetime.UTC) > expires_at_dt:
         update_challenge_status(ref_id, "EXPIRED")
         raise HTTPException(status_code=404, detail="Challenge reference not found.")
+
 
     # Check if challenge was already paid
     if db_challenge["status"] == "VERIFIED" or challenge["paid"]:
@@ -178,21 +181,16 @@ async def verify_payment(payload: PinVerificationRequest):
         # Revert paid status if pinning failed so they can retry verification
         challenge["paid"] = False
         update_challenge_status(ref_id, "PENDING")
-        from gateway.database import get_db_connection
-        conn = get_db_connection()
-        conn.execute("DELETE FROM processed_transactions WHERE txn_id = ?", (tx_id,))
-        conn.commit()
-        conn.close()
+        from gateway.database import delete_transaction
+        delete_transaction(tx_id)
         raise HTTPException(status_code=e.status_code, detail=str(e))
     except Exception as e:
         challenge["paid"] = False
         update_challenge_status(ref_id, "PENDING")
-        from gateway.database import get_db_connection
-        conn = get_db_connection()
-        conn.execute("DELETE FROM processed_transactions WHERE txn_id = ?", (tx_id,))
-        conn.commit()
-        conn.close()
+        from gateway.database import delete_transaction
+        delete_transaction(tx_id)
         raise HTTPException(status_code=500, detail=f"Unexpected pinning error: {str(e)}")
+
 
     return {
         "status": "success",
