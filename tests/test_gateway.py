@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from gateway.main import app, challenges
 from gateway.config import settings
 from gateway.database import init_db, get_database_adapter, SQLiteDatabaseAdapter, SupabaseDatabaseAdapter
+from gateway.payment import get_pricing
 
 client = TestClient(app)
 
@@ -61,7 +62,8 @@ def test_request_pin_payment_challenge():
     assert json_data["reference_id"] == response.headers["X-Algorand-Txn-Ref"]
 
     # Verify expected calculated fee: base_price + size * byte_price
-    expected_amount = 1000 + file_size
+    base_p, byte_p = get_pricing(settings.ESCROW_APP_ID)
+    expected_amount = base_p + file_size * byte_p
     assert int(response.headers["X-Algorand-Amount"]) == expected_amount
     assert json_data["amount"] == expected_amount
 
