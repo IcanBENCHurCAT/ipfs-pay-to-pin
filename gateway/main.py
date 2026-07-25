@@ -246,6 +246,7 @@ async def verify_payment(
                 "resourceUrl": f"{request.base_url}api/v1/pin",
                 "method": "POST",
                 "tag": "x402-global-challenge",
+                "tags": ["x402-global-challenge"],
                 "resourceName": "IPFS File Pinning Service",
                 "provider": "IPFS Pay-to-Pin",
                 "merchant": "IPFS Pay-to-Pin",
