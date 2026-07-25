@@ -110,29 +110,37 @@ def verify_transaction(tx_id: str, expected_amount: int, expected_receiver: str,
             txn_container = tx_info.get("txn", {})
             txn_inner = txn_container.get("txn", {})
 
-            # 1. Verify transaction type is payment
+            # 1. Verify transaction type is payment (pay) or asset transfer (axfer)
             tx_type = txn_inner.get("type") or txn_container.get("type")
-            if tx_type != "pay":
-                return False, None, "Transaction verification failed."
+            if tx_type not in ("pay", "axfer"):
+                return False, None, "Transaction verification failed: invalid transaction type."
 
-            # 2. Verify receiver address
-            receiver = txn_inner.get("rcv") or txn_container.get("rcv")
+            # 2. Extract receiver, amount, and asset ID
+            if tx_type == "axfer":
+                asset_id = txn_inner.get("xaid") or txn_container.get("xaid") or 0
+                if asset_id != settings.USDC_ASSET_ID:
+                    return False, None, f"Invalid payment asset. Expected USDC ({settings.USDC_ASSET_ID}), received asset {asset_id}."
+                receiver = txn_inner.get("arcv") or txn_container.get("arcv")
+                amount = txn_inner.get("aamt") or txn_container.get("aamt") or 0
+            else:
+                receiver = txn_inner.get("rcv") or txn_container.get("rcv")
+                amount = txn_inner.get("amt") or txn_container.get("amt") or 0
+
             if isinstance(receiver, bytes):
                 from algosdk import encoding
                 receiver = encoding.encode_address(receiver)
             
             if receiver != expected_receiver:
-                return False, None, "Transaction verification failed."
+                return False, None, "Transaction verification failed: incorrect receiver."
 
-            # 3. Verify amount (microALGOs)
-            amount = txn_inner.get("amt") or txn_container.get("amt") or 0
+            # 3. Verify amount
             if amount < expected_amount:
-                return False, None, f"Insufficient payment. Expected {expected_amount} microALGOs, received {amount}."
+                return False, None, f"Insufficient payment. Expected {expected_amount}, received {amount}."
 
             # 4. Verify note matches the expected reference ID
             note_b64 = txn_inner.get("note") or txn_container.get("note") or b""
             if not note_b64:
-                return False, None, "Transaction verification failed."
+                return False, None, "Transaction verification failed: missing reference note."
 
             try:
                 if isinstance(note_b64, str):
@@ -140,10 +148,11 @@ def verify_transaction(tx_id: str, expected_amount: int, expected_receiver: str,
                 else:
                     decoded_note = note_b64.decode("utf-8")
             except Exception:
-                return False, None, "Transaction verification failed."
+                return False, None, "Transaction verification failed: invalid reference note encoding."
 
             if decoded_note != expected_reference:
-                return False, None, "Transaction verification failed."
+                return False, None, "Transaction verification failed: reference mismatch."
+
 
             # 5. Verify transaction is confirmed
             confirmed_round = tx_info.get("confirmed-round", 0)
