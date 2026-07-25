@@ -102,9 +102,25 @@ def deploy():
         confirmed_txn = transaction.wait_for_confirmation(client, tx_id, 4)
         app_id = confirmed_txn["application-index"]
         escrow_address = get_application_address(app_id)
+
+        print(f"Application ID: {app_id}")
+        print(f"Escrow Address: {escrow_address}")
         
+        # Seed Escrow Account with 0.2 ALGO to satisfy Algorand Minimum Balance Requirement (MBR)
+        print("\nSeeding Escrow Account with 0.2 ALGO to cover Minimum Balance Requirement (MBR)...")
+        seed_txn = transaction.PaymentTxn(
+            sender=sender_address,
+            sp=params,
+            receiver=escrow_address,
+            amt=200000
+        )
+        signed_seed = seed_txn.sign(private_key)
+        seed_id = client.send_transaction(signed_seed)
+        transaction.wait_for_confirmation(client, seed_id, 4)
+        print("Escrow Account successfully funded with 0.2 ALGO MBR!")
+
         print("\n" + "="*50)
-        print("Smart Contract Deployed Successfully!")
+        print("Smart Contract Deployed & Initialized Successfully!")
         print("="*50)
         print(f"Application ID:   {app_id}")
         print(f"Escrow Address:   {escrow_address}")
@@ -113,6 +129,7 @@ def deploy():
         print(f"ESCROW_APP_ID={app_id}")
         print(f"ESCROW_ADDRESS={escrow_address}")
         print("="*50)
+
 
     except Exception as e:
         print(f"ERROR submitting transaction: {e}")
