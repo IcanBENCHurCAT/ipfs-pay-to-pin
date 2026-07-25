@@ -27,6 +27,16 @@ app = FastAPI(
 def on_startup():
     init_db()
 
+@app.get("/")
+def root():
+    return {
+        "status": "online",
+        "service": "IPFS Pay-to-Pin Gateway",
+        "network": settings.ALGORAND_NETWORK,
+        "docs_url": "/docs"
+    }
+
+
 
 # Initialize storage adapter
 storage_adapter = get_storage_adapter()

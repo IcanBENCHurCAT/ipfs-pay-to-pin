@@ -175,8 +175,15 @@ class SupabaseDatabaseAdapter(BaseDatabaseAdapter):
         import psycopg2.extras
         if not self.db_url:
             raise ValueError("SUPABASE_DATABASE_URL is not configured.")
-        conn = psycopg2.connect(self.db_url, cursor_factory=psycopg2.extras.RealDictCursor)
+        
+        db_url = self.db_url
+        if "sslmode=" not in db_url:
+            separator = "&" if "?" in db_url else "?"
+            db_url += f"{separator}sslmode=require"
+
+        conn = psycopg2.connect(db_url, cursor_factory=psycopg2.extras.RealDictCursor)
         return conn
+
 
     def init_db(self):
         conn = self.get_db_connection()
