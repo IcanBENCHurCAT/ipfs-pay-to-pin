@@ -19,11 +19,16 @@ class Settings:
     STORAGE_PROVIDER: str = os.getenv("STORAGE_PROVIDER", "local")
     LOCAL_STORAGE_DIR: str = os.getenv("LOCAL_STORAGE_DIR", "tmp/mock_storage")
 
-    # SQLite Configuration
+    # Database Configuration
+    DATABASE_ADAPTER: str = os.getenv("DATABASE_ADAPTER", "sqlite")
     DATABASE_PATH: str = os.getenv("DATABASE_PATH", "gateway.db")
+    SUPABASE_DATABASE_URL: str = os.getenv("SUPABASE_DATABASE_URL", "")
+    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
+    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
 
     # Fallback Algod nodes (comma-separated list)
     ALGOD_FALLBACK_ADDRESSES: str = os.getenv("ALGOD_FALLBACK_ADDRESSES", "")
+
 
 
 settings = Settings()

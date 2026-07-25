@@ -1,26 +1,39 @@
 import pytest
-import sqlite3
+from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 from gateway.main import app, challenges
 from gateway.config import settings
-from gateway.database import init_db, get_db_connection
+from gateway.database import init_db, get_database_adapter, SQLiteDatabaseAdapter, SupabaseDatabaseAdapter
 
 client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def setup_and_cleanup_db():
     # Initialize the database schema
-    init_db()
-    # Clear the tables before each test to ensure test isolation
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM processed_transactions")
-    cursor.execute("DELETE FROM verification_challenges")
-    conn.commit()
-    conn.close()
-    # Clear the in-memory challenges cache
+    adapter = get_database_adapter()
+    adapter.init_db()
+    
+    # Clean tables if running on SQLite
+    if isinstance(adapter, SQLiteDatabaseAdapter):
+        conn = adapter.get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM processed_transactions")
+        cursor.execute("DELETE FROM verification_challenges")
+        conn.commit()
+        conn.close()
+
+    # Clear in-memory challenges cache
     challenges.clear()
     yield
+
+def test_database_adapter_factory():
+    with patch.object(settings, "DATABASE_ADAPTER", "sqlite"):
+        adapter = get_database_adapter()
+        assert isinstance(adapter, SQLiteDatabaseAdapter)
+
+    with patch.object(settings, "DATABASE_ADAPTER", "supabase"):
+        adapter = get_database_adapter()
+        assert isinstance(adapter, SupabaseDatabaseAdapter)
 
 def test_request_pin_payment_challenge():
     file_content = b"Hello World"
@@ -53,14 +66,12 @@ def test_request_pin_payment_challenge():
     assert json_data["amount"] == expected_amount
 
 def test_verify_payment_success():
-    # 1. Create a challenge
     response = client.post(
         "/api/v1/pin",
         files={"file": ("test.txt", b"Hello World", "text/plain")}
     )
     ref_id = response.headers["X-Algorand-Txn-Ref"]
 
-    # 2. Submit valid verification request
     verify_resp = client.post(
         "/api/v1/verify",
         json={"reference_id": ref_id, "tx_id": "MOCKED_VALID_TX_123"}
@@ -81,21 +92,18 @@ def test_verify_payment_not_found():
     assert verify_resp.json()["detail"] == "Challenge reference not found."
 
 def test_verify_payment_already_paid():
-    # Create challenge
     response = client.post(
         "/api/v1/pin",
         files={"file": ("test.txt", b"Hello World", "text/plain")}
     )
     ref_id = response.headers["X-Algorand-Txn-Ref"]
 
-    # First verification - success
     verify_resp1 = client.post(
         "/api/v1/verify",
         json={"reference_id": ref_id, "tx_id": "MOCKED_VALID_TX_123"}
     )
     assert verify_resp1.status_code == 201
 
-    # Second verification on same challenge - fail (already paid)
     verify_resp2 = client.post(
         "/api/v1/verify",
         json={"reference_id": ref_id, "tx_id": "MOCKED_VALID_TX_456"}
@@ -104,28 +112,24 @@ def test_verify_payment_already_paid():
     assert verify_resp2.json()["detail"] == "This challenge has already been paid."
 
 def test_verify_payment_double_spend():
-    # Create challenge 1
     resp1 = client.post(
         "/api/v1/pin",
         files={"file": ("file1.txt", b"Hello 1", "text/plain")}
     )
     ref_id1 = resp1.headers["X-Algorand-Txn-Ref"]
 
-    # Create challenge 2
     resp2 = client.post(
         "/api/v1/pin",
         files={"file": ("file2.txt", b"Hello 2", "text/plain")}
     )
     ref_id2 = resp2.headers["X-Algorand-Txn-Ref"]
 
-    # Verify challenge 1 with TX_123 - success
     verify_resp1 = client.post(
         "/api/v1/verify",
         json={"reference_id": ref_id1, "tx_id": "MOCKED_VALID_TX_123"}
     )
     assert verify_resp1.status_code == 201
 
-    # Verify challenge 2 with SAME TX_123 - fail (double spend)
     verify_resp2 = client.post(
         "/api/v1/verify",
         json={"reference_id": ref_id2, "tx_id": "MOCKED_VALID_TX_123"}
@@ -134,14 +138,12 @@ def test_verify_payment_double_spend():
     assert verify_resp2.json()["detail"] == "Double-spend detected: Transaction already processed."
 
 def test_verify_payment_validation_fails():
-    # Create challenge
     response = client.post(
         "/api/v1/pin",
         files={"file": ("test.txt", b"Hello World", "text/plain")}
     )
     ref_id = response.headers["X-Algorand-Txn-Ref"]
 
-    # Verify with mock TX that triggers verification failure
     verify_resp = client.post(
         "/api/v1/verify",
         json={"reference_id": ref_id, "tx_id": "MOCKED_WRONG_AMT_TX_123"}
