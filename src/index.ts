@@ -79,6 +79,37 @@ app.get("/.well-known/x402.json", (c) => {
     });
 });
 
+app.get("/.well-known/agent-card.json", (c) => {
+    return c.json({
+        "name": "IPFS Pay-to-Pin Gateway",
+        "description": "Upload one file as a Base64-encoded JSON payload; on successful payment, the service pins it to IPFS.",
+        "version": "1.0.0",
+        "url": "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com",
+        "supportedInterfaces": [
+            {
+                "url": "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin",
+                "protocolBinding": "HTTP",
+                "protocolVersion": "1.1"
+            }
+        ],
+        "capabilities": {
+            "streaming": false,
+            "pushNotifications": false
+        },
+        "defaultInputModes": ["application/json"],
+        "defaultOutputModes": ["application/json"],
+        "skills": [
+            {
+                "id": "ipfs_pay_to_pin",
+                "name": "Pin File to IPFS",
+                "description": "Upload a base64-encoded file and pin it to IPFS via an x402 payment.",
+                "tags": ["ipfs", "storage", "ai-agents", "pinning", "x402-global-challenge"],
+                "examples": ["Pin my JSON data to IPFS for persistent storage."]
+            }
+        ]
+    });
+});
+
 app.get("/openapi.json", (c) => {
     return c.json({
         openapi: "3.0.0",
