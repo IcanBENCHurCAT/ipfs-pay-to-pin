@@ -71,7 +71,7 @@ const pinDiscovery = declareDiscoveryExtension({
 const app = new Hono();
 
 // Health check and Merchant metadata endpoint
-app.get("/.well-known/x402.json", (c) => {
+const x402MetadataHandler = (c: any) => {
     return c.json({
         merchant: {
             name: "IPFS Pay-to-Pin Gateway",
@@ -89,7 +89,10 @@ app.get("/.well-known/x402.json", (c) => {
             }
         ]
     });
-});
+};
+
+app.get("/.well-known/x402.json", x402MetadataHandler);
+app.get("/.well-known/x402", x402MetadataHandler);
 
 app.get("/.well-known/agent-card.json", (c) => {
     return c.json({
