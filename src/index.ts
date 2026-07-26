@@ -31,16 +31,18 @@ server.registerExtension(bazaarResourceServerExtension as unknown as ResourceSer
 await server.initialize();
 
 const pinDiscovery = declareDiscoveryExtension({
-    bodyType: "form-data",
+    bodyType: "json",
     input: {
-        file: "(binary file upload)"
+        filename: "example.png",
+        data: "base64_encoded_string_here..."
     },
     inputSchema: {
         type: "object",
         properties: {
-            file: { type: "string", format: "binary", description: "File to pin to IPFS" }
+            filename: { type: "string", description: "Name of the file" },
+            data: { type: "string", description: "Base64 encoded file data" }
         },
-        required: ["file"],
+        required: ["filename", "data"],
     },
     output: {
         example: {
@@ -69,7 +71,7 @@ app.get("/.well-known/x402.json", (c) => {
             {
                 path: "/api/v1/pin",
                 url: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin",
-                description: "Upload one file as multipart form-data; on successful payment, the service pins it to IPFS and returns cid, ipfs_cid, and gateway_url.",
+                description: "Upload one file as a Base64-encoded JSON payload; on successful payment, the service pins it to IPFS and returns cid, ipfs_cid, and gateway_url.",
                 methods: ["POST"],
                 networks: ["algorand:mainnet", "algorand:testnet"]
             }
@@ -93,19 +95,23 @@ app.get("/openapi.json", (c) => {
             "/api/v1/pin": {
                 post: {
                     summary: "Upload and Pin File",
-                    description: "Uploads a file via multipart form-data. Returns a 402 Payment Required challenge. Upon payment verification, pins the file to IPFS and returns the CID.",
+                    description: "Uploads a Base64-encoded file via JSON payload. Returns a 402 Payment Required challenge. Upon payment verification, pins the file to IPFS and returns the CID.",
                     requestBody: {
                         content: {
-                            "multipart/form-data": {
+                            "application/json": {
                                 schema: {
                                     type: "object",
                                     properties: {
-                                        file: {
+                                        filename: {
                                             type: "string",
-                                            format: "binary",
-                                            description: "The file to upload"
+                                            description: "The name of the file"
+                                        },
+                                        data: {
+                                            type: "string",
+                                            description: "Base64-encoded file data"
                                         }
-                                    }
+                                    },
+                                    required: ["filename", "data"]
                                 }
                             }
                         }
@@ -172,9 +178,11 @@ app.use(
                         scheme: "exact",
                         price: (ctx) => {
                             const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
+                            // Approximate original binary size from Base64 JSON payload
+                            const approximateBinaryBytes = Math.floor(contentLength * 0.75);
                             const baseMicroUsdc = 10000; // $0.01 base price
                             const bytePriceMicroUsdc = 1; // $0.000001 per byte
-                            const totalMicroUsdc = baseMicroUsdc + (contentLength * bytePriceMicroUsdc);
+                            const totalMicroUsdc = baseMicroUsdc + (approximateBinaryBytes * bytePriceMicroUsdc);
                             return `$${(totalMicroUsdc / 1000000).toFixed(6)}`;
                         },
                         network: networkCaip2,
@@ -183,8 +191,8 @@ app.use(
                     }
                 ],
                 resource: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin",
-                description: "Upload one file as multipart form-data; on successful payment, the service pins it to IPFS and returns cid, ipfs_cid, and gateway_url.",
-                mimeType: "multipart/form-data",
+                description: "Upload one file as a Base64-encoded JSON payload; on successful payment, the service pins it to IPFS and returns cid, ipfs_cid, and gateway_url.",
+                mimeType: "application/json",
                 serviceName: "IPFS Pay-to-Pin Gateway",
                 tags: ["ipfs", "storage", "ai-agents", "pinning", "x402-global-challenge"],
                 iconUrl: "https://ipfs.io/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy",
@@ -207,22 +215,22 @@ app.use(
 
 app.post("/api/v1/pin", async (c) => {
     try {
-        const body = await c.req.parseBody();
-        const file = body['file'];
+        const body = await c.req.json();
+        const filename = body['filename'];
+        const data = body['data'];
 
-        if (!file || !(file instanceof File)) {
-            return c.json({ error: "Missing or invalid file parameter in form-data" }, 400);
+        if (!filename || !data || typeof data !== 'string') {
+            return c.json({ error: "Missing or invalid filename or data parameter in JSON payload" }, 400);
         }
 
-        const arrayBuffer = await file.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
+        const buffer = Buffer.from(data, 'base64');
 
-        const pinResult = await pinFileToStorage(buffer, file.name || "pinned_file");
+        const pinResult = await pinFileToStorage(buffer, filename);
 
         return c.json({
             status: "success",
             message: "Payment verified. File pinned permanently.",
-            filename: file.name || "pinned_file",
+            filename: filename,
             ipfs_cid: pinResult.ipfs_cid,
             cid: pinResult.ipfs_cid,
             gateway_url: pinResult.gateway_url
