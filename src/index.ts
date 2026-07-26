@@ -1,6 +1,7 @@
 import { config } from "dotenv";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
+import { swaggerUI } from "@hono/swagger-ui";
 import { serve } from "@hono/node-server";
 import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
 import { ExactAvmScheme } from "@x402/avm/exact/server";
@@ -75,6 +76,70 @@ app.get("/.well-known/x402.json", (c) => {
         ]
     });
 });
+
+app.get("/openapi.json", (c) => {
+    return c.json({
+        openapi: "3.0.0",
+        info: {
+            title: "IPFS Pay-to-Pin Gateway",
+            version: "1.0.0",
+            description: "Pay-per-request infrastructure API giving autonomous agents reliable access to decentralized IPFS storage."
+        },
+        servers: [
+            { url: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com" },
+            { url: "http://localhost:4021" }
+        ],
+        paths: {
+            "/api/v1/pin": {
+                post: {
+                    summary: "Upload and Pin File",
+                    description: "Uploads a file via multipart form-data. Returns a 402 Payment Required challenge. Upon payment verification, pins the file to IPFS and returns the CID.",
+                    requestBody: {
+                        content: {
+                            "multipart/form-data": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        file: {
+                                            type: "string",
+                                            format: "binary",
+                                            description: "The file to upload"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    responses: {
+                        "201": {
+                            description: "File successfully pinned",
+                            content: {
+                                "application/json": {
+                                    schema: {
+                                        type: "object",
+                                        properties: {
+                                            status: { type: "string" },
+                                            message: { type: "string" },
+                                            filename: { type: "string" },
+                                            ipfs_cid: { type: "string" },
+                                            cid: { type: "string" },
+                                            gateway_url: { type: "string" }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "402": {
+                            description: "Payment Required - Returns x402 payment challenge"
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+
+app.get("/docs", swaggerUI({ url: "/openapi.json" }));
 
 app.get("/", (c) => {
     const html = `<!DOCTYPE html>
