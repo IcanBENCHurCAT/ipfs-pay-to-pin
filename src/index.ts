@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { serve } from "@hono/node-server";
 import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
 import { ExactAvmScheme } from "@x402/avm/exact/server";
@@ -127,6 +128,16 @@ app.use(
         },
         server
     )
+);
+
+app.use(
+    "/api/v1/pin",
+    bodyLimit({
+        maxSize: 50 * 1024 * 1024, // 50MB
+        onError: (c) => {
+            return c.json({ error: "Payload too large. Maximum file size is 50MB." }, 413);
+        }
+    })
 );
 
 app.post("/api/v1/pin", async (c) => {
