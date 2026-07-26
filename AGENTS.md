@@ -6,17 +6,17 @@ Welcome, agent. This document outlines the project guidelines, architecture, and
 
 ## 1. Project Overview
 
-The IPFS "Pay-to-Pin" Gateway is a service that implements an HTTP `402 Payment Required` interface to gate file storage (pinning) on decentralized networks like IPFS with Algorand micropayments.
+The IPFS "Pay-to-Pin" Gateway is a service that implements a standard HTTP `402 Payment Required` interface to gate file storage (pinning) on decentralized networks like IPFS using Algorand microUSDC payments.
 
 ### Core Architecture
-- **API (FastAPI)**: Receives file uploads, issues x402 payment requests, verifies transactions, and pins files.
+- **API (Hono/TypeScript)**: Receives file uploads, issues x402 payment requests, verifies transactions, and pins files to IPFS. Uses the standard `@x402/hono` middleware.
 - **Smart Contract (`escrow.py`)**: Written in `algopy` (Algorand Python). Manages platform settings (price per byte, registry of active gateway operators, treasury address).
-- **Storage Layer**: Communicates with IPFS pinning services (e.g., Pinata) or local IPFS daemons.
+- **Storage Layer**: Communicates with Pinata. Implements a Local Buffer Queue and Circuit Breaker to ensure agents do not pay for failed storage requests if Pinata goes offline.
 - **Client Flow**:
-  1. Client calls `POST /api/v1/pin` with payload.
-  2. Server returns `402 Payment Required` JSON payload outlining payment amount (in microALGOs) and target escrow address.
-  3. Client pays on-chain and submits txn ID to `POST /api/v1/verify` or in headers.
-  4. Server verifies the transaction, finishes pinning the file, and returns the IPFS CID.
+  1. Client calls `POST /api/v1/pin` with a JSON payload containing the Base64 file.
+  2. Server returns `402 Payment Required` with a `PAYMENT-REQUIRED` header containing the x402 challenge (microUSDC pricing).
+  3. Client pays on-chain and resubmits the exact original POST request, but this time includes a `PAYMENT-SIGNATURE` header.
+  4. Server verifies the transaction signature, buffers the file locally (returning `201 Created` immediately), and asynchronously pins it to Pinata.
 
 ---
 
@@ -27,19 +27,17 @@ ipfs-pay-to-pin/
 ├── .specify/               # SpecKit Specifications & Memory
 │   ├── memory/             # Project status, specs, constitution
 │   │   └── constitution.md
-│   └── templates/          # Templates for specs, plans, tasks
+│   ├── templates/          # Templates for specs, plans, tasks
+│   └── feature.json        # Current active feature reference
 ├── .agents/                # Custom subagents or rules
 ├── escrow/                 # Smart Contract directory
 │   ├── contract.py         # algopy smart contract logic
 │   └── compile.py          # Script to compile smart contract
-├── gateway/                # FastAPI Application
-│   ├── main.py             # Entrypoint
-│   ├── config.py           # Configuration (ports, IPFS endpoints)
-│   ├── storage.py          # IPFS client wrapping Pinata/Local
-│   └── payment.py          # Algorand payment verification logic
+├── src/                    # TypeScript Hono Application
+│   ├── index.ts            # Entrypoint & x402 configuration
+│   └── storage.ts          # Pinata interaction & buffering logic
 ├── tests/                  # Test suite
-│   ├── test_contract.py    # Unit tests for contract
-│   └── test_gateway.py     # Integration tests for gateway API
+├── scripts/                # Helper scripts for interaction
 ├── README.md               # Overview and user instructions
 └── AGENTS.md               # This guide
 ```
@@ -48,25 +46,20 @@ ipfs-pay-to-pin/
 
 ## 3. Technology Stack & Key Libraries
 
-- **Backend**: Python 3.12+, FastAPI, Uvicorn.
-- **Algorand Integration**: `py-algorand-sdk`, `algokit-utils` (localnet / helper scripts).
+- **Backend**: Node.js, TypeScript, Hono (`@hono/node-server`).
+- **x402 Integration**: `@x402/hono`, `@x402/core`, `@x402/avm`, `@x402/extensions`.
 - **Smart Contract compiler**: Algorand Python (`algopy` via Puya).
-- **IPFS Clients**: `aiohttp` (or `requests`) calling Pinata API or local HTTP IPFS daemon.
-- **Testing**: `pytest`, `pytest-asyncio`.
+- **IPFS Clients**: `@pinata/sdk` or raw HTTP requests to Pinata.
 
 ---
 
 ## 4. Coding Conventions & Guardrails
 
 - **Algorand Python Rules**: Implement contracts using pure `algopy` syntax. Ensure all application methods return valid types and manage state variables strictly inside Boxes or Global State.
-- **No Hardcoded Secrets**: Access credentials (e.g., `PINATA_JWT`, `ALGORAND_WALLET_PRIVATE_KEY`) strictly from `.env` via configuration classes.
-- **x402 Compliance**: Always return the standard HTTP 402 header structure:
-  - Header: `X-Algorand-Address`: Escrow address to receive payment.
-  - Header: `X-Algorand-Amount`: Payment size in microALGOs.
-  - Header: `X-Algorand-Txn-Ref`: A unique reference string/hash representing the payment challenge.
-- **Deterministic Pricing**: Micropayments must be calculated dynamically:
-  $$\text{Fee} = \text{Base Price} + (\text{Size in Bytes} \times \text{Byte Price})$$
-  Both `Base Price` and `Byte Price` should be queried from the smart contract's global state or cache.
+- **No Hardcoded Secrets**: Access credentials (e.g., `PINATA_JWT`, `ALGORAND_WALLET_PRIVATE_KEY`) strictly from `.env`.
+- **x402 Compliance**: Always use the standard `@x402/hono` middleware for generating `402 Payment Required` responses. The middleware will automatically handle injecting the `PAYMENT-REQUIRED` header and validating the `PAYMENT-SIGNATURE` header.
+- **Pricing**: Micropayments are calculated dynamically based on payload bytes in **microUSDC**, not microALGO.
+- **Fault Tolerance**: The API MUST decouple the synchronous Pinata upload from the client response. It MUST use a Circuit Breaker to reject traffic with `503 Service Unavailable` if the local buffer queue is full, preventing agents from paying for dropped storage.
 
 ---
 *Keep this document updated as the project evolves.*

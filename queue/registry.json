@@ -1,0 +1,22 @@
+[
+  {
+    "id": "job_1785070199503_fwpmw",
+    "filename": "test.txt",
+    "cid": "Qm707a7d94520add58adb1e14ca3a099cbe7d9a317797e",
+    "filePath": "C:\\Users\\Garret\\.gemini\\antigravity\\scratch\\ipfs-pay-to-pin\\queue\\job_1785070199503_fwpmw_test.txt",
+    "status": "PINNED",
+    "retryCount": 0,
+    "createdAt": 1785070199503,
+    "gatewayUrl": "https://ipfs.io/ipfs/Qm707a7d94520add58adb1e14ca3a099cbe7d9a317797e"
+  },
+  {
+    "id": "job_1785070199505_cmaw1",
+    "filename": "test_dup.txt",
+    "cid": "Qm707a7d94520add58adb1e14ca3a099cbe7d9a317797e",
+    "filePath": "C:\\Users\\Garret\\.gemini\\antigravity\\scratch\\ipfs-pay-to-pin\\queue\\job_1785070199505_cmaw1_test_dup.txt",
+    "status": "PINNED",
+    "retryCount": 0,
+    "createdAt": 1785070199505,
+    "gatewayUrl": "https://ipfs.io/ipfs/Qm707a7d94520add58adb1e14ca3a099cbe7d9a317797e"
+  }
+]
