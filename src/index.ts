@@ -94,5 +94,6 @@ console.log(`x402 Gateway Resource Server starting on port ${port}...`);
 
 serve({
     fetch: app.fetch,
-    port: port
+    port: port,
+    hostname: '0.0.0.0'
 });
