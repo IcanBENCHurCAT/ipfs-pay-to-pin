@@ -8,7 +8,7 @@ from io import BytesIO
 from algosdk import mnemonic, account, transaction, encoding
 from algosdk.v2client import algod
 
-PROD_URL = "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com"
+PROD_URL = "http://localhost:4021"
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
 
 MNEMONIC_STR = "sheriff cruise oxygen air eagle hungry spread yard gun case drift screen enhance alley ostrich spike door engage harsh order flush scale tennis about runway"
@@ -96,10 +96,6 @@ def test_prod_hono_e2e():
         print(json.dumps(x402_spec["extensions"], indent=2))
         print("---------------------------------------------------\n")
         payment_payload["extensions"] = x402_spec["extensions"]
-
-    # 2.6 Echo resource metadata
-    if "resource" in x402_spec:
-        payment_payload["resource"] = x402_spec["resource"]
 
     encoded_payment_payload = base64.b64encode(json.dumps(payment_payload).encode("utf-8")).decode("utf-8")
 

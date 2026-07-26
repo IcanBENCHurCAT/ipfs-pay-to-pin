@@ -249,7 +249,7 @@ app.use(
                             // Approximate original binary size from Base64 JSON payload
                             const approximateBinaryBytes = Math.floor(contentLength * 0.75);
                             const baseMicroUsdc = 10000; // $0.01 base price
-                            const bytePriceMicroUsdc = 1; // $0.000001 per byte
+                            const bytePriceMicroUsdc = 0.02; // $0.02 per MB (0.02 microUSDC per byte)
                             const totalMicroUsdc = baseMicroUsdc + (approximateBinaryBytes * bytePriceMicroUsdc);
                             return `$${(totalMicroUsdc / 1000000).toFixed(6)}`;
                         },
