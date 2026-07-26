@@ -52,6 +52,18 @@ const pinDiscovery = declareDiscoveryExtension({
             ipfs_cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
             cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
             gateway_url: "https://gateway.pinata.cloud/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        },
+        schema: {
+            type: "object",
+            properties: {
+                status: { type: "string" },
+                message: { type: "string" },
+                filename: { type: "string" },
+                ipfs_cid: { type: "string" },
+                cid: { type: "string" },
+                gateway_url: { type: "string" }
+            },
+            required: ["status", "message", "filename", "ipfs_cid", "cid", "gateway_url"]
         }
     }
 });
@@ -218,16 +230,20 @@ app.use(
                         },
                         network: networkCaip2,
                         payTo: escrowAddress,
-                        extra: { asset: usdcAsaId, tag: "x402-global-challenge" }
+                        maxTimeoutSeconds: 300,
+                        extra: {
+                            asset: usdcAsaId,
+                            tag: "x402-global-challenge",
+                            decimals: 6,
+                            feePayer: escrowAddress
+                        }
                     }
                 ],
-                resource: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin",
-                description: "Upload one file as a Base64-encoded JSON payload; on successful payment, the service pins it to IPFS and returns cid, ipfs_cid, and gateway_url.",
+                description: "Upload one file as a Base64-encoded JSON payload",
                 mimeType: "application/json",
-                serviceName: "IPFS Pay-to-Pin Gateway",
-                tags: ["ipfs", "storage", "ai-agents", "pinning", "x402-global-challenge"],
-                iconUrl: "https://ipfs.io/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy",
-                extensions: pinDiscovery
+                extensions: {
+                    ...pinDiscovery
+                }
             }
         },
         server
