@@ -72,15 +72,24 @@ const pinDiscovery = declareDiscoveryExtension({
 
 const app = new Hono();
 
+const logoUrl = "https://gateway.pinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy";
+
 // Health check and Merchant metadata endpoint
 const x402MetadataHandler = (c: any) => {
     return c.json({
         merchant: {
             name: "IPFS Pay-to-Pin Gateway",
             description: "Pay-per-request infrastructure API giving autonomous agents reliable access to decentralized IPFS storage.",
-            iconUrl: "https://ipfs.io/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy",
+            icon: logoUrl,
+            image: logoUrl,
+            iconUrl: logoUrl,
+            icon_url: logoUrl,
+            avatar: logoUrl,
+            avatarUrl: logoUrl,
             contact: "garretparker@gmail.com"
         },
+        image: logoUrl,
+        icon: logoUrl,
         resources: [
             {
                 path: "/api/v1/pin",
@@ -100,6 +109,10 @@ app.get("/.well-known/agent-card.json", (c) => {
     return c.json({
         "name": "IPFS Pay-to-Pin Gateway",
         "description": "Upload one file as a Base64-encoded JSON payload; on successful payment, the service pins it to IPFS.",
+        "icon": logoUrl,
+        "image": logoUrl,
+        "iconUrl": logoUrl,
+        "avatarUrl": logoUrl,
         "version": "1.0.0",
         "url": "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com",
         "supportedInterfaces": [
