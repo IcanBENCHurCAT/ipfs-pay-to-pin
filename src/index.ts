@@ -89,7 +89,7 @@ app.use(
                 mimeType: "multipart/form-data",
                 serviceName: "IPFS Pay-to-Pin Gateway",
                 tags: ["ipfs", "storage", "ai-agents", "pinning", "x402-global-challenge"],
-                iconUrl: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/favicon.ico",
+                iconUrl: "https://ipfs.io/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy",
                 extensions: pinDiscovery
             }
         },
