@@ -10,6 +10,7 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import { bazaarResourceServerExtension, declareDiscoveryExtension } from "@x402/extensions";
 import type { ResourceServerExtension } from "@x402/core/types";
 import { pinFileToStorage } from "./storage.js";
+import { rateLimiterMiddleware } from "./middleware/rateLimiter.js";
 
 config();
 
@@ -69,6 +70,9 @@ const pinDiscovery = declareDiscoveryExtension({
 });
 
 const app = new Hono();
+
+// Global sliding-window rate limiter (60 req/min per IP)
+app.use("*", rateLimiterMiddleware);
 
 const logoUrl = "https://gateway.pinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy";
 
