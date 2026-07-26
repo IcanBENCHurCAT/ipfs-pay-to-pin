@@ -84,6 +84,7 @@ app.use(
                         extra: { asset: usdcAsaId, tag: "x402-global-challenge" }
                     }
                 ],
+                resource: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin",
                 description: "Real-time IPFS file storage & pinning: accepts uploaded files and returns permanent IPFS CID and gateway URL via Algorand USDC micropayments",
                 mimeType: "multipart/form-data",
                 extensions: { ...pinDiscovery }
