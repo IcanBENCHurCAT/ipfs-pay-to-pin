@@ -33,6 +33,13 @@ const pinDiscovery = declareDiscoveryExtension({
     input: {
         file: "(binary file upload)"
     },
+    inputSchema: {
+        type: "object",
+        properties: {
+            file: { type: "string", format: "binary", description: "File to pin to IPFS" }
+        },
+        required: ["file"],
+    },
     output: {
         example: {
             status: "success",
