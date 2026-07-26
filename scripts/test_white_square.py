@@ -89,6 +89,10 @@ def test_prod_hono_e2e():
             "paymentIndex": 0
         }
     }
+    
+    # 2.5 Ensure extensions are passed through so the facilitator can index Bazaar metadata
+    if "extensions" in challenge:
+        payment_payload["extensions"] = challenge["extensions"]
 
     encoded_payment_payload = base64.b64encode(json.dumps(payment_payload).encode("utf-8")).decode("utf-8")
 
