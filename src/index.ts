@@ -5,7 +5,7 @@ import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
 import { ExactAvmScheme } from "@x402/avm/exact/server";
 import { ALGORAND_MAINNET_CAIP2, ALGORAND_TESTNET_CAIP2, USDC_MAINNET_ASA_ID, USDC_TESTNET_ASA_ID } from "@x402/avm";
 import { HTTPFacilitatorClient } from "@x402/core/server";
-import { bazaarResourceServerExtension } from "@x402/extensions";
+import { bazaarResourceServerExtension, declareDiscoveryExtension } from "@x402/extensions";
 import type { ResourceServerExtension } from "@x402/core/types";
 import { pinFileToStorage } from "./storage.js";
 
@@ -28,16 +28,46 @@ server.registerExtension(bazaarResourceServerExtension as unknown as ResourceSer
 // Initialize facilitator connection to load supported kinds and schemes
 await server.initialize();
 
+const pinDiscovery = declareDiscoveryExtension({
+    bodyType: "form-data",
+    input: {
+        file: "(binary file upload)"
+    },
+    output: {
+        example: {
+            status: "success",
+            message: "Payment verified. File pinned permanently.",
+            filename: "pinned_file.png",
+            ipfs_cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+            cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+            gateway_url: "https://gateway.pinata.cloud/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        }
+    }
+});
+
 const app = new Hono();
 
-// Health check endpoint
+// Health check and Merchant metadata endpoint
 app.get("/", (c) => {
-    return c.json({
-        status: "online",
-        service: "IPFS Pay-to-Pin Gateway (@x402/hono)",
-        network: networkEnv,
-        escrow: escrowAddress
-    });
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPFS Pay-to-Pin Gateway</title>
+    <meta name="description" content="Pay-per-request infrastructure API that solves one of the biggest bottlenecks in the AI industry: giving autonomous agents reliable access to decentralized IPFS storage.">
+    <meta property="og:title" content="IPFS Pay-to-Pin Gateway">
+    <meta property="og:description" content="Pay-per-request infrastructure API that solves one of the biggest bottlenecks in the AI industry: giving autonomous agents reliable access to decentralized IPFS storage.">
+</head>
+<body style="font-family: sans-serif; padding: 2rem;">
+    <h1>IPFS Pay-to-Pin Gateway</h1>
+    <p>Status: <strong style="color: green;">online</strong></p>
+    <p>Service: IPFS Pay-to-Pin Gateway (@x402/hono)</p>
+    <p>Network: ${networkEnv}</p>
+    <p>Escrow: <code>${escrowAddress}</code></p>
+</body>
+</html>`;
+    return c.html(html);
 });
 
 app.use(
@@ -55,7 +85,8 @@ app.use(
                     }
                 ],
                 description: "Real-time IPFS file storage & pinning: accepts uploaded files and returns permanent IPFS CID and gateway URL via Algorand USDC micropayments",
-                mimeType: "multipart/form-data"
+                mimeType: "multipart/form-data",
+                extensions: { bazaar: pinDiscovery }
             }
         },
         server
