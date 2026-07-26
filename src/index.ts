@@ -55,6 +55,26 @@ const pinDiscovery = declareDiscoveryExtension({
 const app = new Hono();
 
 // Health check and Merchant metadata endpoint
+app.get("/.well-known/x402.json", (c) => {
+    return c.json({
+        merchant: {
+            name: "IPFS Pay-to-Pin Gateway",
+            description: "Pay-per-request infrastructure API giving autonomous agents reliable access to decentralized IPFS storage.",
+            iconUrl: "https://ipfs.io/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy",
+            contact: "garretparker@gmail.com"
+        },
+        resources: [
+            {
+                path: "/api/v1/pin",
+                url: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin",
+                description: "Upload one file as multipart form-data; on successful payment, the service pins it to IPFS and returns cid, ipfs_cid, and gateway_url.",
+                methods: ["POST"],
+                networks: ["algorand:mainnet", "algorand:testnet"]
+            }
+        ]
+    });
+});
+
 app.get("/", (c) => {
     const html = `<!DOCTYPE html>
 <html lang="en">
@@ -97,7 +117,7 @@ app.use(
                     }
                 ],
                 resource: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin",
-                description: "Real-time IPFS file storage & pinning: accepts uploaded files and returns permanent IPFS CID and gateway URL via Algorand USDC micropayments",
+                description: "Upload one file as multipart form-data; on successful payment, the service pins it to IPFS and returns cid, ipfs_cid, and gateway_url.",
                 mimeType: "multipart/form-data",
                 serviceName: "IPFS Pay-to-Pin Gateway",
                 tags: ["ipfs", "storage", "ai-agents", "pinning", "x402-global-challenge"],
