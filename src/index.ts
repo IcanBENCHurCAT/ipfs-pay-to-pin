@@ -86,7 +86,7 @@ app.use(
                 ],
                 description: "Real-time IPFS file storage & pinning: accepts uploaded files and returns permanent IPFS CID and gateway URL via Algorand USDC micropayments",
                 mimeType: "multipart/form-data",
-                extensions: { bazaar: pinDiscovery }
+                extensions: { ...pinDiscovery }
             }
         },
         server
