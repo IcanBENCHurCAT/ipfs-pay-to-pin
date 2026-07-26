@@ -78,7 +78,13 @@ app.use(
                 accepts: [
                     {
                         scheme: "exact",
-                        price: "$0.01",
+                        price: (ctx) => {
+                            const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
+                            const baseMicroUsdc = 10000; // $0.01 base price
+                            const bytePriceMicroUsdc = 1; // $0.000001 per byte
+                            const totalMicroUsdc = baseMicroUsdc + (contentLength * bytePriceMicroUsdc);
+                            return `$${(totalMicroUsdc / 1000000).toFixed(6)}`;
+                        },
                         network: networkCaip2,
                         payTo: escrowAddress,
                         extra: { asset: usdcAsaId, tag: "x402-global-challenge" }
