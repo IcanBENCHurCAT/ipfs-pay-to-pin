@@ -10,6 +10,8 @@ import { HTTPFacilitatorClient } from "@x402/core/server";
 import { bazaarResourceServerExtension, declareDiscoveryExtension } from "@x402/extensions";
 import type { ResourceServerExtension } from "@x402/core/types";
 import { pinFileToStorage } from "./storage.js";
+import { globalFileQueue } from "./queue.js";
+import { circuitBreakerMiddleware } from "./middleware/circuitBreaker.js";
 
 config();
 
@@ -237,6 +239,9 @@ app.get("/", (c) => {
     return c.html(html);
 });
 
+// Circuit breaker check BEFORE payment middleware
+app.use("/api/v1/pin", circuitBreakerMiddleware);
+
 app.use(
     paymentMiddleware(
         {
@@ -297,20 +302,26 @@ app.post("/api/v1/pin", async (c) => {
 
         const buffer = Buffer.from(data, 'base64');
 
-        const pinResult = await pinFileToStorage(buffer, filename);
+        // Add job to local buffer queue and calculate deterministic CID
+        const job = globalFileQueue.addJob(filename, buffer);
 
         return c.json({
             status: "success",
-            message: "Payment verified. File pinned permanently.",
+            message: "Payment verified. File accepted and queued for permanent IPFS pinning.",
             filename: filename,
-            ipfs_cid: pinResult.ipfs_cid,
-            cid: pinResult.ipfs_cid,
-            gateway_url: pinResult.gateway_url
+            ipfs_cid: job.cid,
+            cid: job.cid,
+            gateway_url: job.gatewayUrl
         }, 201);
     } catch (e: any) {
-        return c.json({ error: e.message || "Failed to pin file" }, 500);
+        return c.json({ error: e.message || "Failed to process file upload" }, 500);
     }
 });
+
+// Start background worker polling loop
+setInterval(() => {
+    globalFileQueue.processJobs().catch(err => console.error("[Queue Worker Error]", err));
+}, 10000);
 
 const port = Number(process.env.PORT) || 4021;
 console.log(`x402 Gateway Resource Server starting on port ${port}...`);
