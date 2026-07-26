@@ -71,7 +71,6 @@ app.get("/", (c) => {
 });
 
 app.use(
-    "/api/v1/pin",
     paymentMiddleware(
         {
             "POST /api/v1/pin": {
