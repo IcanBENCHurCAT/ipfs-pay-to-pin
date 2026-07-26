@@ -133,6 +133,20 @@ async def request_pin(request: Request, background_tasks: BackgroundTasks, file:
         elif settings.ALGORAND_NETWORK == "testnet":
             network_id = "algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI="
 
+        bazaar_extension = {
+            "info": {
+                "name": "IPFS File Pinning Service",
+                "resourceName": "IPFS File Pinning Service",
+                "provider": "IPFS Pay-to-Pin",
+                "merchant": "IPFS Pay-to-Pin",
+                "description": "Real-time IPFS file storage & pinning: accepts uploaded files and returns permanent IPFS CID and gateway URL via Algorand USDC micropayments",
+                "icon": "https://amber-extensive-crawdad-745.mypinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy"
+            },
+            "extra": {
+                "tag": "x402-global-challenge"
+            }
+        }
+
         x402_spec = {
             "version": "2.0",
             "scheme": "exact",
@@ -146,6 +160,12 @@ async def request_pin(request: Request, background_tasks: BackgroundTasks, file:
             "method": "POST",
             "tag": "x402-global-challenge",
             "tags": ["x402-global-challenge"],
+            "extra": {
+                "tag": "x402-global-challenge"
+            },
+            "extensions": {
+                "bazaar": bazaar_extension
+            },
             "name": "IPFS Pay-to-Pin Gateway",
             "resourceName": "IPFS File Pinning Service",
             "provider": "IPFS Pay-to-Pin",
@@ -247,6 +267,24 @@ async def verify_payment(
                 "method": "POST",
                 "tag": "x402-global-challenge",
                 "tags": ["x402-global-challenge"],
+                "extra": {
+                    "tag": "x402-global-challenge"
+                },
+                "extensions": {
+                    "bazaar": {
+                        "info": {
+                            "name": "IPFS File Pinning Service",
+                            "resourceName": "IPFS File Pinning Service",
+                            "provider": "IPFS Pay-to-Pin",
+                            "merchant": "IPFS Pay-to-Pin",
+                            "description": "Real-time IPFS file storage & pinning: accepts uploaded files and returns permanent IPFS CID and gateway URL via Algorand USDC micropayments",
+                            "icon": "https://amber-extensive-crawdad-745.mypinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy"
+                        },
+                        "extra": {
+                            "tag": "x402-global-challenge"
+                        }
+                    }
+                },
                 "resourceName": "IPFS File Pinning Service",
                 "provider": "IPFS Pay-to-Pin",
                 "merchant": "IPFS Pay-to-Pin",
