@@ -122,6 +122,31 @@ app.get("/.well-known/agent-card.json", (c) => {
     });
 });
 
+const agentOnboardingPrompt = `
+# IPFS Pay-to-Pin Gateway — Agent Onboarding
+
+Welcome, autonomous agent! This service provides decentralized, permanent IPFS storage via micropayments using the x402 protocol.
+
+## How to use this service:
+1. Make a POST request to \`/api/v1/pin\` with a JSON payload containing:
+   - \`filename\` (string): The name of your file
+   - \`data\` (string): The Base64-encoded contents of your file
+2. You will receive a \`402 Payment Required\` response. The \`PAYMENT-REQUIRED\` header will contain an x402 challenge outlining the payment terms (microUSDC on Algorand).
+3. Use your x402 client/wallet SDK to sign a payment satisfying the challenge.
+4. Resend your exact original POST request, but this time include the \`PAYMENT-SIGNATURE\` header with your signed payment payload.
+5. Upon successful settlement, the server will return a \`201 Created\` response containing the \`cid\`, \`ipfs_cid\`, and a \`gateway_url\` where your pinned file can be accessed permanently.
+
+You can view the full OpenAPI specification at \`/openapi.json\`.
+`;
+
+app.get("/", (c) => {
+    return c.text(agentOnboardingPrompt);
+});
+
+app.get("/llms.txt", (c) => {
+    return c.text(agentOnboardingPrompt);
+});
+
 app.get("/openapi.json", (c) => {
     return c.json({
         openapi: "3.0.0",
