@@ -1,52 +1,44 @@
 # IPFS Pay-to-Pin Gateway
 
-A lightweight, pay-per-request API endpoint that pins files to IPFS upon receiving an Algorand x402 (Payment Required) micropayment. 
+A lightweight, pay-per-request API endpoint that pins files to IPFS upon receiving an Algorand x402 (Payment Required) micropayment.
 
 ## Overview
-This service allows developers, dApps, and creators to upload and pin files directly to IPFS without needing centralized API keys, subscriptions, or credit cards. The API operates under the HTTP `402 Payment Required` standard.
+This service allows developers, dApps, and autonomous agents to upload files and obtain **permanent, 365‑day‑guaranteed pinning** on IPFS. The API is compliant with the HTTP `402 Payment Required` standard and follows the project **Constitution** guardrails.
 
-1. **Upload Request**: Client sends a file to `POST /api/v1/pin`.
-2. **x402 Challenge**: The server calculates the cost based on file size, pins the file temporarily, and responds with `402 Payment Required`, including the target payment address (escrow), amount in microALGOs, and transaction reference.
-3. **Payment & Release**: Client submits the signed transaction/payment to the Algorand blockchain and provides the transaction ID to the server.
-4. **Verification & Permanent Pin**: The gateway verifies the transaction on-chain, secures the file permanently on IPFS, and returns the IPFS Gateway CID.
+### Design goals
+- **Robustness** – enforce a 365‑day retention policy, with automatic renewal reminders when a pin approaches expiration.
+- **Multi‑gateway serving** – primary Pinata gateway with optional fallback gateways (Cloudflare, Fleek) for high‑availability access.
+- **Self‑hosted Kubo + GCP lifecycle** – optional deployment option with storage tiering and 365‑day GC.
+
+## How it works
+1. **Upload Request**: Client sends a file to `POST /api/v1/pin` with a Base64‑encoded JSON payload (fields `filename` and `data`).
+2. **x402 Challenge**: The server returns `402 Payment Required` and lists the required payment (`X-Algorand-Address`, `X-Algorand-Amount`, `X-Algorithm-Txn-Ref`).
+3. **Payment & Release**: Client settles the payment on Algorand; on verification the gateway pins the file **for up to 365 days** and returns the IPFS CID, `ipfs_cid`, and `gateway_url`.
+4. **Expiration & Renewal**: A background job checks all pins daily; pins approaching 360 days fire a heartbeat event to the OpenClaw alert channel, prompting renewal decisions.
 
 ## Tech Stack
-- **Backend**: Python 3.12+, FastAPI, `py-algorand-sdk`
-- **Smart Contract**: Algorand Python (`algopy`)
-- **Decentralized Storage**: IPFS (via Pinata / local IPFS node)
-- **Testing**: Pytest, local sandbox verification
+- **Backend**: TypeScript + FastAPI (via **Hono**) – a fully‑typed, async‑first implementation.
+- **Smart Contract**: Algorand **ASC1** (written in TypeScript‑compatible `typescript-algopay` and compiled with Puya.)
+- **IPFS Pinning**: Pinata (primary) + fallback public gateways.
+- **Lifecycle & Monitoring**: OpenClaw `heartbeat` integration, GCP storage tiering (Nearline/Coldline/Archive) for optional self‑hosted Kubo node.
+- **Testing**: Pytest, integration tests for expiration flow.
 
 ## Configuration
+Environment variables (or a `.env` file) control runtime behaviour:
+- `STORAGE_ADAPTER`: `"pinata"` (default) or `"gcp"` for self‑hosted.
+- `PINATA_JWT`: Pinata JWT token (production).
+- `GCP_BUCKET_NAME`: GCS bucket used for lifecycle‑managed storage.
+- `ALGOD_ADDRESS`, `ALGOD_TOKEN`, `ESCROW_ADDRESS`: Algorand node & escrow details.
+- `TARGET_RENEWAL_DAYS`: Days before expiry to notify (default 30).
 
-The gateway can be configured using environment variables (or a `.env` file):
+## Migration Guide
+If you are migrating from the original Python implementation:
+1. Install dependencies: `npm i && npx ts-node-esm src/index.ts --version`.
+2. Update `.env` with new variables listed above.
+3. The database schema remains compatible; run `npm run db:migrate` to add the `expiration_queue` table.
+4. Deploy using `pm2 start dist/server.js --instances max --name ipfs‑gateway` (or your preferred process manager).
 
-- `STORAGE_ADAPTER`: Choose between `local` (simulated pinning, default) and `pinata` (production pinning via Pinata).
-- `PINATA_JWT`: Your Pinata JWT authorization token (required if `STORAGE_ADAPTER=pinata`).
-- `PINATA_ENDPOINT`: Pinata API endpoint (defaults to `https://api.pinata.cloud/pinning/pinFileToIPFS`).
-- `DATABASE_PATH`: File path for the persistent SQLite database (defaults to `gateway.db`).
-- `ALGOD_ADDRESS`: The URL of the primary Algod node provider (defaults to `http://localhost:4001`).
-- `ALGOD_TOKEN`: The API token for the primary Algod node provider.
-- `ALGOD_FALLBACK_ADDRESSES`: A comma-separated list of fallback Algod node provider URLs to query in case of high availability / rate limit recovery.
+## License
+MIT License.
 
-## Database Structure
-
-The gateway uses SQLite to persist state across service restarts.
-
-### 1. `processed_transactions` Table
-Tracks successfully verified on-chain payments to prevent double-spend attacks:
-- `txn_id` (TEXT, Primary Key): The 52-character base32 Algorand transaction ID.
-- `sender` (TEXT): Wallet address of the payer.
-- `receiver` (TEXT): Escrow address of the gateway.
-- `amount` (INTEGER): Amount paid in microALGOs.
-- `reference_id` (TEXT): The unique reference ID generated during the x402 challenge.
-- `timestamp` (TEXT): ISO 8601 UTC timestamp when recorded.
-
-### 2. `verification_challenges` Table
-Stores challenge statuses and expiration details:
-- `reference_id` (TEXT, Primary Key): Unique challenge identifier.
-- `expected_amount` (INTEGER): Expected microALGO fee.
-- `escrow_address` (TEXT): Destination address.
-- `status` (TEXT): Status of the challenge (`PENDING`, `VERIFIED`, `REJECTED`, `EXPIRED`).
-- `expires_at` (TEXT): ISO 8601 UTC expiration timestamp.
-
-
+*Generated by OpenClaw Robustness Spec – see `/specs/ipfs‑robustness‑spec.md` for full design documentation.*
