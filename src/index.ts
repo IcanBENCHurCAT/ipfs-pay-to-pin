@@ -50,7 +50,7 @@ const pinDiscovery = declareDiscoveryExtension({
     output: {
         example: {
             status: "success",
-            message: "Payment verified. File pinned permanently.",
+            message: "Payment verified. File pinned for 365 days.",
             filename: "pinned_file.png",
             ipfs_cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
             cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
@@ -147,7 +147,7 @@ app.get("/.well-known/agent-card.json", (c) => {
 const agentOnboardingPrompt = `
 # IPFS Pay-to-Pin Gateway — Agent Onboarding
 
-Welcome, autonomous agent! This service provides decentralized, permanent IPFS storage via micropayments using the x402 protocol.
+Welcome, autonomous agent! This service provides decentralized, 365-day IPFS storage via micropayments using the x402 protocol.
 
 ## How to use this service:
 1. Make a POST request to \`/api/v1/pin\` with a JSON payload containing:
@@ -156,7 +156,7 @@ Welcome, autonomous agent! This service provides decentralized, permanent IPFS s
 2. You will receive a \`402 Payment Required\` response. The \`PAYMENT-REQUIRED\` header will contain an x402 challenge outlining the payment terms (microUSDC on Algorand).
 3. Use your x402 client/wallet SDK to sign a payment satisfying the challenge.
 4. Resend your exact original POST request, but this time include the \`PAYMENT-SIGNATURE\` header with your signed payment payload.
-5. Upon successful settlement, the server will return a \`201 Created\` response containing the \`cid\`, \`ipfs_cid\`, and a \`gateway_url\` where your pinned file can be accessed permanently.
+5. Upon successful settlement, the server will return a \`201 Created\` response containing the \`cid\`, \`ipfs_cid\`, and a \`gateway_url\` where your pinned file can be accessed for 365 days.
 
 You can view the full OpenAPI specification at \`/openapi.json\`.
 `;
@@ -327,7 +327,7 @@ app.post("/api/v1/pin", async (c) => {
 
         return c.json({
             status: "success",
-            message: "Payment verified. File accepted and queued for permanent IPFS pinning.",
+            message: "Payment verified. File accepted and queued for 365 days of IPFS pinning.",
             filename: filename,
             ipfs_cid: job.cid,
             cid: job.cid,

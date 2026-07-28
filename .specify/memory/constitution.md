@@ -41,16 +41,32 @@ This document defines the prescriptive architectural rules, engineering standard
 
 ---
 
+### 4. Retention & Expiration (MUST)
+4.1. The system MUST guarantee a **maximum retention period of 365 days** for any pinned content.
+4.2. When a pin approaches its 365‑day anniversary (≈ 360 days), the system SHALL emit a heartbeat (`HEARTBEAT_OK`) containing `{cid, expires_at}` to the OpenClaw alert channel, indicating that renewal should be considered.
+
+---
+
 ## II. Preferred Guidelines (SHOULD Principles)
 
 ### 6. Client Simplicity & UX
 6.1. The API endpoints SHOULD be simple and fully self-documenting via Swagger UI (`/docs`) and OpenAPI specifications (`/openapi.json`).
 6.2. Error responses SHOULD be human-readable, describing why a transaction verification failed (e.g., "Transaction amount too low", "Transaction sender mismatch").
 
-### 7. Development Ergonomics
-7.1. The workspace SHOULD provide mock pinning behavior for tests (`tests/`) so that tests do not require an active Pinata JWT or internet connection.
-7.2. LocalNet/Sandbox scripts SHOULD be included to compile and deploy the `escrow` contract locally for testing.
+### 6. Development Ergonomics
+6.1. The workspace SHOULD provide mock pinning behavior for tests (`tests/`) so that tests do not require an active Pinata JWT or internet connection.
+6.2. LocalNet/Sandbox scripts SHOULD be included to compile and deploy the `escrow` contract locally for testing.
 
 ---
 
-**Version**: 1.1.0 | **Ratified**: 2026-07-20 | **Last Amended**: 2026-07-26
+### 7. Multi‑Gateway Fallback (SHOULD)
+7.1. Optional deployment of a **multi‑gateway fallback** mechanism, with health‑checked public gateways (e.g., Cloudflare IPFS, Fleek), to ensure high‑availability access when the primary Pinata endpoint is unreachable.
+
+---
+
+### 8. GCP Lifecycle Enforcement (SHOULD)
+8.1. Optional deployment of a **GCP bucket lifecycle rule** that automatically deletes objects older than 365 days, reinforcing the 365‑day retention guarantee at the storage layer.
+
+---
+
+**Version**: 1.2.0 | **Ratified**: 2026-07-20 | **Last Amended**: 2026-07-28
