@@ -42,8 +42,7 @@ This document defines the prescriptive architectural rules, engineering standard
 ---
 
 ### 4. Retention & Expiration (MUST)
-4.1. The system MUST guarantee a **maximum retention period of 365 days** for any pinned content.
-4.2. When a pin approaches its 365‑day anniversary (≈ 360 days), the system SHALL emit a heartbeat (`HEARTBEAT_OK`) containing `{cid, expires_at}` to the OpenClaw alert channel, indicating that renewal should be considered.
+4.1. The system MUST guarantee a **maximum retention period of 365 days** per payment for any pinned content. Expiration metadata (`expires_at`, `ttl_days`, `renewal_url`) MUST be returned in API pin responses so clients can track expiration and trigger renewal payments via `/renew`.
 
 ---
 
