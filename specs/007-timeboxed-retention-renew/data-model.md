@@ -35,6 +35,8 @@ CREATE INDEX IF NOT EXISTS idx_pin_records_expires_at ON pin_records(expires_at)
 - `ttl_days`: `365` (or calculated as `expires_at - pinned_at`).
 - `days_remaining`: `MAX(0, Math.ceil((expires_at - Date.now()) / (1000 * 60 * 60 * 24)))`.
 - `is_active`: `(new Date(expires_at) > new Date()) && status === 'PINNED'`.
+- `in_grace_period`: `(Date.now() > expires_at) && (Date.now() <= expires_at + 30 days)`.
+- `renewal_discount_percent`: `(new Date(expires_at) > new Date()) ? 50 : 0` (50% discount if renewed before expiration; 0% discount during 30-day grace period).
 - `renewal_url`: `"/api/v1/renew?cid=" + cid`.
 
 ## API Responses (DTOs)

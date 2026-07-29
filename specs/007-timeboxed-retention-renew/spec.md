@@ -61,10 +61,11 @@ As an agent or developer, I want to query `GET /api/v1/pin/:cid` for free, so I 
 - **FR-001**: System MUST calculate `expires_at` as ISO 8601 string (+365 days from `pinned_at`) upon initial upload verification.
 - **FR-002**: `POST /api/v1/pin` response JSON MUST include `pinned_at`, `expires_at`, `ttl_days: 365`, and `renewal_url`.
 - **FR-003**: System MUST expose a `POST /api/v1/renew` endpoint protected by `@x402/hono` `paymentMiddleware`.
-- **FR-004**: System MUST calculate the renewal price based on standard base fee ($0.01 base + byte price per MB).
+- **FR-004**: System MUST calculate renewal price with an **Early Renewal Discount** (50% discount on microUSDC fee) if renewed prior to `expires_at` (`expires_at > NOW()`). If renewed during the 30-day grace period (`expires_at < NOW() <= expires_at + 30 days`), standard 100% pricing applies.
 - **FR-005**: System MUST extend `expires_at` by +365 days upon verified renewal payment.
 - **FR-006**: System MUST expose a free `GET /api/v1/pin/:cid` status endpoint.
-- **FR-007**: System MUST support persisting retention records (`pin_records` table) to Supabase (using `@supabase/supabase-js`), falling back gracefully to local file registry (`queue/registry.json`) when `SUPABASE_URL` / `SUPABASE_KEY` are not configured.
+- **FR-007**: System MUST run an automated cleanup process that unpins files from Pinata (`unpin(cid)`) and marks status as `EXPIRED` once a pin exceeds `expires_at + 30 days` (365 + 30 days total).
+- **FR-008**: System MUST support persisting retention records (`pin_records` table) to Supabase (using `@supabase/supabase-js`), falling back gracefully to local file registry (`queue/registry.json`).
 
 ### Key Entities
 
