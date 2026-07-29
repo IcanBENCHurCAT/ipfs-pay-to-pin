@@ -83,7 +83,7 @@ const x402MetadataHandler = (c: any) => {
     return c.json({
         merchant: {
             name: "IPFS Pay-to-Pin Gateway",
-            description: "Pay-per-request infrastructure API giving autonomous agents reliable access to decentralized IPFS storage.",
+            description: "Pay-per-request API that pins files to IPFS for 365 days via Algorand microUSDC x402 payments.",
             icon: logoUrl,
             image: logoUrl,
             iconUrl: logoUrl,
@@ -98,7 +98,7 @@ const x402MetadataHandler = (c: any) => {
             {
                 path: "/api/v1/pin",
                 url: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin",
-                description: "Upload one file as a Base64-encoded JSON payload; on successful payment, the service pins it to IPFS and returns cid, ipfs_cid, and gateway_url.",
+                description: "Upload a file as a Base64 JSON payload. Returns an x402 microUSDC challenge. Upon payment verification, pins the file to IPFS for 365 days.",
                 methods: ["POST"],
                 networks: ["algorand:mainnet", "algorand:testnet"]
             }
@@ -112,7 +112,7 @@ app.get("/.well-known/x402", x402MetadataHandler);
 app.get("/.well-known/agent-card.json", (c) => {
     return c.json({
         "name": "IPFS Pay-to-Pin Gateway",
-        "description": "Upload one file as a Base64-encoded JSON payload; on successful payment, the service pins it to IPFS.",
+        "description": "Upload a file as Base64 JSON. On x402 microUSDC payment, the server pins it to IPFS for 365 days with optional /renew extension.",
         "icon": logoUrl,
         "image": logoUrl,
         "iconUrl": logoUrl,
@@ -136,29 +136,37 @@ app.get("/.well-known/agent-card.json", (c) => {
             {
                 "id": "ipfs_pay_to_pin",
                 "name": "Pin File to IPFS",
-                "description": "Upload a base64-encoded file and pin it to IPFS via an x402 payment.",
+                "description": "Upload a base64-encoded file and pin it to IPFS for 365 days via an x402 microUSDC payment.",
                 "tags": ["ipfs", "storage", "ai-agents", "pinning", "x402-global-challenge"],
-                "examples": ["Pin my JSON data to IPFS for persistent storage."]
+                "examples": ["Pin my file to IPFS for 365 days."]
             }
         ]
     });
 });
 
 const agentOnboardingPrompt = `
-# IPFS Pay-to-Pin Gateway — Agent Onboarding
+# IPFS Pay-to-Pin Gateway — Agent Reference
 
-Welcome, autonomous agent! This service provides decentralized, 365-day IPFS storage via micropayments using the x402 protocol.
+An HTTP API that gates file storage (pinning) on IPFS using standard x402 microUSDC micropayments on Algorand. Each payment provides 365 days of pinning retention.
 
-## How to use this service:
-1. Make a POST request to \`/api/v1/pin\` with a JSON payload containing:
-   - \`filename\` (string): The name of your file
-   - \`data\` (string): The Base64-encoded contents of your file
-2. You will receive a \`402 Payment Required\` response. The \`PAYMENT-REQUIRED\` header will contain an x402 challenge outlining the payment terms (microUSDC on Algorand).
-3. Use your x402 client/wallet SDK to sign a payment satisfying the challenge.
-4. Resend your exact original POST request, but this time include the \`PAYMENT-SIGNATURE\` header with your signed payment payload.
-5. Upon successful settlement, the server will return a \`201 Created\` response containing the \`cid\`, \`ipfs_cid\`, and a \`gateway_url\` where your pinned file can be accessed for 365 days.
+## Endpoints
 
-You can view the full OpenAPI specification at \`/openapi.json\`.
+1. \`POST /api/v1/pin\`
+   - Request Body: JSON \`{ "filename": "example.txt", "data": "<base64_string>" }\`
+   - Response: \`402 Payment Required\` header \`PAYMENT-REQUIRED\` (microUSDC pricing based on file size).
+   - Resubmit: Send exact same POST request with \`PAYMENT-SIGNATURE\` header containing signed transaction.
+   - Output (201 Created): Returns \`cid\`, \`ipfs_cid\`, \`gateway_url\`, \`pinned_at\`, \`expires_at\` (+365 days), and \`renewal_url\`.
+
+2. \`POST /api/v1/renew\`
+   - Request Body: JSON \`{ "cid": "<ipfs_cid>" }\`
+   - Response: \`402 Payment Required\` header \`PAYMENT-REQUIRED\`.
+   - Output (200 OK): Extends retention period by another 365 days and updates \`expires_at\`.
+
+3. \`GET /api/v1/pin/:cid\`
+   - Free status lookup endpoint (no payment required).
+   - Output (200 OK): Returns \`pinned_at\`, \`expires_at\`, \`days_remaining\`, and \`is_active\`.
+
+OpenAPI specification available at \`/openapi.json\`.
 `;
 
 app.get("/", (c) => {
@@ -175,7 +183,7 @@ app.get("/openapi.json", (c) => {
         info: {
             title: "IPFS Pay-to-Pin Gateway",
             version: "1.0.0",
-            description: "Pay-per-request infrastructure API giving autonomous agents reliable access to decentralized IPFS storage."
+            description: "Pay-per-request API that pins files to IPFS for 365 days via Algorand microUSDC x402 payments."
         },
         servers: [
             { url: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com" },
