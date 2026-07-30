@@ -415,9 +415,9 @@ app.use(
                             try {
                                 const body = await ctx.adapter.getBody();
                                 if (body && typeof body.data === 'string') {
-                                    // Strip '=' padding for 100% accurate binary byte count
-                                    const unpadded = body.data.replace(/=+$/, '');
-                                    binaryBytes = Math.floor((unpadded.length * 3) / 4);
+                                    // Handle URL-safe Base64 (- -> +, _ -> /) and strip '=' padding for 100% accurate binary byte count
+                                    const sanitized = body.data.replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '');
+                                    binaryBytes = Math.floor((sanitized.length * 3) / 4);
                                 }
                             } catch {
                                 const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
@@ -563,10 +563,14 @@ app.post("/api/v1/pin", async (c) => {
     }
 });
 
-// Start background worker polling loop
-const workerInterval = setInterval(() => {
-    globalFileQueue.processJobs().catch(err => console.error("[Queue Worker Error]", err));
-    globalFileQueue.processExpiredPins().catch(err => console.error("[Queue Worker Expired Pins Error]", err));
+// Start background worker polling loop (sequential execution prevents concurrency race conditions)
+const workerInterval = setInterval(async () => {
+    try {
+        await globalFileQueue.processJobs();
+        await globalFileQueue.processExpiredPins();
+    } catch (err) {
+        console.error("[Queue Worker Error]", err);
+    }
 }, 10000);
 
 app.post("/api/v1/renew", async (c) => {
