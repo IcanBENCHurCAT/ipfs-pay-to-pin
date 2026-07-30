@@ -28,11 +28,11 @@ export class DbManager {
         status: item.status
       }));
 
-      for (const record of records) {
-        if (!record.cid) continue;
-        const { error } = await this.supabase.from('pin_records').upsert(record, { onConflict: 'cid' });
+      const validRecords = records.filter(r => Boolean(r.cid));
+      if (validRecords.length > 0) {
+        const { error } = await this.supabase.from('pin_records').upsert(validRecords, { onConflict: 'cid' });
         if (error) {
-          console.error(`[DbManager] Failed to sync item ${record.cid} to Supabase:`, error);
+          console.error(`[DbManager] Failed to batch sync ${validRecords.length} items to Supabase:`, error);
         }
       }
     }
