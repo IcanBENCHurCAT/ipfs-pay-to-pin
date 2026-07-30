@@ -15,9 +15,10 @@ import { globalFileQueue } from "./queue.js";
 import { circuitBreakerMiddleware } from "./middleware/circuitBreaker.js";
 import { rateLimiterMiddleware, rateLimitCleanupInterval } from "./middleware/rateLimiter.js";
 import { initiateOnChainRefund } from "./refund.js";
-import { config as appConfig } from "./config.js";
+import { config as appConfig, validateConfig } from "./config.js";
 
 config();
+validateConfig();
 
 const escrowAddress = process.env.ESCROW_ADDRESS || "ZJEC6JMCNYZFJUQIA4KRVXPTU34F2UQCRZEB5BX5ZS57CPVKTUFK3WA5IY";
 const facilitatorUrl = process.env.FACILITATOR_URL || "https://facilitator.goplausible.xyz";
