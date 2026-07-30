@@ -150,7 +150,7 @@ export class FileQueue {
     } else {
       // Feature-flagged Mode: Async local disk buffer queue (ALLOW_LOCAL_FALLBACK=true)
       filePath = path.join(this.queueDir, `${id}_${safeFilename}`);
-      fs.writeFileSync(filePath, buffer);
+      await fs.promises.writeFile(filePath, buffer);
     }
 
     const now = Date.now();
@@ -186,7 +186,8 @@ export class FileQueue {
 
     try {
       const items = await this.getItems();
-      const pendingItems = items.filter(item => item.status === 'PENDING' && item.retryCount <= this.maxRetries);
+      // Off-by-one fix: retryCount < maxRetries ensures exactly maxRetries (5) attempts
+      const pendingItems = items.filter(item => item.status === 'PENDING' && item.retryCount < this.maxRetries);
 
       if (pendingItems.length === 0) return;
 
@@ -201,7 +202,7 @@ export class FileQueue {
               return;
             }
 
-            const buffer = fs.readFileSync(item.filePath);
+            const buffer = await fs.promises.readFile(item.filePath);
             const result = await pinFileToStorage(buffer, item.filename);
 
             item.status = 'PINNED';
@@ -209,7 +210,7 @@ export class FileQueue {
             item.gatewayUrl = result.gateway_url;
 
             try {
-              fs.unlinkSync(item.filePath);
+              await fs.promises.unlink(item.filePath);
             } catch {}
 
             console.log(`[Queue Worker] Successfully pinned job ${item.id} -> CID ${result.ipfs_cid}`);
@@ -230,7 +231,7 @@ export class FileQueue {
               item.status = 'FAILED';
               try {
                 if (fs.existsSync(item.filePath)) {
-                  fs.unlinkSync(item.filePath);
+                  fs.promises.unlink(item.filePath).catch(() => {});
                 }
               } catch {}
             }

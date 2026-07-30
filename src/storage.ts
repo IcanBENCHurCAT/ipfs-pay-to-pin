@@ -79,10 +79,11 @@ export function validateContentType(buffer: Buffer): boolean {
 export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Promise<PinResult> {
   const safeFilename = sanitizeFilename(filename);
   const pinataJwt = process.env.PINATA_JWT;
+  const allowLocalFallback = process.env.ALLOW_LOCAL_FALLBACK === 'true';
 
-  // Guard against missing credentials in production
-  if (process.env.NODE_ENV === 'production' && (!pinataJwt || pinataJwt.trim().length === 0)) {
-    throw new Error('PINATA_JWT environment variable is not configured in production.');
+  // Guard against missing credentials whenever local fallback is disabled (default production mode)
+  if (!allowLocalFallback && (!pinataJwt || pinataJwt.trim().length === 0)) {
+    throw new Error('PINATA_JWT environment variable is not configured.');
   }
   
   if (pinataJwt && pinataJwt.trim().length > 0) {
@@ -119,8 +120,8 @@ export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Pr
         gateway_url: `https://ipfs.io/ipfs/${ipfsCid}`,
       };
     } catch (e: any) {
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error(`Pinata upload failed in production: ${e?.message || e}`);
+      if (!allowLocalFallback) {
+        throw new Error(`Pinata upload failed: ${e?.message || e}`);
       }
       console.warn("Pinata API failed, falling back to local hash pinning in dev/test:", e?.message);
     }
@@ -132,11 +133,11 @@ export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Pr
 
   const storageDir = process.env.LOCAL_STORAGE_DIR || 'tmp/mock_storage';
   if (!fs.existsSync(storageDir)) {
-    fs.mkdirSync(storageDir, { recursive: true });
+    await fs.promises.mkdir(storageDir, { recursive: true });
   }
 
   const filePath = path.join(storageDir, `${mockCid}_${safeFilename}`);
-  fs.writeFileSync(filePath, fileBuffer);
+  await fs.promises.writeFile(filePath, fileBuffer);
 
   return {
     ipfs_cid: mockCid,
@@ -163,11 +164,11 @@ export async function unpinFileFromIPFS(cid: string): Promise<void> {
   // Local fallback storage cleanup
   const storageDir = process.env.LOCAL_STORAGE_DIR || 'tmp/mock_storage';
   if (fs.existsSync(storageDir)) {
-    const files = fs.readdirSync(storageDir);
+    const files = await fs.promises.readdir(storageDir);
     for (const file of files) {
       if (file.startsWith(`${cid}_`)) {
         try {
-          fs.unlinkSync(path.join(storageDir, file));
+          await fs.promises.unlink(path.join(storageDir, file));
           console.log(`[Storage] Successfully deleted local fallback for CID ${cid}`);
         } catch (e: any) {
           console.warn(`[Storage] Failed to delete local fallback for CID ${cid}:`, e?.message);
