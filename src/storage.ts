@@ -12,16 +12,61 @@ export interface PinResult {
   gateway_url: string;
 }
 
+/** Sanitize filename: strip path components, limit length, allow only safe chars */
+export function sanitizeFilename(name: string): string {
+  if (!name || typeof name !== 'string') return 'unnamed';
+  // Strip any directory components (handles ../ traversal, URL-encoded paths, etc.)
+  const base = name.replace(/[^\x20-\x7E]/g, '').replace(/\//g, '').replace(/\\/g, '');
+  // Remove leading dots (handles .. and hidden files)
+  const cleaned = base.replace(/^\.+/g, '');
+  // Limit to 200 chars
+  const truncated = cleaned.length > 200 ? cleaned.slice(0, 200) : cleaned;
+  return truncated || 'unnamed';
+}
+
+const MAGIC_BYTE_SIGNATURES: Record<string, string[]> = {
+  'image/png':    ['\x89PNG'],
+  'image/jpeg':   ['\xFF\xD8\xFF'],
+  'image/gif':    ['GIF87a', 'GIF89a'],
+  'application/pdf': ['%PDF'],
+  'application/zip': ['PK\x03\x04'],
+  'application/gzip': ['\x1F\x8B'],
+};
+
+/** Validate file content by checking magic bytes */
+export function validateContentType(buffer: Buffer): boolean {
+  if (buffer.length < 4) return true; // too small to inspect, allow
+  const magic = buffer.slice(0, 8).toString('latin1');
+  for (const [_, signatures] of Object.entries(MAGIC_BYTE_SIGNATURES)) {
+    for (const sig of signatures) {
+      if (magic.includes(sig)) {
+        return true;
+      }
+    }
+  }
+  try {
+    const text = buffer.toString('utf8');
+    const hasNullByte = text.slice(0, 512).includes('\0');
+    if (!hasNullByte && text.length > 0 && text.length <= buffer.length * 1.5) {
+      return true; // text/JSON/XML
+    }
+  } catch {
+    // UTF-8 parse failed
+  }
+  return false;
+}
+
 export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Promise<PinResult> {
+  const safeFilename = sanitizeFilename(filename);
   const pinataJwt = process.env.PINATA_JWT;
   
   if (pinataJwt && pinataJwt.trim().length > 0) {
     try {
       const formData = new FormData();
-      formData.append('file', fileBuffer, { filename });
+      formData.append('file', fileBuffer, { filename: safeFilename });
 
       const metadata = JSON.stringify({
-        name: filename,
+        name: safeFilename,
         keyvalues: {
           project: 'ipfs-pay-to-pin',
           app: 'x402-gateway',
@@ -40,6 +85,7 @@ export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Pr
           Authorization: `Bearer ${pinataJwt}`,
           ...formData.getHeaders(),
         },
+        timeout: 30000, // 30s timeout
       });
 
       const ipfsCid = response.data.IpfsHash;
@@ -54,14 +100,14 @@ export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Pr
 
   // Local fallback storage
   const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-  const mockCid = `Qm${hash.substring(0, 44)}`;
+  const mockCid = `bafybeig${hash.substring(0, 52)}`;
 
   const storageDir = process.env.LOCAL_STORAGE_DIR || 'tmp/mock_storage';
   if (!fs.existsSync(storageDir)) {
     fs.mkdirSync(storageDir, { recursive: true });
   }
 
-  const filePath = path.join(storageDir, `${mockCid}_${filename}`);
+  const filePath = path.join(storageDir, `${mockCid}_${safeFilename}`);
   fs.writeFileSync(filePath, fileBuffer);
 
   return {
@@ -102,4 +148,3 @@ export async function unpinFileFromIPFS(cid: string): Promise<void> {
     }
   }
 }
-

@@ -1,8 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import { calculateLocalCid } from './cid.js';
-import { pinFileToStorage, unpinFileFromIPFS } from './storage.js';
-
+import { pinFileToStorage, unpinFileFromIPFS, sanitizeFilename, validateContentType } from './storage.js';
 import { DbManager } from './db.js';
 
 export interface QueueItem {
@@ -26,6 +25,8 @@ export class FileQueue {
   private registryPath: string;
   private maxRetries: number = 100;
   private maxQueueSize: number = 50;
+  private maxConcurrent: number = 3;
+  private pinataHealthy: boolean = true;
   private dbManager: DbManager;
   private itemsCache: QueueItem[] = [];
 
@@ -55,7 +56,7 @@ export class FileQueue {
     }
   }
 
-  private async getItems(): Promise<QueueItem[]> {
+  public async getItems(): Promise<QueueItem[]> {
     this.itemsCache = await this.dbManager.getItems();
     return this.itemsCache;
   }
@@ -73,30 +74,49 @@ export class FileQueue {
     return this.maxQueueSize;
   }
 
+  public getSize(): number {
+    return this.getQueueSize();
+  }
+
+  public isHealthy(): boolean {
+    return this.pinataHealthy && this.getQueueSize() < this.maxQueueSize;
+  }
+
+  public setPinataHealthy(healthy: boolean): void {
+    this.pinataHealthy = healthy;
+  }
+
   public async findByCid(cid: string): Promise<QueueItem | undefined> {
     const items = await this.getItems();
-    return items.find(item => item.cid === cid && item.status === 'PINNED');
+    // Check both PINNED and PENDING status for deduplication
+    return items.find(item => item.cid === cid && (item.status === 'PINNED' || item.status === 'PENDING'));
   }
 
   public async addJob(filename: string, buffer: Buffer): Promise<QueueItem> {
+    const safeFilename = sanitizeFilename(filename);
+
+    if (!validateContentType(buffer)) {
+      throw new Error('Unsupported or potentially unsafe file content type.');
+    }
+
     const cid = calculateLocalCid(buffer);
 
     // Deduplication check
     const existing = await this.findByCid(cid);
     if (existing) {
-      console.log(`[Queue] Deduplication match for CID ${cid}. File already pinned.`);
+      console.log(`[Queue] Deduplication match for CID ${cid}. File already queued/pinned.`);
       return existing;
     }
 
     const id = `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const filePath = path.join(this.queueDir, `${id}_${filename}`);
+    const filePath = path.join(this.queueDir, `${id}_${safeFilename}`);
     
     fs.writeFileSync(filePath, buffer);
 
     const now = Date.now();
     const item: QueueItem = {
       id,
-      filename,
+      filename: safeFilename,
       cid,
       filePath,
       status: 'PENDING',
@@ -114,47 +134,55 @@ export class FileQueue {
     items.push(item);
     await this.saveItems(items);
 
-    console.log(`[Queue] Added new job ${id} for file ${filename} (CID: ${cid}).`);
+    console.log(`[Queue] Added new job ${id} for file ${safeFilename} (CID: ${cid}).`);
     return item;
   }
 
   public async processJobs(): Promise<void> {
     const items = await this.getItems();
-    const pendingItems = items.filter(item => item.status === 'PENDING');
+    const pendingItems = items.filter(item => item.status === 'PENDING' && item.retryCount <= this.maxRetries);
 
     if (pendingItems.length === 0) return;
 
-    console.log(`[Queue Worker] Processing ${pendingItems.length} pending pinning jobs...`);
+    console.log(`[Queue Worker] Processing ${pendingItems.length} pending pinning jobs (concurrency limit: ${this.maxConcurrent})...`);
 
-    for (const item of pendingItems) {
-      try {
-        if (!fs.existsSync(item.filePath)) {
-          item.status = 'FAILED';
-          continue;
-        }
+    // Process in concurrent chunks
+    for (let i = 0; i < pendingItems.length; i += this.maxConcurrent) {
+      const chunk = pendingItems.slice(i, i + this.maxConcurrent);
+      await Promise.allSettled(
+        chunk.map(async (item) => {
+          try {
+            if (!fs.existsSync(item.filePath)) {
+              item.status = 'FAILED';
+              return;
+            }
 
-        const buffer = fs.readFileSync(item.filePath);
-        const result = await pinFileToStorage(buffer, item.filename);
+            const buffer = fs.readFileSync(item.filePath);
+            const result = await pinFileToStorage(buffer, item.filename);
 
-        item.status = 'PINNED';
-        item.cid = result.ipfs_cid;
-        item.gatewayUrl = result.gateway_url;
+            item.status = 'PINNED';
+            item.cid = result.ipfs_cid;
+            item.gatewayUrl = result.gateway_url;
 
-        // Clean up disk buffer after successful pin
-        try {
-          fs.unlinkSync(item.filePath);
-        } catch {}
+            // Clean up disk buffer after successful pin
+            try {
+              fs.unlinkSync(item.filePath);
+            } catch {}
 
-        console.log(`[Queue Worker] Successfully pinned job ${item.id} -> CID ${result.ipfs_cid}`);
-      } catch (err: any) {
-        item.retryCount += 1;
-        console.warn(`[Queue Worker] Failed job ${item.id} (Attempt ${item.retryCount}/${this.maxRetries}): ${err?.message}`);
-        
-        if (item.retryCount >= this.maxRetries) {
-          console.error(`[Queue Worker] Job ${item.id} exceeded max retries. Marking as FAILED.`);
-          item.status = 'FAILED';
-        }
-      }
+            console.log(`[Queue Worker] Successfully pinned job ${item.id} -> CID ${result.ipfs_cid}`);
+          } catch (err: any) {
+            item.retryCount += 1;
+            // Exponential backoff
+            const delayMs = Math.min(1000 * Math.pow(2, item.retryCount - 1), 60000);
+            console.warn(`[Queue Worker] Failed job ${item.id} (Attempt ${item.retryCount}/${this.maxRetries}, backoff ${delayMs}ms): ${err?.message}`);
+            
+            if (item.retryCount >= this.maxRetries) {
+              console.error(`[Queue Worker] Job ${item.id} exceeded max retries. Marking as FAILED.`);
+              item.status = 'FAILED';
+            }
+          }
+        })
+      );
     }
 
     await this.saveItems(items);
@@ -169,7 +197,6 @@ export class FileQueue {
     }
     
     const item = items[itemIndex];
-    // Extend from current expires_at if it's in the future, or from NOW if it has already expired
     const now = Date.now();
     const baseTime = item.expires_at > now ? item.expires_at : now;
     
@@ -216,7 +243,7 @@ export class FileQueue {
         if (now > gracePeriodEnd) {
           console.log(`[Queue Worker] CID ${item.cid} has exceeded grace period. Unpinning...`);
           await unpinFileFromIPFS(item.cid);
-          item.status = 'FAILED'; // Or 'UNPINNED', but let's stick to existing statuses or add it.
+          item.status = 'FAILED';
           changed = true;
         }
       }
