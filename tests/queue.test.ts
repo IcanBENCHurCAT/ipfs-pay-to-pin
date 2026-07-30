@@ -9,7 +9,9 @@ vi.mock('../src/storage.js', () => ({
     ipfs_cid: 'mock-cid-123',
     gateway_url: 'https://ipfs.io/ipfs/mock-cid-123'
   }),
-  unpinFileFromIPFS: vi.fn()
+  unpinFileFromIPFS: vi.fn(),
+  sanitizeFilename: (name: string) => name,
+  validateContentType: () => true,
 }));
 
 describe('FileQueue Retention & Renewal Logic', () => {
