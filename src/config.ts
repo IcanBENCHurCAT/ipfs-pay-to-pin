@@ -5,4 +5,5 @@ dotenv.config();
 export const config = {
   supabaseUrl: process.env.SUPABASE_URL || '',
   supabaseKey: process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || '',
+  allowLocalFallback: process.env.ALLOW_LOCAL_FALLBACK === 'true',
 };
