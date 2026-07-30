@@ -13,7 +13,7 @@ import type { ResourceServerExtension } from "@x402/core/types";
 import { pinFileToStorage } from "./storage.js";
 import { globalFileQueue } from "./queue.js";
 import { circuitBreakerMiddleware } from "./middleware/circuitBreaker.js";
-import { rateLimiterMiddleware } from "./middleware/rateLimiter.js";
+import { rateLimiterMiddleware, rateLimitCleanupInterval } from "./middleware/rateLimiter.js";
 
 config();
 
@@ -513,7 +513,7 @@ app.post("/api/v1/pin", async (c) => {
 });
 
 // Start background worker polling loop
-setInterval(() => {
+const workerInterval = setInterval(() => {
     globalFileQueue.processJobs().catch(err => console.error("[Queue Worker Error]", err));
     globalFileQueue.processExpiredPins().catch(err => console.error("[Queue Worker Expired Pins Error]", err));
 }, 10000);
@@ -566,15 +566,41 @@ app.get("/api/v1/pin/:cid", async (c) => {
     return c.json(status, 200);
 });
 
+app.get("/health", async (c) => {
+    return c.json({
+        status: "ok",
+        uptime: process.uptime(),
+        queue: {
+            size: globalFileQueue.getQueueSize(),
+            max_size: globalFileQueue.getMaxQueueSize(),
+            is_healthy: globalFileQueue.isHealthy(),
+        },
+        timestamp: new Date().toISOString(),
+    });
+});
+
 const port = Number(process.env.PORT) || 4021;
 console.log(`x402 Gateway Resource Server starting on port ${port}...`);
 
 if (process.env.NODE_ENV !== 'test') {
-    serve({
+    const serverInstance = serve({
         fetch: app.fetch,
         port: port,
         hostname: '0.0.0.0'
     });
+
+    const shutdown = () => {
+        console.log("[Shutdown] Received termination signal, gracefully closing server...");
+        clearInterval(workerInterval);
+        clearInterval(rateLimitCleanupInterval);
+        serverInstance.close(() => {
+            console.log("[Shutdown] Server closed cleanly.");
+            process.exit(0);
+        });
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
 }
 
 export default app;
