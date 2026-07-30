@@ -18,7 +18,6 @@ const WINDOWS_RESERVED_REGEX = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 export function sanitizeFilename(name: string): string {
   if (!name || typeof name !== 'string') return 'file.bin';
   
-  // URL decode if encoded
   let decoded = name;
   try {
     decoded = decodeURIComponent(name);
@@ -26,18 +25,14 @@ export function sanitizeFilename(name: string): string {
     // Keep raw if decoding fails
   }
 
-  // Strip path separators and non-printable characters
   const base = decoded.replace(/[^\x20-\x7E]/g, '').replace(/\//g, '').replace(/\\/g, '').trim();
-  // Remove leading dots (handles .. and hidden files)
   const cleaned = base.replace(/^\.+/g, '');
   
-  // Check Windows reserved names
   const nameWithoutExt = cleaned.split('.')[0];
   if (WINDOWS_RESERVED_REGEX.test(nameWithoutExt)) {
     return `safe_${cleaned}`;
   }
 
-  // Limit length to 200 chars
   const truncated = cleaned.length > 200 ? cleaned.slice(0, 200) : cleaned;
   return truncated || 'file.bin';
 }
@@ -73,7 +68,7 @@ export function validateContentType(buffer: Buffer): boolean {
     const text = buffer.toString('utf8');
     const hasNullByte = text.slice(0, 512).includes('\0');
     if (!hasNullByte && text.length > 0 && text.length <= buffer.length * 1.5) {
-      return true; // text/JSON/XML/source code
+      return true;
     }
   } catch {
     // UTF-8 parse failed
@@ -84,6 +79,11 @@ export function validateContentType(buffer: Buffer): boolean {
 export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Promise<PinResult> {
   const safeFilename = sanitizeFilename(filename);
   const pinataJwt = process.env.PINATA_JWT;
+
+  // Guard against missing credentials in production
+  if (process.env.NODE_ENV === 'production' && (!pinataJwt || pinataJwt.trim().length === 0)) {
+    throw new Error('PINATA_JWT environment variable is not configured in production.');
+  }
   
   if (pinataJwt && pinataJwt.trim().length > 0) {
     try {
@@ -119,11 +119,14 @@ export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Pr
         gateway_url: `https://ipfs.io/ipfs/${ipfsCid}`,
       };
     } catch (e: any) {
-      console.warn("Pinata API failed, falling back to local hash pinning:", e?.message);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error(`Pinata upload failed in production: ${e?.message || e}`);
+      }
+      console.warn("Pinata API failed, falling back to local hash pinning in dev/test:", e?.message);
     }
   }
 
-  // Local fallback storage
+  // Local fallback storage for dev / test environments
   const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
   const mockCid = `bafybeig${hash.substring(0, 52)}`;
 
