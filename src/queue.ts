@@ -23,7 +23,7 @@ export interface QueueItem {
 export class FileQueue {
   private queueDir: string;
   private registryPath: string;
-  private maxRetries: number = 100;
+  private maxRetries: number = 5; // Reduced from 100 to 5 so failing jobs don't stall forever
   private maxQueueSize: number = 50;
   private maxConcurrent: number = 3;
   private pinataHealthy: boolean = true;
@@ -45,6 +45,11 @@ export class FileQueue {
     if (!fs.existsSync(this.registryPath)) {
       fs.writeFileSync(this.registryPath, JSON.stringify([], null, 2));
     }
+  }
+
+  public async init(): Promise<void> {
+    this.itemsCache = await this.dbManager.getItems();
+    console.log(`[Queue] Initialized & recovered ${this.itemsCache.length} records from Supabase/registry.`);
   }
 
   private getItemsSync(): QueueItem[] {
@@ -172,7 +177,7 @@ export class FileQueue {
             console.log(`[Queue Worker] Successfully pinned job ${item.id} -> CID ${result.ipfs_cid}`);
           } catch (err: any) {
             item.retryCount += 1;
-            // Exponential backoff
+            // Exponential backoff with max 60s
             const delayMs = Math.min(1000 * Math.pow(2, item.retryCount - 1), 60000);
             console.warn(`[Queue Worker] Failed job ${item.id} (Attempt ${item.retryCount}/${this.maxRetries}, backoff ${delayMs}ms): ${err?.message}`);
             
@@ -242,7 +247,11 @@ export class FileQueue {
         const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
         if (now > gracePeriodEnd) {
           console.log(`[Queue Worker] CID ${item.cid} has exceeded grace period. Unpinning...`);
-          await unpinFileFromIPFS(item.cid);
+          try {
+            await unpinFileFromIPFS(item.cid);
+          } catch (e) {
+            console.warn(`[Queue Worker] Warning during unpin attempt for ${item.cid}:`, e);
+          }
           item.status = 'FAILED';
           changed = true;
         }
