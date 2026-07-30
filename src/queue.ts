@@ -30,6 +30,7 @@ export class FileQueue {
   private pinataHealthy: boolean = true;
   private consecutiveFailures: number = 0;
   private isProcessing: boolean = false;
+  private isProcessingExpired: boolean = false;
   private dbManager: DbManager;
   private itemsCache: QueueItem[] = [];
 
@@ -300,28 +301,37 @@ export class FileQueue {
   }
 
   public async processExpiredPins(): Promise<void> {
-    const items = await this.getItems();
-    const now = Date.now();
-    let changed = false;
+    if (this.isProcessingExpired) {
+      return;
+    }
+    this.isProcessingExpired = true;
 
-    for (const item of items) {
-      if (item.status === 'PINNED') {
-        const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
-        if (now > gracePeriodEnd) {
-          console.log(`[Queue Worker] CID ${item.cid} has exceeded grace period. Unpinning...`);
-          try {
-            await unpinFileFromIPFS(item.cid);
-          } catch (e) {
-            console.warn(`[Queue Worker] Warning during unpin attempt for ${item.cid}:`, e);
+    try {
+      const items = await this.getItems();
+      const now = Date.now();
+      let changed = false;
+
+      for (const item of items) {
+        if (item.status === 'PINNED') {
+          const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
+          if (now > gracePeriodEnd) {
+            console.log(`[Queue Worker] CID ${item.cid} has exceeded grace period. Unpinning...`);
+            try {
+              await unpinFileFromIPFS(item.cid);
+            } catch (e) {
+              console.warn(`[Queue Worker] Warning during unpin attempt for ${item.cid}:`, e);
+            }
+            item.status = 'FAILED';
+            changed = true;
           }
-          item.status = 'FAILED';
-          changed = true;
         }
       }
-    }
 
-    if (changed) {
-      await this.saveItems(items);
+      if (changed) {
+        await this.saveItems(items);
+      }
+    } finally {
+      this.isProcessingExpired = false;
     }
   }
 }
