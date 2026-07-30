@@ -514,7 +514,9 @@ app.post("/api/v1/pin", async (c) => {
 
         return c.json({
             status: "success",
-            message: "Payment verified. File accepted and queued for 365 days of IPFS pinning.",
+            message: job.status === 'PINNED'
+                ? "Payment verified. File successfully pinned to IPFS for 365 days."
+                : "Payment verified. File accepted and queued for 365 days of IPFS pinning.",
             filename: filename,
             ipfs_cid: job.cid,
             cid: job.cid,
