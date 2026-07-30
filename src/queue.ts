@@ -23,10 +23,11 @@ export interface QueueItem {
 export class FileQueue {
   private queueDir: string;
   private registryPath: string;
-  private maxRetries: number = 5; // Reduced from 100 to 5 so failing jobs don't stall forever
+  private maxRetries: number = 5;
   private maxQueueSize: number = 50;
   private maxConcurrent: number = 3;
   private pinataHealthy: boolean = true;
+  private isProcessing: boolean = false;
   private dbManager: DbManager;
   private itemsCache: QueueItem[] = [];
 
@@ -93,7 +94,6 @@ export class FileQueue {
 
   public async findByCid(cid: string): Promise<QueueItem | undefined> {
     const items = await this.getItems();
-    // Check both PINNED and PENDING status for deduplication
     return items.find(item => item.cid === cid && (item.status === 'PINNED' || item.status === 'PENDING'));
   }
 
@@ -106,7 +106,6 @@ export class FileQueue {
 
     const cid = calculateLocalCid(buffer);
 
-    // Deduplication check
     const existing = await this.findByCid(cid);
     if (existing) {
       console.log(`[Queue] Deduplication match for CID ${cid}. File already queued/pinned.`);
@@ -144,53 +143,62 @@ export class FileQueue {
   }
 
   public async processJobs(): Promise<void> {
-    const items = await this.getItems();
-    const pendingItems = items.filter(item => item.status === 'PENDING' && item.retryCount <= this.maxRetries);
-
-    if (pendingItems.length === 0) return;
-
-    console.log(`[Queue Worker] Processing ${pendingItems.length} pending pinning jobs (concurrency limit: ${this.maxConcurrent})...`);
-
-    // Process in concurrent chunks
-    for (let i = 0; i < pendingItems.length; i += this.maxConcurrent) {
-      const chunk = pendingItems.slice(i, i + this.maxConcurrent);
-      await Promise.allSettled(
-        chunk.map(async (item) => {
-          try {
-            if (!fs.existsSync(item.filePath)) {
-              item.status = 'FAILED';
-              return;
-            }
-
-            const buffer = fs.readFileSync(item.filePath);
-            const result = await pinFileToStorage(buffer, item.filename);
-
-            item.status = 'PINNED';
-            item.cid = result.ipfs_cid;
-            item.gatewayUrl = result.gateway_url;
-
-            // Clean up disk buffer after successful pin
-            try {
-              fs.unlinkSync(item.filePath);
-            } catch {}
-
-            console.log(`[Queue Worker] Successfully pinned job ${item.id} -> CID ${result.ipfs_cid}`);
-          } catch (err: any) {
-            item.retryCount += 1;
-            // Exponential backoff with max 60s
-            const delayMs = Math.min(1000 * Math.pow(2, item.retryCount - 1), 60000);
-            console.warn(`[Queue Worker] Failed job ${item.id} (Attempt ${item.retryCount}/${this.maxRetries}, backoff ${delayMs}ms): ${err?.message}`);
-            
-            if (item.retryCount >= this.maxRetries) {
-              console.error(`[Queue Worker] Job ${item.id} exceeded max retries. Marking as FAILED.`);
-              item.status = 'FAILED';
-            }
-          }
-        })
-      );
+    if (this.isProcessing) {
+      return; // Mutex lock prevents overlapping processing loops
     }
+    this.isProcessing = true;
 
-    await this.saveItems(items);
+    try {
+      const items = await this.getItems();
+      const pendingItems = items.filter(item => item.status === 'PENDING' && item.retryCount <= this.maxRetries);
+
+      if (pendingItems.length === 0) return;
+
+      console.log(`[Queue Worker] Processing ${pendingItems.length} pending pinning jobs (concurrency limit: ${this.maxConcurrent})...`);
+
+      for (let i = 0; i < pendingItems.length; i += this.maxConcurrent) {
+        const chunk = pendingItems.slice(i, i + this.maxConcurrent);
+        await Promise.allSettled(
+          chunk.map(async (item) => {
+            try {
+              if (!fs.existsSync(item.filePath)) {
+                item.status = 'FAILED';
+                return;
+              }
+
+              const buffer = fs.readFileSync(item.filePath);
+              const result = await pinFileToStorage(buffer, item.filename);
+
+              item.status = 'PINNED';
+              item.cid = result.ipfs_cid;
+              item.gatewayUrl = result.gateway_url;
+              this.setPinataHealthy(true); // Toggle Pinata health status to true
+
+              try {
+                fs.unlinkSync(item.filePath);
+              } catch {}
+
+              console.log(`[Queue Worker] Successfully pinned job ${item.id} -> CID ${result.ipfs_cid}`);
+            } catch (err: any) {
+              item.retryCount += 1;
+              const delayMs = Math.min(1000 * Math.pow(2, item.retryCount - 1), 60000);
+              console.warn(`[Queue Worker] Failed job ${item.id} (Attempt ${item.retryCount}/${this.maxRetries}, backoff ${delayMs}ms): ${err?.message}`);
+              
+              this.setPinataHealthy(false); // Toggle Pinata health status to false on failure
+
+              if (item.retryCount >= this.maxRetries) {
+                console.error(`[Queue Worker] Job ${item.id} exceeded max retries. Marking as FAILED.`);
+                item.status = 'FAILED';
+              }
+            }
+          })
+        );
+      }
+
+      await this.saveItems(items);
+    } finally {
+      this.isProcessing = false;
+    }
   }
 
   public async renewPin(cid: string): Promise<QueueItem | undefined> {
