@@ -14,6 +14,8 @@ import { pinFileToStorage } from "./storage.js";
 import { globalFileQueue } from "./queue.js";
 import { circuitBreakerMiddleware } from "./middleware/circuitBreaker.js";
 import { rateLimiterMiddleware, rateLimitCleanupInterval } from "./middleware/rateLimiter.js";
+import { initiateOnChainRefund } from "./refund.js";
+import { config as appConfig } from "./config.js";
 
 config();
 
@@ -527,7 +529,37 @@ app.post("/api/v1/pin", async (c) => {
             renewal_url: `/api/v1/renew`
         }, 201);
     } catch (e: any) {
-        return c.json({ error: e.message || "Failed to process file upload" }, 500);
+        console.error("[Pin Error]", e?.message);
+        
+        let refundTxId: string | undefined = undefined;
+        let refundAttempted = false;
+
+        if (appConfig.enableAutomaticRefunds) {
+            const clientAddress = c.req.header("x-payment-sender") || c.req.header("x-sender-address");
+            const paidAmountHeader = c.req.header("x-payment-amount");
+            const paidAmount = paidAmountHeader ? Number(paidAmountHeader) : 10000;
+
+            if (clientAddress) {
+                refundAttempted = true;
+                const refundRes = await initiateOnChainRefund({
+                    recipientAddress: clientAddress,
+                    amountMicroUsdc: paidAmount,
+                    asaId: Number(usdcAsaId) || 31566704,
+                    reason: `Pinning failure: ${e?.message || 'Upload error'}`
+                });
+
+                if (refundRes.success) {
+                    refundTxId = refundRes.txId;
+                }
+            }
+        }
+
+        return c.json({
+            error: "Pinning failed",
+            message: e?.message || "Failed to process file upload",
+            refund_initiated: refundAttempted,
+            refund_tx_id: refundTxId
+        }, 500);
     }
 });
 
