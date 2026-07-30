@@ -77,6 +77,14 @@ const app = new Hono();
 // Global sliding-window rate limiter (60 req/min per IP)
 app.use("*", rateLimiterMiddleware);
 
+// Protect against OOM attacks on Heroku 512MB dynos (20MB max request body)
+app.use("*", bodyLimit({
+    maxSize: 20 * 1024 * 1024,
+    onError: (c) => {
+        return c.json({ error: "Payload Too Large", message: "File payload exceeds 20MB maximum limit." }, 413);
+    }
+}));
+
 const logoUrl = "https://gateway.pinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy";
 
 // Health check and Merchant metadata endpoint
@@ -391,13 +399,20 @@ app.use(
                 accepts: [
                     {
                         scheme: "exact",
-                        price: (ctx) => {
-                            const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
-                            // Approximate original binary size from Base64 JSON payload
-                            const approximateBinaryBytes = Math.floor(contentLength * 0.75);
+                        price: async (ctx: any) => {
+                            let binaryBytes = 1000;
+                            try {
+                                const body = await ctx.adapter.getBody();
+                                if (body && typeof body.data === 'string') {
+                                    binaryBytes = Math.floor(body.data.length * 0.75);
+                                }
+                            } catch {
+                                const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
+                                binaryBytes = Math.max(1000, Math.floor(contentLength * 0.75));
+                            }
                             const baseMicroUsdc = 10000; // $0.01 base price
                             const bytePriceMicroUsdc = 0.02; // $0.02 per MB (0.02 microUSDC per byte)
-                            const totalMicroUsdc = baseMicroUsdc + (approximateBinaryBytes * bytePriceMicroUsdc);
+                            const totalMicroUsdc = baseMicroUsdc + (binaryBytes * bytePriceMicroUsdc);
                             return `$${(totalMicroUsdc / 1000000).toFixed(6)}`;
                         },
                         network: networkCaip2,
@@ -566,23 +581,34 @@ app.get("/api/v1/pin/:cid", async (c) => {
     return c.json(status, 200);
 });
 
-app.get("/health", async (c) => {
+const healthHandler = async (c: any) => {
+    const isHealthy = globalFileQueue.isHealthy();
+    const status = isHealthy ? "ok" : "degraded";
+    const statusCode = isHealthy ? 200 : 503;
     return c.json({
-        status: "ok",
+        status,
+        ready: isHealthy,
         uptime: process.uptime(),
         queue: {
             size: globalFileQueue.getQueueSize(),
             max_size: globalFileQueue.getMaxQueueSize(),
-            is_healthy: globalFileQueue.isHealthy(),
+            is_healthy: isHealthy,
         },
         timestamp: new Date().toISOString(),
-    });
-});
+    }, statusCode);
+};
+
+app.get("/health", healthHandler);
+app.get("/healthz", healthHandler);
+app.get("/ready", healthHandler);
 
 const port = Number(process.env.PORT) || 4021;
 console.log(`x402 Gateway Resource Server starting on port ${port}...`);
 
 if (process.env.NODE_ENV !== 'test') {
+    // Rebuild & recover memory state from Supabase PostgreSQL on startup
+    await globalFileQueue.init().catch(err => console.error("[Boot Error] Failed to initialize queue state:", err));
+
     const serverInstance = serve({
         fetch: app.fetch,
         port: port,

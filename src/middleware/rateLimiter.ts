@@ -8,6 +8,7 @@ interface RateLimitRecord {
 const rateLimitMap = new Map<string, RateLimitRecord>();
 const WINDOW_MS = 60 * 1000; // 1 minute window
 const MAX_REQUESTS = 60;     // 60 requests per minute per IP
+const MAX_MAP_SIZE = 5000;   // Prevent memory growth from infinite unique IPs
 
 // Clean up stale entries every 5 minutes to prevent memory leaks
 const rateLimitCleanupInterval = setInterval(() => {
@@ -30,6 +31,15 @@ export async function rateLimiterMiddleware(c: Context, next: Next) {
     || 'unknown-ip';
 
   const now = Date.now();
+
+  // Prune map if it exceeds size limit
+  if (rateLimitMap.size > MAX_MAP_SIZE) {
+    for (const [ipKey, record] of rateLimitMap.entries()) {
+      if (now > record.resetTime) {
+        rateLimitMap.delete(ipKey);
+      }
+    }
+  }
 
   let record = rateLimitMap.get(ip);
   if (!record || now > record.resetTime) {
