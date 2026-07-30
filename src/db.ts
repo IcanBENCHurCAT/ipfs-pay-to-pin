@@ -39,6 +39,35 @@ export class DbManager {
   }
 
   async getItems(): Promise<QueueItem[]> {
+    if (this.supabase) {
+      try {
+        const { data, error } = await this.supabase.from('pin_records').select('*');
+        if (!error && data && Array.isArray(data)) {
+          const items: QueueItem[] = data.map(r => ({
+            id: `job_${Date.parse(r.pinned_at || new Date().toISOString())}_${r.cid.slice(-5)}`,
+            filename: r.filename,
+            cid: r.cid,
+            filePath: `queue/recovered_${r.cid}.bin`,
+            status: r.status as any,
+            retryCount: 0,
+            createdAt: Date.parse(r.pinned_at || new Date().toISOString()),
+            gatewayUrl: `https://ipfs.io/ipfs/${r.cid}`,
+            sizeBytes: Number(r.size_bytes || 0),
+            pinned_at: Date.parse(r.pinned_at || new Date().toISOString()),
+            expires_at: Date.parse(r.expires_at || new Date().toISOString()),
+            ttl_days: 365,
+            renewalsCount: Number(r.renewals_count || 0)
+          }));
+
+          // Sync loaded Supabase items to local disk fallback
+          fs.writeFileSync(this.registryPath, JSON.stringify(items, null, 2));
+          return items;
+        }
+      } catch (err) {
+        console.warn('[DbManager] Supabase fetch failed, falling back to local registry:', err);
+      }
+    }
+
     try {
       const data = fs.readFileSync(this.registryPath, 'utf-8');
       return JSON.parse(data);
