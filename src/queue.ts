@@ -180,7 +180,7 @@ export class FileQueue {
 
   public async processJobs(): Promise<void> {
     if (this.isProcessing) {
-      return; // Mutex lock prevents overlapping processing loops
+      return;
     }
     this.isProcessing = true;
 
@@ -194,51 +194,58 @@ export class FileQueue {
 
       for (let i = 0; i < pendingItems.length; i += this.maxConcurrent) {
         const chunk = pendingItems.slice(i, i + this.maxConcurrent);
-        await Promise.allSettled(
+        const results = await Promise.allSettled(
           chunk.map(async (item) => {
-            try {
-              if (!fs.existsSync(item.filePath)) {
-                item.status = 'FAILED';
-                return;
-              }
-
-              const buffer = fs.readFileSync(item.filePath);
-              const result = await pinFileToStorage(buffer, item.filename);
-
-              item.status = 'PINNED';
-              item.cid = result.ipfs_cid;
-              item.gatewayUrl = result.gateway_url;
-              
-              this.consecutiveFailures = 0;
-              this.setPinataHealthy(true);
-
-              try {
-                fs.unlinkSync(item.filePath);
-              } catch {}
-
-              console.log(`[Queue Worker] Successfully pinned job ${item.id} -> CID ${result.ipfs_cid}`);
-            } catch (err: any) {
-              item.retryCount += 1;
-              const delayMs = Math.min(1000 * Math.pow(2, item.retryCount - 1), 60000);
-              console.warn(`[Queue Worker] Failed job ${item.id} (Attempt ${item.retryCount}/${this.maxRetries}, backoff ${delayMs}ms): ${err?.message}`);
-              
-              this.consecutiveFailures++;
-              if (this.consecutiveFailures >= 3) {
-                this.setPinataHealthy(false);
-              }
-
-              if (item.retryCount >= this.maxRetries) {
-                console.error(`[Queue Worker] Job ${item.id} exceeded max retries. Marking as FAILED.`);
-                item.status = 'FAILED';
-                try {
-                  if (fs.existsSync(item.filePath)) {
-                    fs.unlinkSync(item.filePath);
-                  }
-                } catch {}
-              }
+            if (!fs.existsSync(item.filePath)) {
+              item.status = 'FAILED';
+              return;
             }
+
+            const buffer = fs.readFileSync(item.filePath);
+            const result = await pinFileToStorage(buffer, item.filename);
+
+            item.status = 'PINNED';
+            item.cid = result.ipfs_cid;
+            item.gatewayUrl = result.gateway_url;
+
+            try {
+              fs.unlinkSync(item.filePath);
+            } catch {}
+
+            console.log(`[Queue Worker] Successfully pinned job ${item.id} -> CID ${result.ipfs_cid}`);
           })
         );
+
+        let batchFailures = 0;
+        results.forEach((res, idx) => {
+          if (res.status === 'rejected') {
+            batchFailures++;
+            const item = chunk[idx];
+            item.retryCount += 1;
+            const delayMs = Math.min(1000 * Math.pow(2, item.retryCount - 1), 60000);
+            console.warn(`[Queue Worker] Failed job ${item.id} (Attempt ${item.retryCount}/${this.maxRetries}, backoff ${delayMs}ms): ${res.reason?.message || res.reason}`);
+            
+            if (item.retryCount >= this.maxRetries) {
+              console.error(`[Queue Worker] Job ${item.id} exceeded max retries. Marking as FAILED.`);
+              item.status = 'FAILED';
+              try {
+                if (fs.existsSync(item.filePath)) {
+                  fs.unlinkSync(item.filePath);
+                }
+              } catch {}
+            }
+          }
+        });
+
+        if (batchFailures > 0) {
+          this.consecutiveFailures += batchFailures;
+          if (this.consecutiveFailures >= 3) {
+            this.setPinataHealthy(false);
+          }
+        } else {
+          this.consecutiveFailures = 0;
+          this.setPinataHealthy(true);
+        }
       }
 
       await this.saveItems(items);

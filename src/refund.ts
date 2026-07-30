@@ -24,6 +24,11 @@ export async function initiateOnChainRefund(params: RefundParams): Promise<Refun
     return { success: false, error: 'Automatic refunds feature flag is disabled.' };
   }
 
+  if (!params.recipientAddress || !algosdk.isValidAddress(params.recipientAddress)) {
+    console.warn(`[Refund] Invalid Algorand recipient address: "${params.recipientAddress}"`);
+    return { success: false, error: `Invalid Algorand recipient address: ${params.recipientAddress}` };
+  }
+
   const mnemonic = config.algorandMnemonic;
   if (!mnemonic || mnemonic.trim().length === 0) {
     console.warn('[Refund] Cannot execute on-chain refund: ALGORAND_WALLET_MNEMONIC is not configured.');
@@ -46,7 +51,7 @@ export async function initiateOnChainRefund(params: RefundParams): Promise<Refun
 
     const signedTxn = txn.signTxn(account.sk);
     const sendResult = await algodClient.sendRawTransaction(signedTxn).do();
-    const txId = sendResult.txid;
+    const txId = (sendResult as any)?.txid || (sendResult as any)?.txId || sendResult;
 
     console.log(`[Refund] Initiated on-chain refund of ${params.amountMicroUsdc} microUSDC to ${params.recipientAddress} (TxID: ${txId})`);
 
