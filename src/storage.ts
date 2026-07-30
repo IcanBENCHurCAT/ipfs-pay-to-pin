@@ -69,3 +69,37 @@ export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Pr
     gateway_url: `https://ipfs.io/ipfs/${mockCid}`,
   };
 }
+
+export async function unpinFileFromIPFS(cid: string): Promise<void> {
+  const pinataJwt = process.env.PINATA_JWT;
+  
+  if (pinataJwt && pinataJwt.trim().length > 0) {
+    try {
+      await axios.delete(`https://api.pinata.cloud/pinning/unpin/${cid}`, {
+        headers: {
+          Authorization: `Bearer ${pinataJwt}`,
+        },
+      });
+      console.log(`[Storage] Successfully unpinned CID ${cid} from Pinata`);
+    } catch (e: any) {
+      console.warn(`[Storage] Failed to unpin CID ${cid} from Pinata:`, e?.message);
+    }
+  }
+
+  // Local fallback storage cleanup
+  const storageDir = process.env.LOCAL_STORAGE_DIR || 'tmp/mock_storage';
+  if (fs.existsSync(storageDir)) {
+    const files = fs.readdirSync(storageDir);
+    for (const file of files) {
+      if (file.startsWith(`${cid}_`)) {
+        try {
+          fs.unlinkSync(path.join(storageDir, file));
+          console.log(`[Storage] Successfully deleted local fallback for CID ${cid}`);
+        } catch (e: any) {
+          console.warn(`[Storage] Failed to delete local fallback for CID ${cid}:`, e?.message);
+        }
+      }
+    }
+  }
+}
+
