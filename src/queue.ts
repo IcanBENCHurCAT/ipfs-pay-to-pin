@@ -125,26 +125,44 @@ export class FileQueue {
     const cid = calculateLocalCid(buffer);
 
     const existing = await this.findByCid(cid);
-    if (existing) {
-      console.log(`[Queue] Deduplication match for CID ${cid}. File already queued/pinned.`);
+    if (existing && existing.status === 'PINNED') {
+      console.log(`[Queue] Deduplication match for CID ${cid}. File already pinned.`);
       return existing;
     }
 
     const id = `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
-    const filePath = path.join(this.queueDir, `${id}_${safeFilename}`);
-    
-    fs.writeFileSync(filePath, buffer);
+    const allowLocalFallback = process.env.ALLOW_LOCAL_FALLBACK === 'true';
+
+    let finalCid = cid;
+    let finalGatewayUrl = `https://ipfs.io/ipfs/${cid}`;
+    let status: 'PENDING' | 'PINNED' = 'PENDING';
+    let filePath = '';
+
+    if (!allowLocalFallback) {
+      // Default Mode: Synchronous Pinata Pinning
+      // Must successfully pin to Pinata BEFORE returning 201 Created to the client!
+      console.log(`[Queue] Synchronously pinning ${safeFilename} to Pinata...`);
+      const pinResult = await pinFileToStorage(buffer, safeFilename);
+      finalCid = pinResult.ipfs_cid;
+      finalGatewayUrl = pinResult.gateway_url;
+      status = 'PINNED';
+      this.setPinataHealthy(true);
+    } else {
+      // Feature-flagged Mode: Async local disk buffer queue (ALLOW_LOCAL_FALLBACK=true)
+      filePath = path.join(this.queueDir, `${id}_${safeFilename}`);
+      fs.writeFileSync(filePath, buffer);
+    }
 
     const now = Date.now();
     const item: QueueItem = {
       id,
       filename: safeFilename,
-      cid,
+      cid: finalCid,
       filePath,
-      status: 'PENDING',
+      status,
       retryCount: 0,
       createdAt: now,
-      gatewayUrl: `https://ipfs.io/ipfs/${cid}`,
+      gatewayUrl: finalGatewayUrl,
       sizeBytes: buffer.length,
       pinned_at: now,
       expires_at: now + 365 * 24 * 60 * 60 * 1000,
@@ -156,14 +174,13 @@ export class FileQueue {
     items.push(item);
     await this.saveItems(items);
 
-    console.log(`[Queue] Added new job ${id} for file ${safeFilename} (CID: ${cid}).`);
+    console.log(`[Queue] Saved pin record ${id} for ${safeFilename} (CID: ${finalCid}, Status: ${status}).`);
     return item;
   }
 
   public async processJobs(): Promise<void> {
-    // Synchronous mutex lock entry prevents async boundary race conditions
     if (this.isProcessing) {
-      return;
+      return; // Mutex lock prevents overlapping processing loops
     }
     this.isProcessing = true;
 
@@ -192,7 +209,6 @@ export class FileQueue {
               item.cid = result.ipfs_cid;
               item.gatewayUrl = result.gateway_url;
               
-              // Reset failure count & restore health state on success
               this.consecutiveFailures = 0;
               this.setPinataHealthy(true);
 
@@ -206,7 +222,6 @@ export class FileQueue {
               const delayMs = Math.min(1000 * Math.pow(2, item.retryCount - 1), 60000);
               console.warn(`[Queue Worker] Failed job ${item.id} (Attempt ${item.retryCount}/${this.maxRetries}, backoff ${delayMs}ms): ${err?.message}`);
               
-              // Track consecutive failures to prevent health state oscillation
               this.consecutiveFailures++;
               if (this.consecutiveFailures >= 3) {
                 this.setPinataHealthy(false);
@@ -215,7 +230,6 @@ export class FileQueue {
               if (item.retryCount >= this.maxRetries) {
                 console.error(`[Queue Worker] Job ${item.id} exceeded max retries. Marking as FAILED.`);
                 item.status = 'FAILED';
-                // Clean up disk buffer for failed jobs to prevent orphaned files
                 try {
                   if (fs.existsSync(item.filePath)) {
                     fs.unlinkSync(item.filePath);
