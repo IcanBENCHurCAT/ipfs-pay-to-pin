@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { bodyLimit } from "hono/body-limit";
 import { swaggerUI } from "@hono/swagger-ui";
 import { serve } from "@hono/node-server";
@@ -98,7 +99,14 @@ const x402MetadataHandler = (c: any) => {
             {
                 path: "/api/v1/pin",
                 url: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin",
-                description: "Upload a file as a Base64 JSON payload. Returns an x402 microUSDC challenge. Upon payment verification, pins the file to IPFS for 365 days.",
+                description: "Upload one file as a Base64-encoded JSON payload; on successful payment, the service pins it to IPFS for 365 days and returns cid, ipfs_cid, gateway_url, expires_at, and renewal_url.",
+                methods: ["POST"],
+                networks: ["algorand:mainnet", "algorand:testnet"]
+            },
+            {
+                path: "/api/v1/renew",
+                url: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/renew",
+                description: "Renew an existing pin for another 365 days via x402 microUSDC payment. 50% early renewal discount applies prior to expiration.",
                 methods: ["POST"],
                 networks: ["algorand:mainnet", "algorand:testnet"]
             }
@@ -124,6 +132,16 @@ app.get("/.well-known/agent-card.json", (c) => {
                 "url": "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin",
                 "protocolBinding": "HTTP",
                 "protocolVersion": "1.1"
+            },
+            {
+                "url": "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/renew",
+                "protocolBinding": "HTTP",
+                "protocolVersion": "1.1"
+            },
+            {
+                "url": "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin/{cid}",
+                "protocolBinding": "HTTP",
+                "protocolVersion": "1.1"
             }
         ],
         "capabilities": {
@@ -139,6 +157,20 @@ app.get("/.well-known/agent-card.json", (c) => {
                 "description": "Upload a base64-encoded file and pin it to IPFS for 365 days via an x402 microUSDC payment.",
                 "tags": ["ipfs", "storage", "ai-agents", "pinning", "x402-global-challenge"],
                 "examples": ["Pin my file to IPFS for 365 days."]
+            },
+            {
+                "id": "ipfs_renew_pin",
+                "name": "Renew IPFS Pin",
+                "description": "Renew an existing IPFS pin for another 365 days via an x402 microUSDC payment. 50% early renewal discount applies if renewed before expiration.",
+                "tags": ["ipfs", "storage", "renew", "x402-global-challenge"],
+                "examples": ["Renew my IPFS pin for CID bafy..."]
+            },
+            {
+                "id": "ipfs_pin_status",
+                "name": "Check IPFS Pin Status",
+                "description": "Check the status, expiration date, and active state of an IPFS pin.",
+                "tags": ["ipfs", "status"],
+                "examples": ["What is the status of my IPFS pin for CID bafy..."]
             }
         ]
     });
@@ -159,7 +191,7 @@ An HTTP API that gates file storage (pinning) on IPFS using standard x402 microU
 
 2. \`POST /api/v1/renew\`
    - Request Body: JSON \`{ "cid": "<ipfs_cid>" }\`
-   - Response: \`402 Payment Required\` header \`PAYMENT-REQUIRED\`.
+   - Response: \`402 Payment Required\` header \`PAYMENT-REQUIRED\` (Includes a 50% early renewal discount if renewed before expiration).
    - Output (200 OK): Extends retention period by another 365 days and updates \`expires_at\`.
 
 3. \`GET /api/v1/pin/:cid\`
@@ -238,6 +270,88 @@ app.get("/openapi.json", (c) => {
                         }
                     }
                 }
+            },
+            "/api/v1/renew": {
+                post: {
+                    summary: "Renew IPFS Pin",
+                    description: "Renews an existing IPFS pin for another 365 days. Returns a 402 Payment Required challenge. 50% early renewal discount applies if renewed before expiration.",
+                    requestBody: {
+                        content: {
+                            "application/json": {
+                                schema: {
+                                    type: "object",
+                                    properties: {
+                                        cid: {
+                                            type: "string",
+                                            description: "The CID of the file to renew"
+                                        }
+                                    },
+                                    required: ["cid"]
+                                }
+                            }
+                        }
+                    },
+                    responses: {
+                        "200": {
+                            description: "Pin successfully renewed",
+                            content: {
+                                "application/json": {
+                                    schema: {
+                                        type: "object",
+                                        properties: {
+                                            status: { type: "string" },
+                                            message: { type: "string" },
+                                            cid: { type: "string" },
+                                            expires_at: { type: "string" },
+                                            renewals_count: { type: "number" }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "402": {
+                            description: "Payment Required - Returns x402 payment challenge"
+                        }
+                    }
+                }
+            },
+            "/api/v1/pin/{cid}": {
+                get: {
+                    summary: "Check Pin Status",
+                    description: "Free status lookup endpoint to check the retention status of an IPFS pin.",
+                    parameters: [
+                        {
+                            name: "cid",
+                            in: "path",
+                            required: true,
+                            schema: {
+                                type: "string"
+                            },
+                            description: "The CID of the pinned file"
+                        }
+                    ],
+                    responses: {
+                        "200": {
+                            description: "Status successfully retrieved",
+                            content: {
+                                "application/json": {
+                                    schema: {
+                                        type: "object",
+                                        properties: {
+                                            pinned_at: { type: "string" },
+                                            expires_at: { type: "string" },
+                                            days_remaining: { type: "number" },
+                                            is_active: { type: "boolean" }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "404": {
+                            description: "Pin not found"
+                        }
+                    }
+                }
             }
         }
     });
@@ -302,6 +416,54 @@ app.use(
                 extensions: {
                     ...pinDiscovery
                 }
+            },
+            "POST /api/v1/renew": {
+                accepts: [
+                    {
+                        scheme: "exact",
+                        price: async (ctx: any) => {
+                            let cid;
+                            try {
+                                const body = await ctx.adapter.getBody();
+                                cid = body.cid;
+                            } catch (e) {
+                                throw new HTTPException(400, { message: "Invalid JSON body" });
+                            }
+                            
+                            const item = await globalFileQueue.findByCid(cid);
+                            if (!item) {
+                                throw new HTTPException(404, { message: "CID not found" });
+                            }
+                            
+                            const now = Date.now();
+                            const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
+                            if (now > gracePeriodEnd) {
+                                throw new HTTPException(410, { message: "Pin expired and permanently removed" });
+                            }
+                            
+                            const baseMicroUsdc = 10000;
+                            const bytePriceMicroUsdc = 0.02;
+                            let totalMicroUsdc = baseMicroUsdc + (item.sizeBytes * bytePriceMicroUsdc);
+                            
+                            if (now < item.expires_at) {
+                                totalMicroUsdc = totalMicroUsdc * 0.5; // 50% Early Renewal Discount
+                            }
+                            
+                            return `$${(totalMicroUsdc / 1000000).toFixed(6)}`;
+                        },
+                        network: networkCaip2,
+                        payTo: escrowAddress,
+                        maxTimeoutSeconds: 300,
+                        extra: {
+                            asset: usdcAsaId,
+                            tag: "x402-global-challenge",
+                            decimals: 6,
+                            feePayer: escrowAddress
+                        }
+                    }
+                ],
+                description: "Renew IPFS pin for another 365 days",
+                mimeType: "application/json"
             }
         },
         server
@@ -331,7 +493,7 @@ app.post("/api/v1/pin", async (c) => {
         const buffer = Buffer.from(data, 'base64');
 
         // Add job to local buffer queue and calculate deterministic CID
-        const job = globalFileQueue.addJob(filename, buffer);
+        const job = await globalFileQueue.addJob(filename, buffer);
 
         return c.json({
             status: "success",
@@ -339,7 +501,11 @@ app.post("/api/v1/pin", async (c) => {
             filename: filename,
             ipfs_cid: job.cid,
             cid: job.cid,
-            gateway_url: job.gatewayUrl
+            gateway_url: job.gatewayUrl,
+            pinned_at: new Date(job.pinned_at).toISOString(),
+            expires_at: new Date(job.expires_at).toISOString(),
+            ttl_days: job.ttl_days,
+            renewal_url: `/api/v1/renew`
         }, 201);
     } catch (e: any) {
         return c.json({ error: e.message || "Failed to process file upload" }, 500);
@@ -349,13 +515,66 @@ app.post("/api/v1/pin", async (c) => {
 // Start background worker polling loop
 setInterval(() => {
     globalFileQueue.processJobs().catch(err => console.error("[Queue Worker Error]", err));
+    globalFileQueue.processExpiredPins().catch(err => console.error("[Queue Worker Expired Pins Error]", err));
 }, 10000);
+
+app.post("/api/v1/renew", async (c) => {
+    try {
+        const body = await c.req.json();
+        const cid = body['cid'];
+        
+        if (!cid) {
+            return c.json({ error: "Missing cid parameter in JSON payload" }, 400);
+        }
+        
+        const now = Date.now();
+        const item = await globalFileQueue.findByCid(cid);
+        if (!item) {
+            return c.json({ error: "CID not found" }, 404);
+        }
+        
+        const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
+        if (now > gracePeriodEnd) {
+            return c.json({ error: "Pin expired and permanently removed" }, 410);
+        }
+
+        const renewedItem = await globalFileQueue.renewPin(cid);
+        if (!renewedItem) {
+            return c.json({ error: "Failed to renew pin" }, 500);
+        }
+        
+        return c.json({
+            status: "success",
+            message: "Payment verified. Pin extended for 365 days.",
+            cid: renewedItem.cid,
+            expires_at: new Date(renewedItem.expires_at).toISOString(),
+            renewals_count: renewedItem.renewalsCount
+        }, 200);
+    } catch (e: any) {
+        return c.json({ error: e.message || "Failed to process pin renewal" }, 500);
+    }
+});
+
+app.get("/api/v1/pin/:cid", async (c) => {
+    const cid = c.req.param("cid");
+    const status = await globalFileQueue.getPinStatus(cid);
+    
+    if (!status) {
+        return c.json({ error: "Pin not found" }, 404);
+    }
+    
+    return c.json(status, 200);
+});
 
 const port = Number(process.env.PORT) || 4021;
 console.log(`x402 Gateway Resource Server starting on port ${port}...`);
 
-serve({
-    fetch: app.fetch,
-    port: port,
-    hostname: '0.0.0.0'
-});
+if (process.env.NODE_ENV !== 'test') {
+    serve({
+        fetch: app.fetch,
+        port: port,
+        hostname: '0.0.0.0'
+    });
+}
+
+export default app;
