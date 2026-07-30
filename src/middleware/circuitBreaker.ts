@@ -4,14 +4,27 @@ import { globalFileQueue } from '../queue.js';
 export async function circuitBreakerMiddleware(c: Context, next: Next) {
   const queueSize = globalFileQueue.getQueueSize();
   const maxQueueSize = globalFileQueue.getMaxQueueSize();
+  const queueBytes = globalFileQueue.getQueueBytes();
+  const maxQueueBytes = globalFileQueue.getMaxQueueBytes();
 
   if (queueSize >= maxQueueSize) {
-    console.warn(`[CircuitBreaker] Queue full (${queueSize}/${maxQueueSize}), rejecting request`);
+    console.warn(`[CircuitBreaker] Queue size full (${queueSize}/${maxQueueSize}), rejecting request`);
     return c.json({
       error: "Service Unavailable",
-      message: "Queue is full. Please try again later.",
+      message: "Queue item limit reached. Please try again later.",
       queue_size: queueSize,
       max_queue_size: maxQueueSize,
+      retry_after_ms: 10000,
+    }, 503);
+  }
+
+  if (queueBytes >= maxQueueBytes) {
+    console.warn(`[CircuitBreaker] Queue bytes full (${queueBytes}/${maxQueueBytes}), rejecting request`);
+    return c.json({
+      error: "Service Unavailable",
+      message: "Queue byte capacity reached. Please try again later.",
+      queue_bytes: queueBytes,
+      max_queue_bytes: maxQueueBytes,
       retry_after_ms: 10000,
     }, 503);
   }
