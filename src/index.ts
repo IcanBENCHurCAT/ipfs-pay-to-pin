@@ -389,8 +389,17 @@ app.get("/", (c) => {
     return c.html(html);
 });
 
-// Circuit breaker check BEFORE payment middleware
+// Circuit breaker check BEFORE payment middleware for both /pin and /renew
 app.use("/api/v1/pin", circuitBreakerMiddleware);
+app.use("/api/v1/renew", circuitBreakerMiddleware);
+
+// Security headers middleware
+app.use("*", async (c, next) => {
+    c.header("X-Content-Type-Options", "nosniff");
+    c.header("X-Frame-Options", "DENY");
+    c.header("X-XSS-Protection", "1; mode=block");
+    await next();
+});
 
 app.use(
     paymentMiddleware(
@@ -404,7 +413,9 @@ app.use(
                             try {
                                 const body = await ctx.adapter.getBody();
                                 if (body && typeof body.data === 'string') {
-                                    binaryBytes = Math.floor(body.data.length * 0.75);
+                                    // Strip '=' padding for 100% accurate binary byte count
+                                    const unpadded = body.data.replace(/=+$/, '');
+                                    binaryBytes = Math.floor((unpadded.length * 3) / 4);
                                 }
                             } catch {
                                 const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
