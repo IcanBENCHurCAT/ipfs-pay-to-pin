@@ -25,8 +25,10 @@ export class FileQueue {
   private registryPath: string;
   private maxRetries: number = 5;
   private maxQueueSize: number = 50;
+  private maxQueueBytes: number = 1000 * 1024 * 1024; // 1GB byte capacity limit
   private maxConcurrent: number = 3;
   private pinataHealthy: boolean = true;
+  private consecutiveFailures: number = 0;
   private isProcessing: boolean = false;
   private dbManager: DbManager;
   private itemsCache: QueueItem[] = [];
@@ -76,8 +78,18 @@ export class FileQueue {
     return this.itemsCache.filter(item => item.status === 'PENDING').length;
   }
 
+  public getQueueBytes(): number {
+    return this.itemsCache
+      .filter(item => item.status === 'PENDING')
+      .reduce((sum, item) => sum + (item.sizeBytes || 0), 0);
+  }
+
   public getMaxQueueSize(): number {
     return this.maxQueueSize;
+  }
+
+  public getMaxQueueBytes(): number {
+    return this.maxQueueBytes;
   }
 
   public getSize(): number {
@@ -85,7 +97,9 @@ export class FileQueue {
   }
 
   public isHealthy(): boolean {
-    return this.pinataHealthy && this.getQueueSize() < this.maxQueueSize;
+    return this.pinataHealthy &&
+      this.getQueueSize() < this.maxQueueSize &&
+      this.getQueueBytes() < this.maxQueueBytes;
   }
 
   public setPinataHealthy(healthy: boolean): void {
@@ -102,6 +116,10 @@ export class FileQueue {
 
     if (!validateContentType(buffer)) {
       throw new Error('Unsupported or potentially unsafe file content type.');
+    }
+
+    if (this.getQueueBytes() + buffer.length > this.maxQueueBytes) {
+      throw new Error('Queue byte capacity exceeded (1GB limit). Please try again later.');
     }
 
     const cid = calculateLocalCid(buffer);
@@ -143,8 +161,9 @@ export class FileQueue {
   }
 
   public async processJobs(): Promise<void> {
+    // Synchronous mutex lock entry prevents async boundary race conditions
     if (this.isProcessing) {
-      return; // Mutex lock prevents overlapping processing loops
+      return;
     }
     this.isProcessing = true;
 
@@ -172,7 +191,10 @@ export class FileQueue {
               item.status = 'PINNED';
               item.cid = result.ipfs_cid;
               item.gatewayUrl = result.gateway_url;
-              this.setPinataHealthy(true); // Toggle Pinata health status to true
+              
+              // Reset failure count & restore health state on success
+              this.consecutiveFailures = 0;
+              this.setPinataHealthy(true);
 
               try {
                 fs.unlinkSync(item.filePath);
@@ -184,11 +206,21 @@ export class FileQueue {
               const delayMs = Math.min(1000 * Math.pow(2, item.retryCount - 1), 60000);
               console.warn(`[Queue Worker] Failed job ${item.id} (Attempt ${item.retryCount}/${this.maxRetries}, backoff ${delayMs}ms): ${err?.message}`);
               
-              this.setPinataHealthy(false); // Toggle Pinata health status to false on failure
+              // Track consecutive failures to prevent health state oscillation
+              this.consecutiveFailures++;
+              if (this.consecutiveFailures >= 3) {
+                this.setPinataHealthy(false);
+              }
 
               if (item.retryCount >= this.maxRetries) {
                 console.error(`[Queue Worker] Job ${item.id} exceeded max retries. Marking as FAILED.`);
                 item.status = 'FAILED';
+                // Clean up disk buffer for failed jobs to prevent orphaned files
+                try {
+                  if (fs.existsSync(item.filePath)) {
+                    fs.unlinkSync(item.filePath);
+                  }
+                } catch {}
               }
             }
           })
