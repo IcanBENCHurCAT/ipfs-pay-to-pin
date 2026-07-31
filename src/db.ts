@@ -9,15 +9,20 @@ export class DbManager {
 
   constructor(registryPath: string) {
     this.registryPath = registryPath;
-    if (config.supabaseUrl && config.supabaseKey) {
+  }
+
+  private getSupabaseClient(): SupabaseClient | null {
+    if (!this.supabase && config.supabaseUrl && config.supabaseKey) {
       this.supabase = createClient(config.supabaseUrl, config.supabaseKey);
     }
+    return this.supabase;
   }
 
   async saveItems(items: QueueItem[]) {
     fs.writeFileSync(this.registryPath, JSON.stringify(items, null, 2));
 
-    if (this.supabase) {
+    const client = this.getSupabaseClient();
+    if (client) {
       const records = items.map(item => ({
         cid: item.cid,
         filename: item.filename,
@@ -30,7 +35,7 @@ export class DbManager {
 
       const validRecords = records.filter(r => Boolean(r.cid));
       if (validRecords.length > 0) {
-        const { error } = await this.supabase.from('pin_records').upsert(validRecords, { onConflict: 'cid' });
+        const { error } = await client.from('pin_records').upsert(validRecords, { onConflict: 'cid' });
         if (error) {
           console.error(`[DbManager] Failed to batch sync ${validRecords.length} items to Supabase:`, error);
         }
@@ -39,9 +44,10 @@ export class DbManager {
   }
 
   async getItems(): Promise<QueueItem[]> {
-    if (this.supabase) {
+    const client = this.getSupabaseClient();
+    if (client) {
       try {
-        const { data, error } = await this.supabase.from('pin_records').select('*');
+        const { data, error } = await client.from('pin_records').select('*');
         if (!error && data && Array.isArray(data)) {
           const items: QueueItem[] = data.map(r => ({
             id: `job_${Date.parse(r.pinned_at || new Date().toISOString())}_${r.cid.slice(-5)}`,
