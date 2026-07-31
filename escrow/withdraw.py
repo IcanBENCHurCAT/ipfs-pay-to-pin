@@ -1,7 +1,7 @@
 import os
 import sys
 from algosdk.v2client import algod
-from algosdk import mnemonic, account, abi
+from algosdk import mnemonic, account, abi, logic
 from algosdk.atomic_transaction_composer import (
     AtomicTransactionComposer,
     AccountTransactionSigner,
@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def withdraw(amount: float, asset_type: str = "usdc", target_receiver: str = None):
+def withdraw(amount_arg: str = "all", asset_type: str = "usdc", target_receiver: str = None):
     network = os.getenv("ALGORAND_NETWORK", "mainnet").lower()
     default_algod = "https://mainnet-api.algonode.cloud" if network == "mainnet" else "https://testnet-api.algonode.cloud"
     algod_address = os.getenv("ALGOD_ADDRESS", default_algod)
@@ -32,19 +32,41 @@ def withdraw(amount: float, asset_type: str = "usdc", target_receiver: str = Non
     if not target_receiver:
         target_receiver = sender_address
 
-    signer = AccountTransactionSigner(private_key)
-    params = client.suggested_params()
-    params.fee = 2000
-    params.flat_fee = True
+    escrow_address = logic.get_application_address(app_id)
 
-    atc = AtomicTransactionComposer()
+    escrow_acct = client.account_info(escrow_address)
+    usdc_balance = 0
+    for a in escrow_acct.get("assets", []):
+        if a.get("asset-id") == usdc_id or a.get("assetId") == usdc_id:
+            usdc_balance = int(a.get("amount", 0))
+
+    algo_balance = int(escrow_acct.get("amount", 0))
 
     if asset_type.lower() in ("usdc", "asa"):
-        amount_micro = int(amount * 1_000_000)
-        print(f"Owner Account: {sender_address}")
-        print(f"Withdrawing ${amount:.4f} USDC ({amount_micro:,} microUSDC) from App ID {app_id} to {target_receiver}...")
+        if amount_arg.lower() in ("all", "max"):
+            amount_micro = usdc_balance
+        else:
+            amount_micro = int(float(amount_arg) * 1_000_000)
 
-        # ABI method signature: withdraw_assets(uint64,uint64,address)void
+        if amount_micro == 0:
+            print(f"No USDC balance available to withdraw. Current Escrow Balance: 0 microUSDC")
+            return
+
+        if amount_micro > usdc_balance:
+            print(f"ERROR: Requested withdrawal of ${amount_micro / 1_000_000:.6f} USDC ({amount_micro:,} microUSDC) exceeds current Escrow USDC Balance of ${usdc_balance / 1_000_000:.6f} USDC ({usdc_balance:,} microUSDC).")
+            print(f"Tip: Run 'python escrow/withdraw.py all' to automatically withdraw 100% of available funds (${usdc_balance / 1_000_000:.6f} USDC).")
+            return
+
+        print(f"Owner Account:   {sender_address}")
+        print(f"Escrow Address:  {escrow_address}")
+        print(f"Withdrawing:     ${amount_micro / 1_000_000:.6f} USDC ({amount_micro:,} microUSDC) from App ID {app_id} to {target_receiver}...")
+
+        signer = AccountTransactionSigner(private_key)
+        params = client.suggested_params()
+        params.fee = 2000
+        params.flat_fee = True
+
+        atc = AtomicTransactionComposer()
         withdraw_method = abi.Method.from_signature("withdraw_assets(uint64,uint64,address)void")
         atc.add_method_call(
             app_id=app_id,
@@ -55,12 +77,36 @@ def withdraw(amount: float, asset_type: str = "usdc", target_receiver: str = Non
             method_args=[usdc_id, amount_micro, target_receiver],
             foreign_assets=[usdc_id],
         )
-    else:
-        amount_micro = int(amount * 1_000_000)
-        print(f"Owner Account: {sender_address}")
-        print(f"Withdrawing {amount:.6f} ALGO ({amount_micro:,} microALGOs) from App ID {app_id} to {target_receiver}...")
 
-        # ABI method signature: withdraw_fees(uint64,account)void
+        try:
+            result = atc.execute(client, 4)
+            print(f"SUCCESS: Withdrawal confirmed! Tx ID: {result.tx_ids[0]}")
+            print(f"Successfully transferred ${amount_micro / 1_000_000:.6f} USDC to {target_receiver}!")
+        except Exception as e:
+            print(f"ERROR withdrawing funds: {e}")
+
+    else: # ALGO withdrawal
+        min_balance = 200_000 # Minimum balance requirement for contract escrow
+        withdrawable_algo = max(0, algo_balance - min_balance)
+
+        if amount_arg.lower() in ("all", "max"):
+            amount_micro = withdrawable_algo
+        else:
+            amount_micro = int(float(amount_arg) * 1_000_000)
+
+        if amount_micro > withdrawable_algo:
+            print(f"ERROR: Requested ALGO withdrawal ({amount_micro:,} microALGO) exceeds withdrawable balance ({withdrawable_algo:,} microALGO).")
+            return
+
+        print(f"Owner Account:   {sender_address}")
+        print(f"Withdrawing:     {amount_micro / 1_000_000:.6f} ALGO ({amount_micro:,} microALGOs) from App ID {app_id} to {target_receiver}...")
+
+        signer = AccountTransactionSigner(private_key)
+        params = client.suggested_params()
+        params.fee = 2000
+        params.flat_fee = True
+
+        atc = AtomicTransactionComposer()
         withdraw_method = abi.Method.from_signature("withdraw_fees(uint64,account)void")
         atc.add_method_call(
             app_id=app_id,
@@ -71,14 +117,14 @@ def withdraw(amount: float, asset_type: str = "usdc", target_receiver: str = Non
             method_args=[amount_micro, target_receiver],
         )
 
-    try:
-        result = atc.execute(client, 4)
-        print(f"Withdrawal transaction confirmed! Tx ID: {result.tx_ids[0]}")
-        print(f"Successfully transferred {amount} {asset_type.upper()} to {target_receiver}!")
-    except Exception as e:
-        print(f"ERROR withdrawing funds: {e}")
+        try:
+            result = atc.execute(client, 4)
+            print(f"SUCCESS: ALGO Withdrawal confirmed! Tx ID: {result.tx_ids[0]}")
+            print(f"Successfully transferred {amount_micro / 1_000_000:.6f} ALGO to {target_receiver}!")
+        except Exception as e:
+            print(f"ERROR withdrawing ALGO: {e}")
 
 if __name__ == "__main__":
-    amt = float(sys.argv[1]) if len(sys.argv) > 1 else 0.001
-    asset = sys.argv[2] if len(sys.argv) > 2 else "usdc"
-    withdraw(amt, asset)
+    amt_input = sys.argv[1] if len(sys.argv) > 1 else "all"
+    asset_input = sys.argv[2] if len(sys.argv) > 2 else "usdc"
+    withdraw(amt_input, asset_input)
