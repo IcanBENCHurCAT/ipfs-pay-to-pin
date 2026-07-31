@@ -1,0 +1,38 @@
+name: Publish Client SDK to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Optional package version override (e.g. 1.0.0 or leave empty to use sdk/package.json)'
+        required: false
+        default: ''
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install SDK Dependencies
+        run: npm ci --prefix sdk
+
+      - name: Build SDK Bundle & Type Declarations
+        run: npm run build --prefix sdk
+
+      - name: Publish to npm
+        run: |
+          cd sdk
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
