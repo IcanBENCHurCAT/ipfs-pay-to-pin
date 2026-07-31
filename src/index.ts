@@ -92,6 +92,7 @@ const logoUrl = "https://gateway.pinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY
 
 // Health check and Merchant metadata endpoint
 const x402MetadataHandler = (c: any) => {
+    c.header("Cache-Control", "public, max-age=3600, s-maxage=86400");
     return c.json({
         merchant: {
             name: "IPFS Pay-to-Pin Gateway",
@@ -129,6 +130,7 @@ app.get("/.well-known/x402.json", x402MetadataHandler);
 app.get("/.well-known/x402", x402MetadataHandler);
 
 app.get("/.well-known/agent-card.json", (c) => {
+    c.header("Cache-Control", "public, max-age=3600, s-maxage=86400");
     return c.json({
         "name": "IPFS Pay-to-Pin Gateway",
         "description": "Upload a file as Base64 JSON. On x402 microUSDC payment, the server pins it to IPFS for 365 days with optional /renew extension.",
@@ -213,14 +215,17 @@ OpenAPI specification available at \`/openapi.json\`.
 `;
 
 app.get("/", (c) => {
+    c.header("Cache-Control", "public, max-age=3600, s-maxage=86400");
     return c.text(agentOnboardingPrompt);
 });
 
 app.get("/llms.txt", (c) => {
+    c.header("Cache-Control", "public, max-age=3600, s-maxage=86400");
     return c.text(agentOnboardingPrompt);
 });
 
 app.get("/openapi.json", (c) => {
+    c.header("Cache-Control", "public, max-age=3600, s-maxage=86400");
     return c.json({
         openapi: "3.0.0",
         info: {
