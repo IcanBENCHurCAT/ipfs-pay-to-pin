@@ -157,7 +157,12 @@ export async function unpinFileFromIPFS(cid: string): Promise<void> {
       });
       console.log(`[Storage] Successfully unpinned CID ${cid} from Pinata`);
     } catch (e: any) {
-      console.warn(`[Storage] Failed to unpin CID ${cid} from Pinata:`, e?.message);
+      if (e?.response?.status === 404) {
+        console.log(`[Storage] CID ${cid} was already unpinned or not found on Pinata.`);
+      } else {
+        console.warn(`[Storage] Failed to unpin CID ${cid} from Pinata:`, e?.message);
+        throw e;
+      }
     }
   }
 
