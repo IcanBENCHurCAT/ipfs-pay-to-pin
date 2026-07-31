@@ -318,11 +318,11 @@ export class FileQueue {
             console.log(`[Queue Worker] CID ${item.cid} has exceeded grace period. Unpinning...`);
             try {
               await unpinFileFromIPFS(item.cid);
+              item.status = 'FAILED';
+              changed = true;
             } catch (e) {
               console.warn(`[Queue Worker] Warning during unpin attempt for ${item.cid}:`, e);
             }
-            item.status = 'FAILED';
-            changed = true;
           }
         }
       }
