@@ -72,12 +72,10 @@ export class IpfsPayToPinClient {
     this.maxPriceUsdc = config.maxPriceUsdc ?? 1.0;
     this.confirmPrice = config.confirmPrice;
 
-    const avmSigner = toClientAvmSigner(this.account.sk, {
-      algodClient: this.algodClient as any
-    });
+    const avmSigner = toClientAvmSigner(config.mnemonic);
 
     this.x402ClientInstance = new x402Client();
-    this.x402ClientInstance.register(this.networkCaip2, new ExactAvmScheme(avmSigner as any));
+    this.x402ClientInstance.register(this.networkCaip2 as `${string}:${string}`, new ExactAvmScheme(avmSigner as any));
     this.x402HttpClient = new x402HTTPClient(this.x402ClientInstance);
   }
 
