@@ -93,6 +93,10 @@ const logoUrl = "https://gateway.pinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY
 // Health check and Merchant metadata endpoint
 const x402MetadataHandler = (c: any) => {
     c.header("Cache-Control", "public, max-age=3600, s-maxage=86400");
+    // Trigger retention sweeper asynchronously on crawler/indexer discovery checks
+    globalFileQueue.processExpiredPins().catch((err) => {
+        console.warn("[Queue Worker Sweep Error on x402 discovery]:", err);
+    });
     return c.json({
         merchant: {
             name: "IPFS Pay-to-Pin Gateway",
