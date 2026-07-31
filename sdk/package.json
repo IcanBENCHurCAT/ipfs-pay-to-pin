@@ -1,0 +1,41 @@
+{
+  "name": "ipfs-pay-to-pin-client",
+  "version": "1.0.0",
+  "description": "1-Line TypeScript SDK for IPFS Pay-to-Pin Gateway via Algorand microUSDC x402 payments",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "vitest run"
+  },
+  "keywords": [
+    "ipfs",
+    "x402",
+    "algorand",
+    "usdc",
+    "pay-to-pin",
+    "microtransactions",
+    "ai-agents"
+  ],
+  "author": "IcanBENCHurCAT",
+  "license": "MIT",
+  "peerDependencies": {
+    "@x402/avm": "^2.19.0",
+    "@x402/core": "^2.19.0",
+    "algosdk": "^3.0.0"
+  },
+  "dependencies": {
+    "axios": "^1.7.9"
+  },
+  "devDependencies": {
+    "@x402/avm": "^2.19.0",
+    "@x402/core": "^2.19.0",
+    "algosdk": "^3.0.0",
+    "tsup": "^8.3.6",
+    "typescript": "^5.7.3"
+  }
+}
