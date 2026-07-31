@@ -6,17 +6,17 @@ Welcome, agent. This document outlines the project guidelines, architecture, and
 
 ## 1. Project Overview
 
-The IPFS "Pay-to-Pin" Gateway is a service that implements an HTTP `402 Payment Required` interface to gate file storage (pinning) on decentralized networks like IPFS with Algorand micropayments.
+The IPFS "Pay-to-Pin" Gateway is a service that implements a standard HTTP `402 Payment Required` interface to gate file storage (pinning) on decentralized networks like IPFS using Algorand microUSDC payments.
 
 ### Core Architecture
-- **API (Hono + TS)**: Receives file uploads, issues x402 payment requests, verifies transactions, and pins files.
-- **Smart Contract**: ASC1 written in TypeScript-compatible `typescript-algopay` and compiled with Puya (guardrails from `.specify/memory/constitution.md`).
-- **Storage Layer**: Communicates with IPFS pinning services (e.g., Pinata) or optional self‑hosted Kubo node.
+- **API (Hono/TypeScript)**: Receives file uploads, issues x402 payment requests, verifies transactions, and pins files to IPFS. Uses the standard `@x402/hono` middleware.
+- **Smart Contract (`escrow.py`)**: Written in `algopy` (Algorand Python) and compiled via Puya.
+- **Storage Layer**: Communicates with Pinata (with optional self-hosted Kubo node/GCS fallback). Implements a Local Buffer Queue and Circuit Breaker to ensure agents do not pay for failed storage requests.
 - **Client Flow**:
-  1. Client calls `POST /api/v1/pin` with Base64‑encoded JSON payload.
-  2. Server returns `402 Payment Required` listing payment terms to be settled on Algorand.
-  3. Client pays on Algorand; upon verification the gateway pins the file **for up to 365 days** and returns CID + `gateway_url`.
-  4. Background job checks expiration and fires a heartbeat event if renewal is needed.
+  1. Client calls `POST /api/v1/pin` with a JSON payload containing the Base64 file.
+  2. Server returns `402 Payment Required` with a `PAYMENT-REQUIRED` header containing the x402 challenge (microUSDC pricing).
+  3. Client pays on-chain and resubmits the exact original POST request with the `PAYMENT-SIGNATURE` header.
+  4. Server verifies the transaction signature, buffers the file locally (returning `201 Created` immediately with a 365-day pin expiration date), and asynchronously pins it to Pinata.
 
 ---
 
@@ -24,29 +24,71 @@ The IPFS "Pay-to-Pin" Gateway is a service that implements an HTTP `402 Payment 
 
 ```text
 ipfs-pay-to-pin/
-├── .specify/               # SpecKit specs, memory & extensions
-│   ├── memory/             # Project status, spec, constitution.md
+├── .specify/               # SpecKit Specifications & Memory
+│   ├── memory/             # Project status, specs, constitution.md
 │   │   └── constitution.md
-│   └── extensions.yml        # optional skill hooks
+│   ├── templates/          # Templates for specs, plans, tasks
+│   ├── extensions.yml      # Optional skill hooks
+│   └── feature.json        # Current active feature reference
 ├── .agents/                # Custom subagents or rules
-├── src/                    # TypeScript source (`index.ts`, `storage.ts`, …)
-├── escrow/                 # ASC1 contract source (`contract.ts`)
-│   └── compile.ts          # Puya compilation script
+├── escrow/                 # Smart Contract directory
+│   ├── contract.py         # algopy smart contract logic
+│   └── compile.py          # Script to compile smart contract
+├── src/                    # TypeScript Hono Application
+│   ├── index.ts            # Entrypoint & x402 configuration
+│   ├── queue.ts            # Local Buffer Queue
+│   ├── cid.ts              # Deterministic CID calculation
+│   ├── db.ts               # Supabase persistence layer with local fallback
+│   └── storage.ts          # Pinata interaction & buffering logic
 ├── tests/                  # Test suite
-│   ├── test_contract.ts
-│   └── test_gateway.ts
-├── README.md               # Overview, tech‑stack, config, migration guide
+├── scripts/                # Helper scripts for interaction
+├── README.md               # Overview and user instructions
 └── AGENTS.md               # This guide
 ```
 
 ---
 
-### Governance & Guardrails
+## 3. Technology Stack & Key Libraries
 
-- All new features **MUST** comply with the **Constitution** (`.specify/memory/constitution.md`).
-- Any change that touches fee calculation, smart‑contract storage, or x402 endpoint contracts requires at least one **peer review** from an existing maintainer.
-- The **robustness plan** (see `/specs/ipfs‑robustness‑plan.md`) is the canonical source for lifetime, multi‑gateway and monitoring requirements.
-- Logging, metrics and heartbeat events **SHOULD** be emitted for all pinning actions.
-- Any deprecation of the legacy Python contract must be accompanied by a TypeScript version and migration guide.
+- **Backend**: Node.js, TypeScript, Hono (`@hono/node-server`).
+- **x402 Integration**: `@x402/hono`, `@x402/core`, `@x402/avm`, `@x402/extensions`.
+- **Database**: Supabase PostgreSQL (`@supabase/supabase-js`) with local `queue/registry.json` fallback.
+- **Smart Contract compiler**: Algorand Python (`algopy` via Puya).
+- **IPFS Clients**: Raw HTTP requests to Pinata REST API.
 
-Feel free to reach out for clarification or to pitch new robustness‑related tasks.
+---
+
+## 4. Coding Conventions & Guardrails
+
+- **Algorand Python Rules**: Implement contracts using pure `algopy` syntax. Ensure all application methods return valid types and manage state variables strictly inside Boxes or Global State.
+- **No Hardcoded Secrets**: Access credentials (e.g., `PINATA_JWT`, `SUPABASE_KEY`, `ALGORAND_WALLET_PRIVATE_KEY`) strictly from `.env`.
+- **x402 Compliance**: Always use the standard `@x402/hono` middleware for generating `402 Payment Required` responses (`PAYMENT-REQUIRED` and `PAYMENT-SIGNATURE` headers).
+- **Pricing & Retention**: Micropayments are calculated in **microUSDC**. Pins are timeboxed for **up to 365 days** per payment, with a `/renew` endpoint for annual recurring retention payments (50% early renewal discount prior to expiration).
+- **Fault Tolerance**: The API MUST decouple the synchronous Pinata upload from the client response. It MUST use a Circuit Breaker to reject traffic with `503 Service Unavailable` if the local buffer queue is full, preventing agents from paying for dropped storage.
+
+---
+
+## 5. Deployment Procedures & CI/CD
+
+### Environment Setup & Infrastructure
+- **Hosting Platform**: Heroku (Node.js runtime executing `npm start` via `Procfile`).
+- **Database & State Persistence**: Supabase PostgreSQL (`SUPABASE_URL` and `SUPABASE_KEY`). Ensures pin records, retention metadata, and renewal histories survive dyno restarts and ephemeral filesystem resets. Local file registry (`queue/registry.json`) is maintained as a zero-dependency fallback for offline dev/testing.
+- **Upstream Storage**: Pinata API (`PINATA_JWT`).
+
+### Branch Deployment Strategy
+- **`main` Branch (Auto-Deploy Testnet)**: Pushing or merging code into `main` triggers automatic deployment to the Heroku Testnet staging environment. Environment configured with `ALGORAND_NETWORK=testnet`.
+- **Production Mainnet**: Configured with `ALGORAND_NETWORK=mainnet` and mainnet USDC asset parameters (`31566704`).
+
+### Required Environment Variables
+| Variable | Description |
+|---|---|
+| `PORT` | Listening port for Hono server (default `4021`, injected by Heroku) |
+| `ALGORAND_NETWORK` | `mainnet` or `testnet` |
+| `ALGORAND_SERVER` | Algod node API endpoint (e.g. `https://mainnet-api.algonode.cloud`) |
+| `ESCROW_ADDRESS` | Algorand wallet address for microUSDC payment settlement |
+| `PINATA_JWT` | Pinata API bearer token for IPFS pinning |
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_KEY` | Supabase anon or service-role API key |
+
+---
+*Keep this document updated as the project evolves.*
