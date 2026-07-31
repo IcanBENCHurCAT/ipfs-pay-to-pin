@@ -6,21 +6,29 @@
   "type": "module",
   "scripts": {
     "start": "tsx src/index.ts",
-    "dev": "tsx watch src/index.ts"
+    "dev": "tsx watch src/index.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.8",
     "@hono/swagger-ui": "^0.6.1",
+    "@supabase/supabase-js": "^2.48.1",
     "@types/node": "^22.10.2",
     "@x402/avm": "^2.19.0",
     "@x402/core": "^2.19.0",
     "@x402/extensions": "^2.19.0",
     "@x402/hono": "^2.19.0",
+    "algosdk": "^3.6.0",
     "axios": "^1.7.9",
     "dotenv": "^16.4.7",
     "form-data": "^4.0.1",
     "hono": "^4.6.14",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2"
+  },
+  "devDependencies": {
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.2.2",
+    "vitest": "^4.1.10"
   }
 }
