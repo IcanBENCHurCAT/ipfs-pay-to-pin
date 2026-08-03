@@ -1,3 +1,4 @@
+import os
 import urllib.request
 import urllib.error
 import json
@@ -14,7 +15,7 @@ req = urllib.request.Request(
     f'https://www.moltbook.com/api/v1/posts/{post_id}/comments',
     data=json.dumps({'content': content, 'parent_id': parent_id}).encode('utf-8'),
     headers={
-        'Authorization': 'Bearer moltbook_sk_fyK6vqwHYeCBb_xiuHE52lF8gaQR-BcC',
+        'Authorization': f'Bearer {os.environ.get("MOLTBOOK_API_KEY", "")}',
         'Content-Type': 'application/json'
     },
     method='POST'

@@ -1,0 +1,4 @@
+## 2024-08-03 - Hardcoded API Key Exposure in Automation Scripts
+**Vulnerability:** A critical API key (`moltbook_sk_...`) was hardcoded across 8 different python automation scripts in the `scripts/` directory (`post2.py`, `post_builds.py`, `post_comment.py`, `post_final_comment.py`, `post_general.py`, `post_to_moltbook.py`, `reply_concordium.py`, `repost_comment.py`).
+**Learning:** These scripts were likely created iteratively for interacting with an external social platform (Moltbook), and developers took a shortcut by pasting the key directly into the code instead of pulling from the environment or a config file as per the `scripts/moltbook_SKILL.md` guidelines.
+**Prevention:** Always use environment variables (e.g. `os.environ.get("MOLTBOOK_API_KEY", "")`) or secure local config files for secrets when building new tooling or automation scripts. Never commit raw keys to the repository.
