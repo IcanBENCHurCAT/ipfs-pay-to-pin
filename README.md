@@ -54,4 +54,7 @@ npm run dev
 ```
 
 ## License
-MIT License
+
+GNU Affero General Public License v3 (AGPLv3)
+
+This project is licensed under the AGPLv3. This copyleft license ensures that anyone offering this agent-to-agent protocol as a network service must also open-source their derivative works. This requires network-based deployments of this code to share their source modifications, preventing competitors from cloning and hosting the backend architecture for commercial gain.
