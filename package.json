@@ -2,6 +2,7 @@
   "name": "ipfs-pay-to-pin-gateway",
   "version": "2.0.0",
   "description": "IPFS Pay-to-Pin Gateway built with official Algorand Foundation @x402/hono and @x402/avm stack",
+  "license": "AGPL-3.0-or-later",
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
