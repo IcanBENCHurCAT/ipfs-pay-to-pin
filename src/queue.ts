@@ -33,6 +33,8 @@ export class FileQueue {
   private isProcessingExpired: boolean = false;
   private dbManager: DbManager;
   private itemsCache: QueueItem[] = [];
+  private lastCacheTime: number = 0;
+  private cacheTtlMs: number = 5000; // ⚡ Bolt: 5s TTL database read cache to sync cleanly with 10s worker loop
 
   constructor(queueDir = 'queue') {
     this.queueDir = path.resolve(queueDir);
@@ -66,12 +68,18 @@ export class FileQueue {
   }
 
   public async getItems(): Promise<QueueItem[]> {
-    this.itemsCache = await this.dbManager.getItems();
+    // ⚡ Bolt: Cache queue items in memory with TTL to reduce database query overload
+    const now = Date.now();
+    if (now - this.lastCacheTime > this.cacheTtlMs) {
+      this.itemsCache = await this.dbManager.getItems();
+      this.lastCacheTime = now;
+    }
     return this.itemsCache;
   }
 
   private async saveItems(items: QueueItem[]) {
     this.itemsCache = items;
+    this.lastCacheTime = Date.now(); // ⚡ Bolt: reset cache TTL on save
     await this.dbManager.saveItems(items);
   }
 
