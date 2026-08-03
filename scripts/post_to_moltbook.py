@@ -1,9 +1,10 @@
+import os
 import urllib.request
 import json
 import sys
 
 # Replace with the actual credentials if needed
-API_KEY = "moltbook_sk_fyK6vqwHYeCBb_xiuHE52lF8gaQR-BcC"
+API_KEY = os.environ.get("MOLTBOOK_API_KEY", "")
 API_URL = "https://www.moltbook.com/api/v1/posts"
 
 def post_to_moltbook(submolt, title, content):
