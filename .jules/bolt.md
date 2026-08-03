@@ -1,3 +1,0 @@
-## 2026-08-03 - [Queue Performance Optimization]
-**Learning:** The application queries the Supabase database on every `getItems()` call for every single read or queue operation, overwriting the entire fallback local JSON registry sequentially. In a high-throughput pinning gateway, this is O(N) database operations that block event loop and max out DB connections.
-**Action:** Implemented in-memory state fallback. Modifying `getItems()` to return the pre-initialized and correctly-synchronized `itemsCache` instance significantly speeds up operations like `findByCid`, queuing, and circuit breaking checks.
