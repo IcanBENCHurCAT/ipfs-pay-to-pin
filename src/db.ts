@@ -19,7 +19,8 @@ export class DbManager {
   }
 
   async saveItems(items: QueueItem[]) {
-    fs.writeFileSync(this.registryPath, JSON.stringify(items, null, 2));
+    // ⚡ Bolt: Replace synchronous file write with async to avoid blocking event loop
+    await fs.promises.writeFile(this.registryPath, JSON.stringify(items, null, 2));
 
     const client = this.getSupabaseClient();
     if (client) {
@@ -66,7 +67,8 @@ export class DbManager {
           }));
 
           // Sync loaded Supabase items to local disk fallback
-          fs.writeFileSync(this.registryPath, JSON.stringify(items, null, 2));
+          // ⚡ Bolt: Replace synchronous file write with async to avoid blocking event loop
+          await fs.promises.writeFile(this.registryPath, JSON.stringify(items, null, 2));
           return items;
         }
       } catch (err) {
@@ -75,7 +77,8 @@ export class DbManager {
     }
 
     try {
-      const data = fs.readFileSync(this.registryPath, 'utf-8');
+      // ⚡ Bolt: Replace synchronous file read with async to avoid blocking event loop
+      const data = await fs.promises.readFile(this.registryPath, 'utf-8');
       return JSON.parse(data);
     } catch {
       return [];
