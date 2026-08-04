@@ -1,5 +1,6 @@
 import fs from 'fs';
 import path from 'path';
+import crypto from 'crypto';
 import { calculateLocalCid } from './cid.js';
 import { pinFileToStorage, unpinFileFromIPFS, sanitizeFilename, validateContentType } from './storage.js';
 import { DbManager } from './db.js';
@@ -139,7 +140,7 @@ export class FileQueue {
       return existing;
     }
 
-    const id = `job_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    const id = `job_${Date.now()}_${crypto.randomBytes(4).toString('hex').substring(0, 5)}`;
     const allowLocalFallback = process.env.ALLOW_LOCAL_FALLBACK === 'true';
 
     let finalCid = cid;
