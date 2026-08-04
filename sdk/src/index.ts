@@ -48,6 +48,22 @@ export interface RenewResponse {
   renewals_count: number;
 }
 
+export class InsufficientBudgetError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InsufficientBudgetError';
+    Object.setPrototypeOf(this, InsufficientBudgetError.prototype);
+  }
+}
+
+export class PaymentDeclinedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PaymentDeclinedError';
+    Object.setPrototypeOf(this, PaymentDeclinedError.prototype);
+  }
+}
+
 /**
  * 1-Line Client SDK for IPFS Pay-to-Pin Gateway
  * Enables autonomous AI agents and applications to pin files to IPFS via Algorand microUSDC x402 payments.
@@ -115,13 +131,13 @@ export class IpfsPayToPinClient {
 
     // 3. Confirm / Deny price checks
     if (priceUsdc > this.maxPriceUsdc) {
-      throw new Error(`Payment rejected: Price ($${priceUsdc} USDC) exceeds configured max price cap ($${this.maxPriceUsdc} USDC).`);
+      throw new InsufficientBudgetError(`Payment rejected: Price ($${priceUsdc} USDC) exceeds configured max price cap ($${this.maxPriceUsdc} USDC).`);
     }
 
     if (this.confirmPrice) {
       const approved = await this.confirmPrice(priceUsdc, options.filename);
       if (!approved) {
-        throw new Error(`Payment declined: User rejected price of $${priceUsdc} USDC for ${options.filename}.`);
+        throw new PaymentDeclinedError(`Payment declined: User rejected price of $${priceUsdc} USDC for ${options.filename}.`);
       }
     }
 
@@ -172,13 +188,13 @@ export class IpfsPayToPinClient {
     const priceUsdc = amountMicroUsdc / 1_000_000;
 
     if (priceUsdc > this.maxPriceUsdc) {
-      throw new Error(`Renewal rejected: Price ($${priceUsdc} USDC) exceeds configured max price cap ($${this.maxPriceUsdc} USDC).`);
+      throw new InsufficientBudgetError(`Renewal rejected: Price ($${priceUsdc} USDC) exceeds configured max price cap ($${this.maxPriceUsdc} USDC).`);
     }
 
     if (this.confirmPrice) {
       const approved = await this.confirmPrice(priceUsdc, `Renewal for CID ${cid}`);
       if (!approved) {
-        throw new Error(`Renewal declined: User rejected renewal price of $${priceUsdc} USDC.`);
+        throw new PaymentDeclinedError(`Renewal declined: User rejected renewal price of $${priceUsdc} USDC.`);
       }
     }
 
