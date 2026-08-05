@@ -92,7 +92,7 @@ describe('FileQueue Retention & Renewal Logic', () => {
     expect(status!.days_remaining).toBe(365);
     expect(status!.ttl_days).toBe(365);
     expect(status!.renewals_count).toBe(0);
-    expect(status!.renewal_url).toBe('/api/v1/renew');
+    expect(status!.renewal_url).toBe(`/api/v1/renew?cid=${job.cid}`);
   });
 
   it('T016: getPinStatus correctly identifies inactive pins', async () => {
