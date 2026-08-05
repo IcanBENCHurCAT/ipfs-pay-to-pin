@@ -410,6 +410,7 @@ app.use("*", async (c, next) => {
     c.header("X-Content-Type-Options", "nosniff");
     c.header("X-Frame-Options", "DENY");
     c.header("X-XSS-Protection", "1; mode=block");
+    c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     await next();
 });
 
@@ -566,7 +567,7 @@ app.post("/api/v1/pin", async (c) => {
 
         return c.json({
             error: "Pinning failed",
-            message: e?.message || "Failed to process file upload",
+            message: "Failed to process file upload. Please try again later.",
             refund_initiated: refundAttempted,
             refund_tx_id: refundTxId
         }, 500);
@@ -616,7 +617,8 @@ app.post("/api/v1/renew", async (c) => {
             renewals_count: renewedItem.renewalsCount
         }, 200);
     } catch (e: any) {
-        return c.json({ error: e.message || "Failed to process pin renewal" }, 500);
+        console.error("[Renew Error]", e?.message || e);
+        return c.json({ error: "Failed to process pin renewal. Please try again later." }, 500);
     }
 });
 
