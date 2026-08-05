@@ -68,11 +68,11 @@ describe('API Integration Tests', () => {
         expect(data.pinned_at).toBeDefined();
         expect(data.expires_at).toBeDefined();
         expect(data.ttl_days).toBe(365);
-        expect(data.renewal_url).toBe('/api/v1/renew');
+        expect(data.renewal_url).toBe('/api/v1/renew?cid=mock-cid-123');
     });
 
     it('T012: POST /api/v1/renew extends expiration', async () => {
-        vi.spyOn(globalFileQueue, 'findByCid').mockResolvedValue({
+        vi.spyOn(globalFileQueue, 'findAnyByCid').mockResolvedValue({
             id: 'job_123',
             filename: 'test.txt',
             cid: 'mock-cid-123',
@@ -130,7 +130,7 @@ describe('API Integration Tests', () => {
             is_active: true,
             ttl_days: 365,
             renewals_count: 0,
-            renewal_url: '/api/v1/renew'
+            renewal_url: '/api/v1/renew?cid=mock-cid-123'
         });
 
         const res = await app.request('/api/v1/pin/mock-cid-123');
