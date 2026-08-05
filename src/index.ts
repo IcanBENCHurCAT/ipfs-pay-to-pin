@@ -425,9 +425,12 @@ app.use(
                             try {
                                 const body = await ctx.adapter.getBody();
                                 if (body && typeof body.data === 'string') {
-                                    // Handle URL-safe Base64 (- -> +, _ -> /) and strip '=' padding for 100% accurate binary byte count
-                                    const sanitized = body.data.replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '');
-                                    binaryBytes = Math.floor((sanitized.length * 3) / 4);
+                                    // ⚡ Bolt: O(1) calculation to avoid blocking event loop and allocating huge strings for large payloads
+                                    const dataLen = body.data.length;
+                                    let padding = 0;
+                                    if (body.data.endsWith('==')) padding = 2;
+                                    else if (body.data.endsWith('=')) padding = 1;
+                                    binaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
                                 }
                             } catch {
                                 const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
