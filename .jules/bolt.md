@@ -5,3 +5,7 @@
 ## 2026-08-03 - [Synchronous I/O Blocking]
 **Learning:** The application was using synchronous file I/O operations (`fs.writeFileSync`, `fs.readFileSync`) for its fallback local JSON registry, which blocks the Node.js event loop on the main thread and causes significant latency spikes for all concurrent API requests.
 **Action:** Replaced synchronous file I/O operations with asynchronous promises (`fs.promises.writeFile`, `fs.promises.readFile`) to prevent blocking the event loop and improve throughput.
+
+## 2026-08-04 - [Synchronous Base64 Length Calculation Blocking]
+**Learning:** Performing multiple regex string replacements (`replace(/-/g, '+')`, etc.) on large Base64 strings (up to 20MB payload limit) to calculate the binary byte size for pricing blocks the Node.js event loop synchronously and causes unnecessary high memory allocations.
+**Action:** Replaced O(N) string copy/manipulation with an O(1) mathematical calculation using string length and padding inspection (`Math.floor(((len - padding) * 3) / 4)`), completely eliminating the blocking and memory overhead.
