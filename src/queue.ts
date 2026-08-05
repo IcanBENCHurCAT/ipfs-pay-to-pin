@@ -10,7 +10,7 @@ export interface QueueItem {
   filename: string;
   cid: string;
   filePath: string;
-  status: 'PENDING' | 'PINNED' | 'FAILED';
+  status: 'PENDING' | 'PINNED' | 'FAILED' | 'EXPIRED';
   retryCount: number;
   createdAt: number;
   gatewayUrl: string;
@@ -119,6 +119,11 @@ export class FileQueue {
   public async findByCid(cid: string): Promise<QueueItem | undefined> {
     const items = await this.getItems();
     return items.find(item => item.cid === cid && (item.status === 'PINNED' || item.status === 'PENDING'));
+  }
+
+  public async findAnyByCid(cid: string): Promise<QueueItem | undefined> {
+    const items = await this.getItems();
+    return items.find(item => item.cid === cid);
   }
 
   public async addJob(filename: string, buffer: Buffer): Promise<QueueItem> {
@@ -305,7 +310,7 @@ export class FileQueue {
       is_active,
       ttl_days: item.ttl_days,
       renewals_count: item.renewalsCount,
-      renewal_url: '/api/v1/renew'
+      renewal_url: `/api/v1/renew?cid=${item.cid}`
     };
   }
 
@@ -327,7 +332,7 @@ export class FileQueue {
             console.log(`[Queue Worker] CID ${item.cid} has exceeded grace period. Unpinning...`);
             try {
               await unpinFileFromIPFS(item.cid);
-              item.status = 'FAILED';
+              item.status = 'EXPIRED';
               changed = true;
             } catch (e) {
               console.warn(`[Queue Worker] Warning during unpin attempt for ${item.cid}:`, e);

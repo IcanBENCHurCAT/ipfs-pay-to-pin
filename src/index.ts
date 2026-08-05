@@ -472,14 +472,14 @@ app.use(
                                 throw new HTTPException(400, { message: "Invalid JSON body" });
                             }
                             
-                            const item = await globalFileQueue.findByCid(cid);
-                            if (!item) {
+                            const item = await globalFileQueue.findAnyByCid(cid);
+                            if (!item || item.status === 'FAILED') {
                                 throw new HTTPException(404, { message: "CID not found" });
                             }
                             
                             const now = Date.now();
                             const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
-                            if (now > gracePeriodEnd) {
+                            if (now > gracePeriodEnd || item.status === 'EXPIRED') {
                                 throw new HTTPException(410, { message: "Pin expired and permanently removed" });
                             }
                             
@@ -540,7 +540,7 @@ app.post("/api/v1/pin", async (c) => {
             pinned_at: new Date(job.pinned_at).toISOString(),
             expires_at: new Date(job.expires_at).toISOString(),
             ttl_days: job.ttl_days,
-            renewal_url: `/api/v1/renew`
+            renewal_url: `/api/v1/renew?cid=${job.cid}`
         }, 201);
     } catch (e: any) {
         console.error("[Pin Error]", e?.message);
@@ -597,13 +597,13 @@ app.post("/api/v1/renew", async (c) => {
         }
         
         const now = Date.now();
-        const item = await globalFileQueue.findByCid(cid);
-        if (!item) {
+        const item = await globalFileQueue.findAnyByCid(cid);
+        if (!item || item.status === 'FAILED') {
             return c.json({ error: "CID not found" }, 404);
         }
         
         const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
-        if (now > gracePeriodEnd) {
+        if (now > gracePeriodEnd || item.status === 'EXPIRED') {
             return c.json({ error: "Pin expired and permanently removed" }, 410);
         }
 
