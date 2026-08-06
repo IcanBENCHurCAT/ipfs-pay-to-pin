@@ -28,7 +28,7 @@
     "pinata"
   ],
   "author": "IcanBENCHurCAT",
-  "license": "MIT",
+  "license": "AGPL-3.0-or-later",
   "peerDependencies": {
     "@x402/avm": "^2.19.0",
     "@x402/core": "^2.19.0",
