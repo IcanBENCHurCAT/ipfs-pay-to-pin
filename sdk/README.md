@@ -40,7 +40,10 @@ const client = new IpfsPayToPinClient({
 async function main() {
   const fileBuffer = Buffer.from('Hello IPFS Pay-to-Pin!');
 
-  const result = await client.pinFile('hello.txt', fileBuffer);
+  const result = await client.pinFile({
+    filename: 'hello.txt',
+    data: fileBuffer
+  });
 
   console.log('Pinned CID:', result.cid);
   console.log('Gateway URL:', result.gateway_url);
@@ -80,4 +83,4 @@ console.log('Is Active:', status.is_active);
 
 ## License
 
-MIT License.
+AGPLv3 License.
