@@ -51,15 +51,22 @@ export function calculateLocalCid(buffer: Buffer): string {
   const typeBytes = Buffer.from([0x08, 0x02]);
   const dataHeader = Buffer.from([0x12, ...encodeVarint(buffer.length)]);
   const filesizeBytes = Buffer.from([0x18, ...encodeVarint(buffer.length)]);
-  const unixFsData = Buffer.concat([typeBytes, dataHeader, buffer, filesizeBytes]);
+
+  const unixFsDataLen = typeBytes.length + dataHeader.length + buffer.length + filesizeBytes.length;
 
   // 2. Wrap UnixFS Data inside PBNode protobuf message:
   //    Data = unixFsData [0x0a, varint(len), ...unixFsData]
-  const pbNodeHeader = Buffer.from([0x0a, ...encodeVarint(unixFsData.length)]);
-  const pbNode = Buffer.concat([pbNodeHeader, unixFsData]);
+  const pbNodeHeader = Buffer.from([0x0a, ...encodeVarint(unixFsDataLen)]);
 
   // 3. Compute SHA-256 digest of PBNode
-  const sha256Hash = crypto.createHash('sha256').update(pbNode).digest();
+  // ⚡ Bolt: Sequentially stream buffer parts into crypto hash to avoid O(N) memory allocations via Buffer.concat
+  const sha256Hash = crypto.createHash('sha256')
+    .update(pbNodeHeader)
+    .update(typeBytes)
+    .update(dataHeader)
+    .update(buffer)
+    .update(filesizeBytes)
+    .digest();
 
   // 4. Construct CIDv1 bytes:
   //    multibase prefix: 'b' (base32)
