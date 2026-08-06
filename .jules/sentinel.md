@@ -17,3 +17,8 @@
 **Vulnerability:** Missing Security Headers
 **Learning:** While the application had some basic security headers (X-Content-Type-Options, X-Frame-Options, X-XSS-Protection), it was missing the critical `Strict-Transport-Security` header.
 **Prevention:** Ensure `Strict-Transport-Security` (HSTS) is included in global security headers middleware to enforce secure HTTPS connections and prevent protocol downgrade attacks.
+
+## 2025-02-14 - Information Disclosure via On-Chain Transaction Notes
+**Vulnerability:** Internal error messages (`e?.message`) were passed directly into the `initiateOnChainRefund` reason payload in `src/index.ts`, which then embedded them into an Algorand transaction note.
+**Learning:** Writing raw internal error states directly to a public, immutable blockchain is highly dangerous. It leaks infrastructure details, stack context, or other sensitive runtime data that can never be deleted or redacted.
+**Prevention:** Always sanitize data intended for on-chain storage or transaction notes. Use static, generic messages for public audit trails (e.g., "Refund for failed operation") while logging detailed error traces internally on the backend.
