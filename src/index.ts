@@ -559,7 +559,7 @@ app.post("/api/v1/pin", async (c) => {
                     recipientAddress: clientAddress,
                     amountMicroUsdc: paidAmount,
                     asaId: Number(usdcAsaId) || 31566704,
-                    reason: `Pinning failure: ${e?.message || 'Upload error'}`
+                    reason: 'Pinning failure: Upload error'
                 });
 
                 if (refundRes.success) {
