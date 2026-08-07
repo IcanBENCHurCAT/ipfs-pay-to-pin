@@ -85,13 +85,21 @@ export class FileQueue {
   }
 
   public getQueueSize(): number {
-    return this.itemsCache.filter(item => item.status === 'PENDING').length;
+    // ⚡ Bolt: Use O(N) loops instead of filter().length/reduce to avoid O(N) intermediate array memory allocations and GC pressure
+    let count = 0;
+    for (let i = 0; i < this.itemsCache.length; i++) {
+      if (this.itemsCache[i].status === 'PENDING') count++;
+    }
+    return count;
   }
 
   public getQueueBytes(): number {
-    return this.itemsCache
-      .filter(item => item.status === 'PENDING')
-      .reduce((sum, item) => sum + (item.sizeBytes || 0), 0);
+    // ⚡ Bolt: Use O(N) loops instead of filter().length/reduce to avoid O(N) intermediate array memory allocations and GC pressure
+    let sum = 0;
+    for (let i = 0; i < this.itemsCache.length; i++) {
+      if (this.itemsCache[i].status === 'PENDING') sum += (this.itemsCache[i].sizeBytes || 0);
+    }
+    return sum;
   }
 
   public getMaxQueueSize(): number {
