@@ -13,3 +13,6 @@
 ## 2026-08-05 - [Synchronous Hashing Memory Allocation]
 **Learning:** The application was using `Buffer.concat()` to append multiple chunks (like protobuf headers and payload sizes) to large file payloads (up to 20MB) in order to calculate deterministic IPFS CIDs. This synchronous operation creates a second copy of the entire 20MB buffer in memory all at once, stalling the V8 event loop and increasing GC pressure for large files.
 **Action:** Replaced `Buffer.concat()` with sequential streaming `crypto.createHash().update()` calls. We can pass the chunks one by one directly into the hashing stream. This removes the O(N) memory allocation entirely, avoiding event loop blockage and significantly reducing latency for hash computation of large payloads.
+## 2026-08-07 - [Avoid Intermediate Array Allocations in Iterations]
+**Learning:** Using chained array methods like `.filter().length` or `.filter().reduce()` on large collections inside hot paths (e.g., repeatedly called queue metric functions) creates hidden performance bottlenecks by allocating and garbage collecting intermediate arrays.
+**Action:** Replaced functional array methods with manual single-pass `for` loops to count size and sum bytes in O(N) time with O(1) memory overhead, minimizing GC pressure and latency spikes.
