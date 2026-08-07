@@ -33,9 +33,9 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build SDK Bundle & Type Declarations
-        run: pnpm --filter sdk run build
+        run: pnpm --filter ipfs-pay-to-pin-client run build
 
       - name: Publish to npm
-        run: pnpm publish --filter sdk --access public --no-git-checks
+        run: pnpm publish --filter ipfs-pay-to-pin-client --access public --no-git-checks
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
