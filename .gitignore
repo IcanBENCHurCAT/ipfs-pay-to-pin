@@ -7,7 +7,9 @@ dist/
 tmp/
 *.egg-info/
 .env
+.env.*
 .env.local
+.env.deploy
 artifacts/
 .DS_Store
 Thumbs.db
