@@ -12,6 +12,9 @@
 - **Package Manager**: `pnpm` (workspace enabled).
 - **Reverse Proxy**: Caddy 2 (`caddy:2-alpine`) for automatic Let's Encrypt TLS.
 - **DNS Auto-Updater**: DuckDNS container (`lscr.io/linuxserver/duckdns`).
+  - *Target Subdomain*: `pay-to-pin.duckdns.org`
+  - *Current Target IPv4*: `73.54.131.116`
+  - *Registered Account*: `garretparker@gmail.com`
 - **Data Persistence**: Named Docker volume (`queue_data`) + atomic file write (`.tmp` + `rename`).
 
 ---

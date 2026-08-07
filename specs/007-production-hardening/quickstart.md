@@ -43,6 +43,6 @@ docker compose up -d
 
 ### 3. HTTPS Validation
 ```bash
-curl -i https://<your-subdomain>.duckdns.org/health
+curl -i https://pay-to-pin.duckdns.org/health
 ```
-*Expected Result*: HTTP 200 OK with valid Let's Encrypt TLS certificate.
+*Expected Result*: HTTP 200 OK with valid Let's Encrypt TLS certificate for `pay-to-pin.duckdns.org`.
