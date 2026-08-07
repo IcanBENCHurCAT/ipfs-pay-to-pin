@@ -15,7 +15,7 @@
 
 **Purpose**: Build system configuration for production compilation
 
-- [ ] T001 [P] Add root `"build": "tsc"` script in `package.json`
+- [x] T001 [P] Add root `"build": "tsc"` script in `package.json`
 
 ---
 
@@ -23,9 +23,9 @@
 
 **Purpose**: Core container files required before user stories can run
 
-- [ ] T002 Create multi-stage `Dockerfile` in root directory
-- [ ] T003 Create `Caddyfile` reverse proxy configuration in root directory
-- [ ] T004 Create `docker-compose.yml` orchestrating `app`, `caddy`, and `duckdns` services in root directory
+- [x] T002 Create multi-stage `Dockerfile` in root directory
+- [x] T003 Create `Caddyfile` reverse proxy configuration in root directory
+- [x] T004 Create `docker-compose.yml` orchestrating `app`, `caddy`, and `duckdns` services in root directory
 
 ---
 
@@ -35,9 +35,9 @@
 
 **Independent Test**: Build Docker image (`docker build -t ipfs-pay-to-pin .`) and launch stack (`docker compose up -d`), verifying services start cleanly and proxy HTTP to app on port 4021.
 
-- [ ] T005 [P] [US1] Update `.env.example` to document `DUCKDNS_SUBDOMAIN` and `DUCKDNS_TOKEN` in `.env.example`
-- [ ] T006 [US1] Test container compilation via `pnpm run build` and `docker build -t ipfs-pay-to-pin .`
-- [ ] T007 [US1] Validate local stack boot via `docker compose up -d`
+- [x] T005 [P] [US1] Update `.env.example` to document `DUCKDNS_SUBDOMAIN` and `DUCKDNS_TOKEN` in `.env.example`
+- [x] T006 [US1] Test container compilation via `pnpm run build` and `docker build -t ipfs-pay-to-pin .`
+- [x] T007 [US1] Validate local stack boot via `docker compose up -d`
 
 ---
 
@@ -47,9 +47,9 @@
 
 **Independent Test**: Run concurrent queue saves and verify atomic `.tmp` file write and rename pattern prevents corrupted JSON files.
 
-- [ ] T008 [US2] Implement atomic write helper (`saveAtomic`) in `src/queue.ts` using temporary file creation and synchronous rename
-- [ ] T009 [US2] Update `FileQueue` methods in `src/queue.ts` to persist items using `saveAtomic`
-- [ ] T010 [US2] Verify persistent volume mapping `/app/queue` in `docker-compose.yml`
+- [x] T008 [US2] Implement atomic write helper (`saveAtomic`) in `src/db.ts` using temporary file creation and synchronous rename
+- [x] T009 [US2] Update `DbManager` methods in `src/db.ts` to persist items using `saveAtomic`
+- [x] T010 [US2] Verify persistent volume mapping `/app/queue` in `docker-compose.yml`
 
 ---
 
@@ -59,8 +59,8 @@
 
 **Independent Test**: Query `/api/v1/renew` for an expired CID both before and after background cleanup to confirm deterministic `410 Gone` HTTP status.
 
-- [ ] T011 [US3] Update `findByCid()` query logic in `src/queue.ts` to retrieve expired items regardless of status `'FAILED'`
-- [ ] T012 [US3] Verify `/api/v1/renew` handler in `src/index.ts` returns HTTP 410 Gone for expired CIDs
+- [x] T011 [US3] Update `findAnyByCid()` query logic in `src/queue.ts` to retrieve expired items regardless of status `'FAILED'`
+- [x] T012 [US3] Verify `/api/v1/renew` handler in `src/index.ts` returns HTTP 410 Gone for expired CIDs
 
 ---
 
@@ -68,9 +68,9 @@
 
 **Purpose**: Validation, documentation, and cleanup
 
-- [ ] T013 [P] Execute existing test suite via `pnpm test`
-- [ ] T014 [P] Update `README.md` with Docker Compose and DuckDNS deployment instructions
-- [ ] T015 Run validation scenarios from `specs/007-production-hardening/quickstart.md`
+- [x] T013 [P] Execute existing test suite via `pnpm test`
+- [x] T014 [P] Update `README.md` with Docker Compose and DuckDNS deployment instructions
+- [x] T015 Run validation scenarios from `specs/007-production-hardening/quickstart.md`
 
 ---
 
