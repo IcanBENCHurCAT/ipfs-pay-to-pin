@@ -81,6 +81,32 @@ console.log('Is Active:', status.is_active);
 
 ---
 
+## Error Handling
+
+The SDK provides specific error classes to help autonomous agents and applications handle payment edge cases gracefully:
+
+- `InsufficientBudgetError`: Thrown when the gateway requests a price that exceeds your configured `maxPriceUsdc` cap.
+- `PaymentDeclinedError`: Thrown when a custom `confirmPrice` callback function returns `false`, rejecting the payment.
+
+Example:
+```typescript
+import { InsufficientBudgetError, PaymentDeclinedError } from 'ipfs-pay-to-pin-client';
+
+try {
+  await client.pinFile({ filename: 'test.png', data: myData });
+} catch (error) {
+  if (error instanceof InsufficientBudgetError) {
+    console.error('File too large or price cap too low:', error.message);
+  } else if (error instanceof PaymentDeclinedError) {
+    console.error('Payment manually declined:', error.message);
+  } else {
+    console.error('Unexpected error:', error);
+  }
+}
+```
+
+---
+
 ## License
 
 AGPLv3 License.
