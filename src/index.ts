@@ -410,6 +410,7 @@ app.use("*", async (c, next) => {
     c.header("X-Content-Type-Options", "nosniff");
     c.header("X-Frame-Options", "DENY");
     c.header("X-XSS-Protection", "1; mode=block");
+    c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     await next();
 });
 
@@ -425,9 +426,12 @@ app.use(
                             try {
                                 const body = await ctx.adapter.getBody();
                                 if (body && typeof body.data === 'string') {
-                                    // Handle URL-safe Base64 (- -> +, _ -> /) and strip '=' padding for 100% accurate binary byte count
-                                    const sanitized = body.data.replace(/-/g, '+').replace(/_/g, '/').replace(/=+$/, '');
-                                    binaryBytes = Math.floor((sanitized.length * 3) / 4);
+                                    // ⚡ Bolt: O(1) calculation to avoid blocking event loop and allocating huge strings for large payloads
+                                    const dataLen = body.data.length;
+                                    let padding = 0;
+                                    if (body.data.endsWith('==')) padding = 2;
+                                    else if (body.data.endsWith('=')) padding = 1;
+                                    binaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
                                 }
                             } catch {
                                 const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
@@ -468,14 +472,14 @@ app.use(
                                 throw new HTTPException(400, { message: "Invalid JSON body" });
                             }
                             
-                            const item = await globalFileQueue.findByCid(cid);
-                            if (!item) {
+                            const item = await globalFileQueue.findAnyByCid(cid);
+                            if (!item || item.status === 'FAILED') {
                                 throw new HTTPException(404, { message: "CID not found" });
                             }
                             
                             const now = Date.now();
                             const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
-                            if (now > gracePeriodEnd) {
+                            if (now > gracePeriodEnd || item.status === 'EXPIRED') {
                                 throw new HTTPException(410, { message: "Pin expired and permanently removed" });
                             }
                             
@@ -536,7 +540,7 @@ app.post("/api/v1/pin", async (c) => {
             pinned_at: new Date(job.pinned_at).toISOString(),
             expires_at: new Date(job.expires_at).toISOString(),
             ttl_days: job.ttl_days,
-            renewal_url: `/api/v1/renew`
+            renewal_url: `/api/v1/renew?cid=${job.cid}`
         }, 201);
     } catch (e: any) {
         console.error("[Pin Error]", e?.message);
@@ -555,7 +559,7 @@ app.post("/api/v1/pin", async (c) => {
                     recipientAddress: clientAddress,
                     amountMicroUsdc: paidAmount,
                     asaId: Number(usdcAsaId) || 31566704,
-                    reason: `Pinning failure: ${e?.message || 'Upload error'}`
+                    reason: 'Pinning failure: Upload error'
                 });
 
                 if (refundRes.success) {
@@ -566,7 +570,7 @@ app.post("/api/v1/pin", async (c) => {
 
         return c.json({
             error: "Pinning failed",
-            message: e?.message || "Failed to process file upload",
+            message: "Failed to process file upload. Please try again later.",
             refund_initiated: refundAttempted,
             refund_tx_id: refundTxId
         }, 500);
@@ -593,13 +597,13 @@ app.post("/api/v1/renew", async (c) => {
         }
         
         const now = Date.now();
-        const item = await globalFileQueue.findByCid(cid);
-        if (!item) {
+        const item = await globalFileQueue.findAnyByCid(cid);
+        if (!item || item.status === 'FAILED') {
             return c.json({ error: "CID not found" }, 404);
         }
         
         const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
-        if (now > gracePeriodEnd) {
+        if (now > gracePeriodEnd || item.status === 'EXPIRED') {
             return c.json({ error: "Pin expired and permanently removed" }, 410);
         }
 
@@ -616,7 +620,8 @@ app.post("/api/v1/renew", async (c) => {
             renewals_count: renewedItem.renewalsCount
         }, 200);
     } catch (e: any) {
-        return c.json({ error: e.message || "Failed to process pin renewal" }, 500);
+        console.error("[Renew Error]", e?.message || e);
+        return c.json({ error: "Failed to process pin renewal. Please try again later." }, 500);
     }
 });
 
