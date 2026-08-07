@@ -35,7 +35,12 @@ const server = new x402ResourceServer(facilitatorClient)
 server.registerExtension(bazaarResourceServerExtension as unknown as ResourceServerExtension);
 
 // Initialize facilitator connection to load supported kinds and schemes
-await server.initialize();
+try {
+    await server.initialize();
+    console.log("[x402] Server initialized successfully with facilitator.");
+} catch (err: any) {
+    console.warn("[x402 Warning] Facilitator connection check failed during startup; continuing in resilient fallback mode:", err?.message || err);
+}
 
 const pinDiscovery = declareDiscoveryExtension({
     bodyType: "json",
