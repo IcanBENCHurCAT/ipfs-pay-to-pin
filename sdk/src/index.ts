@@ -100,7 +100,13 @@ export class IpfsPayToPinClient {
   }
 
   /**
-   * Pin a file payload to IPFS for 365 days using Algorand microUSDC x402 payment.
+   * Pin a file payload to IPFS for 365 days using an Algorand microUSDC x402 payment.
+   *
+   * @param options - The file data and filename to pin.
+   * @returns A promise resolving to the pin confirmation details, including CID and gateway URL.
+   * @throws {InsufficientBudgetError} If the 402 challenge price exceeds `maxPriceUsdc`.
+   * @throws {PaymentDeclinedError} If the `confirmPrice` callback returns false.
+   * @throws {Error} If the upload request fails for network or unexpected server errors.
    */
   public async pinFile(options: PinOptions): Promise<PinResponse> {
     const base64Data = typeof options.data === 'string'
@@ -157,6 +163,9 @@ export class IpfsPayToPinClient {
 
   /**
    * Free retention status lookup for a pinned CID.
+   *
+   * @param cid - The IPFS CID to check retention status for.
+   * @returns A promise resolving to the active status and days remaining.
    */
   public async getPinStatus(cid: string): Promise<PinStatusResponse> {
     const res = await axios.get(`${this.gatewayUrl}/api/v1/pin/${encodeURIComponent(cid)}`);
@@ -165,6 +174,12 @@ export class IpfsPayToPinClient {
 
   /**
    * Renew an existing pin for another 365 days (50% early renewal discount applies before expiration).
+   *
+   * @param cid - The IPFS CID to renew.
+   * @returns A promise resolving to the updated expiration details.
+   * @throws {InsufficientBudgetError} If the 402 challenge price exceeds `maxPriceUsdc`.
+   * @throws {PaymentDeclinedError} If the `confirmPrice` callback returns false.
+   * @throws {Error} If the renewal request fails for network or unexpected server errors.
    */
   public async renewPin(cid: string): Promise<RenewResponse> {
     const renewUrl = `${this.gatewayUrl}/api/v1/renew`;
