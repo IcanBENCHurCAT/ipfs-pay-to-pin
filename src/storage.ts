@@ -132,9 +132,7 @@ export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Pr
   const mockCid = `bafybeig${hash.substring(0, 52)}`;
 
   const storageDir = process.env.LOCAL_STORAGE_DIR || 'tmp/mock_storage';
-  if (!fs.existsSync(storageDir)) {
-    await fs.promises.mkdir(storageDir, { recursive: true });
-  }
+  await fs.promises.mkdir(storageDir, { recursive: true }).catch(() => {});
 
   const filePath = path.join(storageDir, `${mockCid}_${safeFilename}`);
   await fs.promises.writeFile(filePath, fileBuffer);
@@ -168,7 +166,7 @@ export async function unpinFileFromIPFS(cid: string): Promise<void> {
 
   // Local fallback storage cleanup
   const storageDir = process.env.LOCAL_STORAGE_DIR || 'tmp/mock_storage';
-  if (fs.existsSync(storageDir)) {
+  try {
     const files = await fs.promises.readdir(storageDir);
     for (const file of files) {
       if (file.startsWith(`${cid}_`)) {
@@ -180,5 +178,7 @@ export async function unpinFileFromIPFS(cid: string): Promise<void> {
         }
       }
     }
+  } catch {
+    // Directory might not exist, ignore
   }
 }
