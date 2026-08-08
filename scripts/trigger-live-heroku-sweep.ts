@@ -14,7 +14,11 @@ async function main() {
 
   // We can also use pg connection if needed
   const { Client } = await import('pg');
-  const pgUrl = "postgresql://postgres.gtcguonqciokigxlvfyq:REDACTED_PASSWORD@aws-1-us-west-2.pooler.supabase.com:5432/postgres";
+  const pgUrl = process.env.SUPABASE_DATABASE_URL;
+  if (!pgUrl) {
+    console.error("❌ Error: No SUPABASE_DATABASE_URL found in .env");
+    process.exit(1);
+  }
   const pgClient = new Client({ connectionString: pgUrl, ssl: { rejectUnauthorized: false } });
 
   await pgClient.connect();
