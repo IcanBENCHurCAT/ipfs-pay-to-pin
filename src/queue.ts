@@ -220,12 +220,14 @@ export class FileQueue {
         const chunk = pendingItems.slice(i, i + this.maxConcurrent);
         const results = await Promise.allSettled(
           chunk.map(async (item) => {
-            if (!fs.existsSync(item.filePath)) {
+            let buffer: Buffer;
+            try {
+              buffer = await fs.promises.readFile(item.filePath);
+            } catch {
               item.status = 'FAILED';
               return;
             }
 
-            const buffer = await fs.promises.readFile(item.filePath);
             const result = await pinFileToStorage(buffer, item.filename);
 
             item.status = 'PINNED';
@@ -252,11 +254,7 @@ export class FileQueue {
             if (item.retryCount >= this.maxRetries) {
               console.error(`[Queue Worker] Job ${item.id} exceeded max retries. Marking as FAILED.`);
               item.status = 'FAILED';
-              try {
-                if (fs.existsSync(item.filePath)) {
-                  fs.promises.unlink(item.filePath).catch(() => {});
-                }
-              } catch {}
+              fs.promises.unlink(item.filePath).catch(() => {});
             }
           }
         });
