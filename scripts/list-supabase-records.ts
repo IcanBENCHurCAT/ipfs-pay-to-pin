@@ -1,8 +1,16 @@
 import { Client } from 'pg';
+import dotenv from 'dotenv';
 
-const pgUrl = "postgresql://postgres.gtcguonqciokigxlvfyq:REDACTED_PASSWORD@aws-1-us-west-2.pooler.supabase.com:5432/postgres";
+dotenv.config();
+
+const pgUrl = process.env.SUPABASE_DATABASE_URL;
 
 async function main() {
+  if (!pgUrl) {
+    console.error("❌ Error: No SUPABASE_DATABASE_URL found in .env");
+    process.exit(1);
+  }
+
   const client = new Client({ connectionString: pgUrl, ssl: { rejectUnauthorized: false } });
   await client.connect();
   
