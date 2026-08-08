@@ -16,3 +16,7 @@
 ## 2026-08-07 - [Avoid Intermediate Array Allocations in Iterations]
 **Learning:** Using chained array methods like `.filter().length` or `.filter().reduce()` on large collections inside hot paths (e.g., repeatedly called queue metric functions) creates hidden performance bottlenecks by allocating and garbage collecting intermediate arrays.
 **Action:** Replaced functional array methods with manual single-pass `for` loops to count size and sum bytes in O(N) time with O(1) memory overhead, minimizing GC pressure and latency spikes.
+
+## 2026-08-08 - [Synchronous `fs.existsSync` Blocking]
+**Learning:** While most synchronous file I/O operations (`readFileSync`, `writeFileSync`) were removed previously, checking file existence using `fs.existsSync` before file reads and directory creation was overlooked. In a high-throughput queue and storage module, doing this repeatedly inside hot paths (like `processJobs` and `unpinFileFromIPFS`) still synchronously blocks the Node.js event loop, causing latency spikes for concurrent API requests.
+**Action:** Completely removed `fs.existsSync` usage. Replaced it with try/catch blocks on asynchronous file reads (`fs.promises.readFile`), and unconditional asynchronous directory creations (`fs.promises.mkdir` with recursive: true) with catch blocks to silently handle existing directories.
