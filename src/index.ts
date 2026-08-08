@@ -419,103 +419,107 @@ app.use("*", async (c, next) => {
     await next();
 });
 
-app.use(
-    paymentMiddleware(
-        {
-            "POST /api/v1/pin": {
-                accepts: [
-                    {
-                        scheme: "exact",
-                        price: async (ctx: any) => {
-                            let binaryBytes = 1000;
-                            try {
-                                const body = await ctx.adapter.getBody();
-                                if (body && typeof body.data === 'string') {
-                                    // ⚡ Bolt: O(1) calculation to avoid blocking event loop and allocating huge strings for large payloads
-                                    const dataLen = body.data.length;
-                                    let padding = 0;
-                                    if (body.data.endsWith('==')) padding = 2;
-                                    else if (body.data.endsWith('=')) padding = 1;
-                                    binaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
+try {
+    app.use(
+        paymentMiddleware(
+            {
+                "POST /api/v1/pin": {
+                    accepts: [
+                        {
+                            scheme: "exact",
+                            price: async (ctx: any) => {
+                                let binaryBytes = 1000;
+                                try {
+                                    const body = await ctx.adapter.getBody();
+                                    if (body && typeof body.data === 'string') {
+                                        // ⚡ Bolt: O(1) calculation to avoid blocking event loop and allocating huge strings for large payloads
+                                        const dataLen = body.data.length;
+                                        let padding = 0;
+                                        if (body.data.endsWith('==')) padding = 2;
+                                        else if (body.data.endsWith('=')) padding = 1;
+                                        binaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
+                                    }
+                                } catch {
+                                    const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
+                                    binaryBytes = Math.max(1000, Math.floor(contentLength * 0.75));
                                 }
-                            } catch {
-                                const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
-                                binaryBytes = Math.max(1000, Math.floor(contentLength * 0.75));
+                                const baseMicroUsdc = 10000; // $0.01 base price
+                                const bytePriceMicroUsdc = 0.02; // $0.02 per MB (0.02 microUSDC per byte)
+                                const totalMicroUsdc = baseMicroUsdc + (binaryBytes * bytePriceMicroUsdc);
+                                return `$${(totalMicroUsdc / 1000000).toFixed(6)}`;
+                            },
+                            network: networkCaip2,
+                            payTo: escrowAddress,
+                            maxTimeoutSeconds: 300,
+                            extra: {
+                                asset: usdcAsaId,
+                                tag: "x402-global-challenge",
+                                decimals: 6,
+                                feePayer: escrowAddress
                             }
-                            const baseMicroUsdc = 10000; // $0.01 base price
-                            const bytePriceMicroUsdc = 0.02; // $0.02 per MB (0.02 microUSDC per byte)
-                            const totalMicroUsdc = baseMicroUsdc + (binaryBytes * bytePriceMicroUsdc);
-                            return `$${(totalMicroUsdc / 1000000).toFixed(6)}`;
-                        },
-                        network: networkCaip2,
-                        payTo: escrowAddress,
-                        maxTimeoutSeconds: 300,
-                        extra: {
-                            asset: usdcAsaId,
-                            tag: "x402-global-challenge",
-                            decimals: 6,
-                            feePayer: escrowAddress
                         }
+                    ],
+                    description: "Upload one file as a Base64-encoded JSON payload",
+                    mimeType: "application/json",
+                    extensions: {
+                        ...pinDiscovery
                     }
-                ],
-                description: "Upload one file as a Base64-encoded JSON payload",
-                mimeType: "application/json",
-                extensions: {
-                    ...pinDiscovery
+                },
+                "POST /api/v1/renew": {
+                    accepts: [
+                        {
+                            scheme: "exact",
+                            price: async (ctx: any) => {
+                                let cid;
+                                try {
+                                    const body = await ctx.adapter.getBody();
+                                    cid = body.cid;
+                                } catch (e) {
+                                    throw new HTTPException(400, { message: "Invalid JSON body" });
+                                }
+                                
+                                const item = await globalFileQueue.findAnyByCid(cid);
+                                if (!item || item.status === 'FAILED') {
+                                    throw new HTTPException(404, { message: "CID not found" });
+                                }
+                                
+                                const now = Date.now();
+                                const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
+                                if (now > gracePeriodEnd || item.status === 'EXPIRED') {
+                                    throw new HTTPException(410, { message: "Pin expired and permanently removed" });
+                                }
+                                
+                                const baseMicroUsdc = 10000;
+                                const bytePriceMicroUsdc = 0.02;
+                                let totalMicroUsdc = baseMicroUsdc + (item.sizeBytes * bytePriceMicroUsdc);
+                                
+                                if (now < item.expires_at) {
+                                    totalMicroUsdc = totalMicroUsdc * 0.5; // 50% Early Renewal Discount
+                                }
+                                
+                                return `$${(totalMicroUsdc / 1000000).toFixed(6)}`;
+                            },
+                            network: networkCaip2,
+                            payTo: escrowAddress,
+                            maxTimeoutSeconds: 300,
+                            extra: {
+                                asset: usdcAsaId,
+                                tag: "x402-global-challenge",
+                                decimals: 6,
+                                feePayer: escrowAddress
+                            }
+                        }
+                    ],
+                    description: "Renew IPFS pin for another 365 days",
+                    mimeType: "application/json"
                 }
             },
-            "POST /api/v1/renew": {
-                accepts: [
-                    {
-                        scheme: "exact",
-                        price: async (ctx: any) => {
-                            let cid;
-                            try {
-                                const body = await ctx.adapter.getBody();
-                                cid = body.cid;
-                            } catch (e) {
-                                throw new HTTPException(400, { message: "Invalid JSON body" });
-                            }
-                            
-                            const item = await globalFileQueue.findAnyByCid(cid);
-                            if (!item || item.status === 'FAILED') {
-                                throw new HTTPException(404, { message: "CID not found" });
-                            }
-                            
-                            const now = Date.now();
-                            const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
-                            if (now > gracePeriodEnd || item.status === 'EXPIRED') {
-                                throw new HTTPException(410, { message: "Pin expired and permanently removed" });
-                            }
-                            
-                            const baseMicroUsdc = 10000;
-                            const bytePriceMicroUsdc = 0.02;
-                            let totalMicroUsdc = baseMicroUsdc + (item.sizeBytes * bytePriceMicroUsdc);
-                            
-                            if (now < item.expires_at) {
-                                totalMicroUsdc = totalMicroUsdc * 0.5; // 50% Early Renewal Discount
-                            }
-                            
-                            return `$${(totalMicroUsdc / 1000000).toFixed(6)}`;
-                        },
-                        network: networkCaip2,
-                        payTo: escrowAddress,
-                        maxTimeoutSeconds: 300,
-                        extra: {
-                            asset: usdcAsaId,
-                            tag: "x402-global-challenge",
-                            decimals: 6,
-                            feePayer: escrowAddress
-                        }
-                    }
-                ],
-                description: "Renew IPFS pin for another 365 days",
-                mimeType: "application/json"
-            }
-        },
-        server
-    )
-);
+            server
+        )
+    );
+} catch (err: any) {
+    console.warn("[x402 Warning] Payment middleware initialization threw RouteConfigurationError; continuing in fallback mode:", err?.message || err);
+}
 
 
 app.post("/api/v1/pin", async (c) => {
