@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OCIMonitoringInfrastructureContract",
+  "description": "Interface specification for OCI Monitoring & Alerting Infrastructure resources",
+  "type": "object",
+  "required": [
+    "notification_topic",
+    "email_subscription",
+    "monitoring_alarms",
+    "health_check_monitor"
+  ],
+  "properties": {
+    "notification_topic": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "const": "pay-to-pin-critical-alerts" },
+        "protocol": { "type": "string", "const": "EMAIL" }
+      }
+    },
+    "email_subscription": {
+      "type": "object",
+      "properties": {
+        "endpoint": { "type": "string", "format": "email", "default": "garretparker@gmail.com" }
+      }
+    },
+    "monitoring_alarms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "metric_namespace", "threshold", "severity"],
+        "properties": {
+          "name": { "type": "string" },
+          "metric_namespace": { "type": "string" },
+          "threshold": { "type": "string" },
+          "severity": { "type": "string", "enum": ["CRITICAL", "WARNING", "INFO"] }
+        }
+      }
+    },
+    "health_check_monitor": {
+      "type": "object",
+      "properties": {
+        "protocol": { "type": "string", "const": "HTTPS" },
+        "port": { "type": "integer", "const": 443 },
+        "path": { "type": "string", "const": "/health" },
+        "interval_in_seconds": { "type": "integer", "const": 60 }
+      }
+    }
+  }
+}
