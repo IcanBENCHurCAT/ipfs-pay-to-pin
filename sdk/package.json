@@ -15,7 +15,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "build": "tsup src/index.ts --format cjs,esm && tsc --declaration --emitDeclarationOnly --outDir dist",
     "test": "vitest run --passWithNoTests"
   },
   "keywords": [
