@@ -1,6 +1,6 @@
 {
   "name": "ipfs-pay-to-pin-client",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "TypeScript client library for IPFS Pay-to-Pin Gateway via Algorand microUSDC x402 payments",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
