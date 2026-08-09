@@ -53,6 +53,23 @@ npm install
 npm run dev
 ```
 
+## Production Docker & VPS Deployment (DuckDNS + Automated SSL)
+
+Deploy to any VPS (such as Oracle Cloud Always Free VM) with 1-command Docker Compose and automated Let's Encrypt SSL certificates via Caddy:
+
+```bash
+# 1. Clone repository and set up environment
+cp .env.example .env
+
+# 2. Configure .env with your PINATA_JWT, ESCROW_ADDRESS, DUCKDNS_SUBDOMAIN, and DUCKDNS_TOKEN
+
+# 3. Launch full stack (App + Caddy HTTPS + DuckDNS updater)
+docker compose up -d
+```
+
+- **Reverse Proxy**: Caddy 2 automatically provisions and renews Let's Encrypt TLS certificates for `https://<subdomain>.duckdns.org`.
+- **Volume Persistence**: Upload queue buffers and registry state persist across container restarts via the `queue_data` Docker volume.
+
 ## License
 
 GNU Affero General Public License v3 (AGPLv3)
