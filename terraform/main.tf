@@ -218,40 +218,67 @@ resource "oci_core_instance" "pay_to_pin_vm" {
       iptables -I INPUT 6 -m state --state NEW -p tcp --dport 443 -j ACCEPT
       netfilter-persistent save || true
 
+      # Wait for network connectivity & DNS resolution
+      echo "Waiting for internet connectivity..."
+      until curl -fsSL --connect-timeout 5 https://archive.ubuntu.com > /dev/null 2>&1; do
+        echo "Network/DNS not ready yet, retrying in 5s..."
+        sleep 5
+      done
+
+      # Retry function for network operations
+      retry() {
+        local n=1
+        local max=10
+        local delay=5
+        while true; do
+          "$@" && break || {
+            if [[ $n -lt $max ]]; then
+              ((n++))
+              echo "Command failed. Attempt $n/$max. Retrying in $delay seconds..."
+              sleep $delay
+            else
+              echo "The command has failed after $max attempts."
+              return 1
+            fi
+          }
+        done
+      }
+
       # Install Docker & Docker Compose
-      apt-get update
-      apt-get install -y ca-certificates curl gnupg git
+      retry apt-get update
+      retry apt-get install -y ca-certificates curl gnupg git
       install -m 0755 -d /etc/apt/keyrings
-      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      retry curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --batch --yes --dearmor -o /etc/apt/keyrings/docker.gpg
       chmod a+r /etc/apt/keyrings/docker.gpg
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-      apt-get update
-      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      retry apt-get update
+      retry apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
       # Clone Repository
       cd /opt
-      git clone https://github.com/IcanBENCHurCAT/ipfs-pay-to-pin.git
+      rm -rf ipfs-pay-to-pin
+      retry git clone https://github.com/IcanBENCHurCAT/ipfs-pay-to-pin.git
       cd ipfs-pay-to-pin
 
       # Write Environment Variables
-      cat <<EOT > .env
-      PORT=4021
-      NODE_ENV=production
-      ALGORAND_NETWORK=mainnet
-      ALGORAND_SERVER=https://mainnet-api.algonode.cloud
-      ESCROW_ADDRESS=${var.escrow_address}
-      FACILITATOR_URL=https://facilitator.goplausible.xyz
-      PINATA_JWT=${var.pinata_jwt}
-      SUPABASE_URL=${var.supabase_url}
-      SUPABASE_KEY=${var.supabase_key}
-      DUCKDNS_SUBDOMAIN=${var.duckdns_subdomain}
-      DUCKDNS_TOKEN=${var.duckdns_token}
-      ALLOW_LOCAL_FALLBACK=false
-      ENABLE_AUTOMATIC_REFUNDS=false
-      EOT
+      cat <<'ENVEOF' > .env
+PORT=4021
+NODE_ENV=production
+ALGORAND_NETWORK=mainnet
+ALGORAND_SERVER=https://mainnet-api.algonode.cloud
+ESCROW_ADDRESS=${var.escrow_address}
+FACILITATOR_URL=https://facilitator.goplausible.xyz
+PINATA_JWT=${var.pinata_jwt}
+SUPABASE_URL=${var.supabase_url}
+SUPABASE_KEY=${var.supabase_key}
+DUCKDNS_SUBDOMAIN=${var.duckdns_subdomain}
+DUCKDNS_TOKEN=${var.duckdns_token}
+ALLOW_LOCAL_FALLBACK=false
+ENABLE_AUTOMATIC_REFUNDS=false
+ENVEOF
 
       # Launch Containers
-      docker compose up -d --build
+      retry docker compose up -d --build
     EOF
     )
   }
