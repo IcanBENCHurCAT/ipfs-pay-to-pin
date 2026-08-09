@@ -1,0 +1,15 @@
+tenancy_ocid     = "ocid1.tenancy.oc1..example..."
+user_ocid        = "ocid1.user.oc1..example..."
+fingerprint      = "xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx:xx"
+private_key_path = "~/.oci/oci_api_key.pem"
+region           = "us-ashburn-1"
+compartment_ocid = "ocid1.compartment.oc1..example..."
+ssh_public_key   = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQ..."
+
+# App Credentials
+pinata_jwt        = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+supabase_url      = "https://gtcguonqciokigxlvfyq.supabase.co"
+supabase_key      = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+duckdns_subdomain = "pay-to-pin"
+duckdns_token     = "9eacaaae-1019-4506-a956-8d9b01c29d78"
+escrow_address    = "ZJEC6JMCNYZFJUQIA4KRVXPTU34F2UQCRZEB5BX5ZS57CPVKTUFK3WA5IY"
