@@ -47,7 +47,9 @@ const usdcAsaId = networkEnv === "mainnet" ? USDC_MAINNET_ASA_ID : USDC_TESTNET_
 
 const facilitatorClient = new HTTPFacilitatorClient({ url: facilitatorUrl });
 const server = new x402ResourceServer(facilitatorClient)
-    .register(networkCaip2, new ExactAvmScheme());
+    .register(ALGORAND_MAINNET_CAIP2, new ExactAvmScheme())
+    .register(ALGORAND_MAINNET_FULL_CAIP2, new ExactAvmScheme())
+    .register(ALGORAND_TESTNET_CAIP2, new ExactAvmScheme());
 
 // Register Bazaar discovery extension
 server.registerExtension(bazaarResourceServerExtension as unknown as ResourceServerExtension);
