@@ -71,7 +71,7 @@ variable "duckdns_token" {
 
 variable "escrow_address" {
   type    = string
-  default = "ZJEC6JMCNYZFJUQIA4KRVXPTU34F2UQCRZEB5BX5ZS57CPVKTUFK3WA5IY"
+  default = "W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE"
 }
 
 provider "oci" {
