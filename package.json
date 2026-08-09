@@ -20,7 +20,7 @@
     "@hono/swagger-ui": "^0.6.1",
     "@supabase/supabase-js": "^2.48.1",
     "@types/node": "^22.10.2",
-    "@x402/avm": "^2.19.0",
+    "@x402/avm": "^2.21.0",
     "@x402/core": "^2.19.0",
     "@x402/extensions": "^2.19.0",
     "@x402/hono": "^2.21.0",
