@@ -11,7 +11,7 @@ from algosdk.v2client import algod
 LOCAL_URL = "http://localhost:4021/api/v1/pin"
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
 
-MNEMONIC_STR = "[REDACTED_MNEMONIC]"
+MNEMONIC_STR = "sheriff cruise oxygen air eagle hungry spread yard gun case drift screen enhance alley ostrich spike door engage harsh order flush scale tennis about runway"
 USDC_ID = 31566704
 
 def test_hono_e2e():
