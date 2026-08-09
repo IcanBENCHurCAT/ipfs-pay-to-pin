@@ -11,11 +11,11 @@ def deploy():
     # 1. Load configuration
     algod_address = os.getenv("ALGOD_ADDRESS", "https://testnet-api.algonode.cloud")
     algod_token = os.getenv("ALGOD_TOKEN", "")
-    deployer_mnemonic = os.getenv("DEPLOYER_MNEMONIC_VAR")
+    deployer_mnemonic = os.getenv("DEPLOYER_MNEMONIC")
 
     if not deployer_mnemonic:
-        print("ERROR: DEPLOYER_MNEMONIC_VAR is not set in the environment or .env file.")
-        print("Please set DEPLOYER_MNEMONIC_VAR to deploy the smart contract.")
+        print("ERROR: DEPLOYER_MNEMONIC is not set in the environment or .env file.")
+        print("Please set DEPLOYER_MNEMONIC to deploy the smart contract.")
         return
 
     # Initialize client

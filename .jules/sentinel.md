@@ -28,3 +28,8 @@
 **Vulnerability:** A hardcoded PostgreSQL connection string containing a valid plaintext database password (`postgresql://postgres...`) was present across multiple migration and testing scripts in the `scripts/` directory (e.g., `create-supabase-schema.ts`, `trigger-live-heroku-sweep.ts`).
 **Learning:** Hardcoding database credentials in script files, even those intended only for local development or testing, poses a significant risk of credential leakage if the repository is made public or accessed by unauthorized users.
 **Prevention:** All database connections must use environment variables (e.g., `process.env.SUPABASE_DATABASE_URL`). Add fail-fast validation to scripts to ensure they exit securely if the required environment variables are missing.
+
+## 2025-02-14 - Hardcoded Mainnet Deployment Mnemonic Fallback
+**Vulnerability:** A hardcoded 25-word mnemonic phrase ("sheriff cruise oxygen...") was provided as a fallback value for `os.getenv("DEPLOYER_MNEMONIC")` in mainnet deployment scripts (`escrow/deploy_mainnet.py` and `escrow/opt_in_mainnet.py`).
+**Learning:** Providing a hardcoded, publicly known mnemonic as a fallback in mainnet scripts is extremely dangerous. If the `.env` file fails to load or the environment variable is missing, the script will silently deploy the production contract using a compromised public key, leading to potential loss of funds or hostile takeover of the smart contract.
+**Prevention:** Mainnet and production automation scripts must NEVER contain hardcoded default credentials or mnemonics. Always use environment variables and implement fail-fast validation that immediately exits with an error (e.g., `exit(1)`) if critical credentials are missing.

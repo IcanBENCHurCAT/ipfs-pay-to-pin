@@ -7,9 +7,9 @@ dotenv.config();
 const TARGET_URL = process.env.LIVE_GATEWAY_URL || "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com";
 const GREY_BOX_PNG_BASE64 = "iVBORw0KGgoAAAANSU5EUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
 
-const mnemonic = process.env.DEPLOYER_MNEMONIC_VAR || process.env.ALGORAND_WALLET_MNEMONIC || "";
+const mnemonic = process.env.DEPLOYER_MNEMONIC || process.env.ALGORAND_WALLET_MNEMONIC || "";
 if (!mnemonic) {
-  console.error("❌ Error: No ALGORAND_WALLET_MNEMONIC or DEPLOYER_MNEMONIC_VAR found in .env");
+  console.error("❌ Error: No ALGORAND_WALLET_MNEMONIC or DEPLOYER_MNEMONIC found in .env");
   process.exit(1);
 }
 

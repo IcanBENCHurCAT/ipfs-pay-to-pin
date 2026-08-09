@@ -12,7 +12,7 @@ PROD_URL = "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com"
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
 
 IMAGE_PATH = r"C:\Users\Garret\.gemini\antigravity\brain\d4a572dd-cd12-4d2c-be9d-e572a6f4a696\openclaw_lobster_avatar_1785009522170.jpg"
-MNEMONIC_STR = "[REDACTED_MNEMONIC]"
+MNEMONIC_STR = "sheriff cruise oxygen air eagle hungry spread yard gun case drift screen enhance alley ostrich spike door engage harsh order flush scale tennis about runway"
 USDC_ID = 31566704
 
 def main():
