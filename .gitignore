@@ -19,3 +19,7 @@ Thumbs.db
 .idea/
 *.db
 *.sqlite*
+*.tfvars
+*.tfstate
+*.tfstate.*
+.terraform/

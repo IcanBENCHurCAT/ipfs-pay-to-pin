@@ -9,7 +9,7 @@ ALGOD_ADDRESS = "https://mainnet-api.algonode.cloud"
 algod_client = algod.AlgodClient("", ALGOD_ADDRESS)
 
 # Use the sender address and mnemonic from test_white_square.py
-SENDER_MNEMONIC = "sheriff cruise oxygen air eagle hungry spread yard gun case drift screen enhance alley ostrich spike door engage harsh order flush scale tennis about runway"
+SENDER_MNEMONIC = ""
 from algosdk import mnemonic
 sender_private_key = mnemonic.to_private_key(SENDER_MNEMONIC)
 sender_address = account.address_from_private_key(sender_private_key)

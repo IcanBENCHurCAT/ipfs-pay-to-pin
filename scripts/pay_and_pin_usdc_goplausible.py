@@ -12,7 +12,7 @@ MAINNET_HEROKU_URL = "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com
 GOPLAUSIBLE_URL = "https://facilitator.goplausible.xyz"
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
 
-MNEMONIC_STR = "sheriff cruise oxygen air eagle hungry spread yard gun case drift screen enhance alley ostrich spike door engage harsh order flush scale tennis about runway"
+MNEMONIC_STR = ""
 USDC_ID = 31566704
 CAIP2_NETWORK = "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8="
 
