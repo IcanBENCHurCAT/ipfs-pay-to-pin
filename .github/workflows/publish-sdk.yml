@@ -38,5 +38,7 @@ jobs:
       - name: Build SDK Bundle & Type Declarations
         run: pnpm --filter ipfs-pay-to-pin-client run build
 
-      - name: Publish to npm via Trusted Publisher (OIDC)
-        run: pnpm publish --filter ipfs-pay-to-pin-client --access public --no-git-checks --provenance
+      - name: Publish to npm
+        run: pnpm publish --filter ipfs-pay-to-pin-client --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
