@@ -1,11 +1,11 @@
 {
   "name": "ipfs-pay-to-pin-client",
-  "version": "0.1.1",
+  "version": "1.0.0",
   "description": "TypeScript client library for IPFS Pay-to-Pin Gateway via Algorand microUSDC x402 payments",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
-  "homepage": "https://facilitator.goplausible.xyz/dashboard/merchants/c4f55ee4a1a2ae08",
+  "homepage": "https://pay-to-pin.duckdns.org",
   "repository": {
     "type": "git",
     "url": "https://github.com/IcanBENCHurCAT/ipfs-pay-to-pin.git"

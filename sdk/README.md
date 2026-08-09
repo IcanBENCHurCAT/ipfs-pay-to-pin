@@ -3,7 +3,7 @@
 TypeScript client library for pinning files to IPFS via the **IPFS Pay-to-Pin Gateway** using standard **x402 HTTP micropayments** settled in **Algorand microUSDC**.
 
 - **Merchant Dashboard**: [GoPlausible Merchant Catalog](https://facilitator.goplausible.xyz/dashboard/merchants/c4f55ee4a1a2ae08)
-- **Live Gateway API**: `https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com`
+- **Live Gateway API**: `https://pay-to-pin.duckdns.org`
 - **Protocol Standard**: HTTP `402 Payment Required` via `@x402/core` & `@x402/avm`
 
 ---

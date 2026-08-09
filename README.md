@@ -16,7 +16,7 @@ Autonomous AI agents and applications can pin files to IPFS in **1 line of code*
 import { IpfsPayToPinClient } from 'ipfs-pay-to-pin-client';
 
 const client = new IpfsPayToPinClient({
-  gatewayUrl: 'https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com',
+  gatewayUrl: 'https://pay-to-pin.duckdns.org',
   mnemonic: process.env.ALGORAND_WALLET_MNEMONIC!,
   maxPriceUsdc: 0.05 // Budget safety cap
 });
@@ -41,7 +41,6 @@ console.log(`Expires At: ${pin.expires_at}`); // 365 days retention
 ## Technology Stack
 - **API Server**: Node.js, TypeScript, Hono (`@hono/node-server`)
 - **x402 Middleware**: `@x402/hono`, `@x402/avm`, `@x402/core`, `@x402/extensions`
-- **Smart Contract**: Algorand Python (`algopy` via Puya)
 - **Pinning Provider**: Pinata API (`https://api.pinata.cloud`)
 
 ## Local Setup
