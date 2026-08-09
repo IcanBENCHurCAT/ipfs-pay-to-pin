@@ -161,24 +161,39 @@ resource "oci_core_subnet" "pay_to_pin_subnet" {
   security_list_ids = [oci_core_security_list.pay_to_pin_sl.id]
 }
 
-# Fetch Always-Free Ubuntu 24.04 AArch64 Image
+variable "availability_domain_index" {
+  type        = number
+  default     = 0
+  description = "Index of availability domain to try (0, 1, or 2 for Ashburn AD-1, AD-2, AD-3)"
+}
+
+variable "instance_shape" {
+  type        = string
+  default     = "VM.Standard.E2.1.Micro"
+  description = "OCI Compute Shape (VM.Standard.E2.1.Micro for guaranteed capacity, or VM.Standard.A1.Flex for ARM)"
+}
+
+# Fetch Ubuntu 24.04 Image dynamically based on shape
 data "oci_core_images" "ubuntu_images" {
   compartment_id           = var.compartment_ocid
   operating_system         = "Canonical Ubuntu"
   operating_system_version = "24.04"
-  shape                    = "VM.Standard.A1.Flex"
+  shape                    = var.instance_shape
 }
 
-# Compute Instance (OCI Always Free ARM Ampere: 2 OCPUs, 12GB RAM)
+# Compute Instance
 resource "oci_core_instance" "pay_to_pin_vm" {
   compartment_id      = var.compartment_ocid
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
   display_name        = "ipfs-pay-to-pin-gateway"
-  shape               = "VM.Standard.A1.Flex"
+  shape               = var.instance_shape
 
-  shape_config {
-    ocpus         = 2
-    memory_in_gbs = 12
+  dynamic "shape_config" {
+    for_each = length(regexall("Flex", var.instance_shape)) > 0 ? [1] : []
+    content {
+      ocpus         = 2
+      memory_in_gbs = 12
+    }
   }
 
   source_details {

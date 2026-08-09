@@ -13,7 +13,10 @@ export class DbManager {
 
   private getSupabaseClient(): SupabaseClient | null {
     if (!this.supabase && config.supabaseUrl && config.supabaseKey) {
-      this.supabase = createClient(config.supabaseUrl, config.supabaseKey);
+      this.supabase = createClient(config.supabaseUrl, config.supabaseKey, {
+        auth: { persistSession: false },
+        realtime: { enabled: false } as any
+      });
     }
     return this.supabase;
   }
