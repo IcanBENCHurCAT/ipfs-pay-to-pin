@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for IPFS Pay-to-Pin Gateway
 
 # Step 1: Build stage
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
@@ -14,7 +14,7 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm run build
 
 # Step 2: Production runner stage
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
