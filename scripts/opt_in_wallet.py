@@ -3,7 +3,7 @@ from algosdk import mnemonic, account, transaction
 from algosdk.v2client import algod
 
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
-MNEMONIC_STR = "[REDACTED_MNEMONIC]"
+MNEMONIC_STR = "REDACTED"
 USDC_ID = 31566704
 
 def main():

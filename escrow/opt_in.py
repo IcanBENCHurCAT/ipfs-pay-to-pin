@@ -12,14 +12,14 @@ load_dotenv()
 def opt_in_usdc():
     algod_address = os.getenv("ALGOD_ADDRESS", "https://mainnet-api.algonode.cloud")
     algod_token = os.getenv("ALGOD_TOKEN", "")
-    deployer_mnemonic = os.getenv("DEPLOYER_MNEMONIC_VAR")
+    deployer_mnemonic = os.getenv("DEPLOYER_MNEMONIC")
     app_id = int(os.getenv("ESCROW_APP_ID", "0"))
 
     network = os.getenv("ALGORAND_NETWORK", "mainnet").lower()
     usdc_asset_id = int(os.getenv("USDC_ASSET_ID", "31566704" if network == "mainnet" else "10458941"))
 
     if not deployer_mnemonic or app_id == 0:
-        print("ERROR: DEPLOYER_MNEMONIC_VAR and ESCROW_APP_ID must be configured in .env")
+        print("ERROR: DEPLOYER_MNEMONIC and ESCROW_APP_ID must be configured in .env")
         return
 
     client = algod.AlgodClient(algod_token, algod_address)

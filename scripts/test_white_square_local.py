@@ -11,7 +11,7 @@ from algosdk.v2client import algod
 PROD_URL = "http://localhost:4021"
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
 
-MNEMONIC_STR = "[REDACTED_MNEMONIC]"
+MNEMONIC_STR = "REDACTED"
 USDC_ID = 31566704
 
 def test_prod_hono_e2e():

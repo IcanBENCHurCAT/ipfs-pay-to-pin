@@ -12,7 +12,7 @@ HEROKU_MAINNET_URL = "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com
 GOPLAUSIBLE_FACILITATOR_URL = "https://facilitator.goplausible.xyz"
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
 
-MNEMONIC_STR = "[REDACTED_MNEMONIC]"
+MNEMONIC_STR = "REDACTED"
 
 def main():
     # 1. Create tiny 10x10 test image

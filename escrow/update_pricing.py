@@ -15,13 +15,13 @@ def update_pricing(new_base_microusdc: int = 10000, new_byte_price: int = 1):
     default_algod = "https://mainnet-api.algonode.cloud" if network == "mainnet" else "https://testnet-api.algonode.cloud"
     algod_address = os.getenv("ALGOD_ADDRESS", default_algod)
     algod_token = os.getenv("ALGOD_TOKEN", "")
-    deployer_mnemonic = os.getenv("DEPLOYER_MNEMONIC_VAR")
+    deployer_mnemonic = os.getenv("DEPLOYER_MNEMONIC")
 
     default_app = "3650633378" if network == "mainnet" else "767583704"
     app_id = int(os.getenv("ESCROW_APP_ID", default_app))
 
     if not deployer_mnemonic or app_id == 0:
-        print("ERROR: DEPLOYER_MNEMONIC_VAR and ESCROW_APP_ID must be configured.")
+        print("ERROR: DEPLOYER_MNEMONIC and ESCROW_APP_ID must be configured.")
         return
 
     client = algod.AlgodClient(algod_token, algod_address)
