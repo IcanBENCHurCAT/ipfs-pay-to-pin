@@ -10,7 +10,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml tsconfig.json ./
 COPY src ./src
 COPY sdk ./sdk
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install
 RUN pnpm run build
 
 # Step 2: Production runner stage
@@ -21,7 +21,7 @@ ENV NODE_ENV=production
 RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --prod --frozen-lockfile
+RUN pnpm install --prod
 
 COPY --from=builder /app/dist ./dist
 RUN mkdir -p /app/queue
