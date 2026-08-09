@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    restart: always
+    environment:
+      - PORT=4021
+      - ALGORAND_NETWORK=${ALGORAND_NETWORK:-mainnet}
+      - ALGORAND_SERVER=${ALGORAND_SERVER:-https://mainnet-api.algonode.cloud}
+      - ESCROW_ADDRESS=${ESCROW_ADDRESS}
+      - PINATA_JWT=${PINATA_JWT}
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_KEY=${SUPABASE_KEY}
+      - ALLOW_LOCAL_FALLBACK=${ALLOW_LOCAL_FALLBACK:-true}
+    volumes:
+      - queue_data:/app/queue
+
+  caddy:
+    image: caddy:2-alpine
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - DUCKDNS_SUBDOMAIN=${DUCKDNS_SUBDOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  duckdns:
+    image: lscr.io/linuxserver/duckdns:latest
+    container_name: duckdns
+    restart: always
+    environment:
+      - SUBDOMAINS=${DUCKDNS_SUBDOMAIN}
+      - TOKEN=${DUCKDNS_TOKEN}
+      - LOG_FILE=false
+
+volumes:
+  queue_data:
+  caddy_data:
+  caddy_config:
