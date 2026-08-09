@@ -5,7 +5,7 @@ import path from 'path';
 
 dotenv.config();
 
-const mnemonic = process.env.DEPLOYER_MNEMONIC_VAR || process.env.ALGORAND_WALLET_MNEMONIC || "";
+const mnemonic = process.env.DEPLOYER_MNEMONIC || process.env.ALGORAND_WALLET_MNEMONIC || "";
 if (!mnemonic) {
   console.error("❌ Error: No ALGORAND_WALLET_MNEMONIC found in .env");
   process.exit(1);

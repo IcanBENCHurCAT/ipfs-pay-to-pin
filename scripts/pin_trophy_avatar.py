@@ -12,7 +12,7 @@ PROD_URL = "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com"
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
 
 IMAGE_PATH = r"C:\Users\Garret\.gemini\antigravity\brain\d4a572dd-cd12-4d2c-be9d-e572a6f4a696\x402_trophy_avatar_1785010876363.jpg"
-MNEMONIC_STR = "[REDACTED_MNEMONIC]"
+MNEMONIC_STR = "REDACTED"
 USDC_ID = 31566704
 
 def main():
