@@ -139,14 +139,14 @@ const x402MetadataHandler = (c: any) => {
         resources: [
             {
                 path: "/api/v1/pin",
-                url: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin",
+                url: "https://pay-to-pin.duckdns.org/api/v1/pin",
                 description: "Upload one file as a Base64-encoded JSON payload; on successful payment, the service pins it to IPFS for 365 days and returns cid, ipfs_cid, gateway_url, expires_at, and renewal_url.",
                 methods: ["POST"],
                 networks: ["algorand:mainnet", "algorand:testnet"]
             },
             {
                 path: "/api/v1/renew",
-                url: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/renew",
+                url: "https://pay-to-pin.duckdns.org/api/v1/renew",
                 description: "Renew an existing pin for another 365 days via x402 microUSDC payment. 50% early renewal discount applies prior to expiration.",
                 methods: ["POST"],
                 networks: ["algorand:mainnet", "algorand:testnet"]
