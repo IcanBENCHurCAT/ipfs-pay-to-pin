@@ -9,8 +9,8 @@ Welcome, agent. This document outlines the project guidelines, architecture, and
 The IPFS "Pay-to-Pin" Gateway is a service that implements a standard HTTP `402 Payment Required` interface to gate file storage (pinning) on decentralized networks like IPFS using Algorand microUSDC payments.
 
 ### Core Architecture
-- **API (Hono/TypeScript)**: Receives file uploads, issues x402 payment requests, verifies transactions, and pins files to IPFS. Uses the standard `@x402/hono` middleware.
-- **Smart Contract (`escrow.py`)**: Written in `algopy` (Algorand Python) and compiled via Puya.
+- **API (Hono/TypeScript)**: Receives file uploads, issues x402 payment requests, verifies microUSDC transactions, and pins files to IPFS. Uses the standard `@x402/hono` middleware.
+- **Settlement Layer**: Direct microUSDC settlement to configured `ESCROW_ADDRESS` via Algorand Mainnet (`31566704`) / Testnet (`10458941`).
 - **Storage Layer**: Communicates with Pinata (with optional self-hosted Kubo node/GCS fallback). Implements a Local Buffer Queue and Circuit Breaker to ensure agents do not pay for failed storage requests.
 - **Client Flow**:
   1. Client calls `POST /api/v1/pin` with a JSON payload containing the Base64 file.
@@ -31,9 +31,6 @@ ipfs-pay-to-pin/
 │   ├── extensions.yml      # Optional skill hooks
 │   └── feature.json        # Current active feature reference
 ├── .agents/                # Custom subagents or rules
-├── escrow/                 # Smart Contract directory
-│   ├── contract.py         # algopy smart contract logic
-│   └── compile.py          # Script to compile smart contract
 ├── src/                    # TypeScript Hono Application
 │   ├── index.ts            # Entrypoint & x402 configuration
 │   ├── queue.ts            # Local Buffer Queue
@@ -42,6 +39,7 @@ ipfs-pay-to-pin/
 │   └── storage.ts          # Pinata interaction & buffering logic
 ├── tests/                  # Test suite
 ├── scripts/                # Helper scripts for interaction
+├── terraform/              # 1-Click OCI Always-Free Infrastructure
 ├── README.md               # Overview and user instructions
 └── AGENTS.md               # This guide
 ```
