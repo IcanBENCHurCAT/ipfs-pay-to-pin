@@ -13,7 +13,11 @@ load_dotenv()
 
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
 USDC_MAINNET_ID = 31566704
-MNEMONIC_STR = os.getenv("DEPLOYER_MNEMONIC", "sheriff cruise oxygen air eagle hungry spread yard gun case drift screen enhance alley ostrich spike door engage harsh order flush scale tennis about runway")
+MNEMONIC_STR = os.getenv("DEPLOYER_MNEMONIC")
+
+if not MNEMONIC_STR:
+    print("ERROR: DEPLOYER_MNEMONIC is not set in the environment or .env file.")
+    exit(1)
 
 def deploy_mainnet():
     client = algod.AlgodClient("", MAINNET_ALGOD)
