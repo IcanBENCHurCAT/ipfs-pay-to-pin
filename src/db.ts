@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import WebSocket from 'ws';
 import { config } from './config.js';
 import { QueueItem } from './queue.js';
 import fs from 'fs';
@@ -15,7 +16,9 @@ export class DbManager {
     if (!this.supabase && config.supabaseUrl && config.supabaseKey) {
       this.supabase = createClient(config.supabaseUrl, config.supabaseKey, {
         auth: { persistSession: false },
-        realtime: { enabled: false } as any
+        realtime: {
+          transport: WebSocket
+        }
       });
     }
     return this.supabase;
