@@ -17,8 +17,25 @@ import { rateLimiterMiddleware, rateLimitCleanupInterval } from "./middleware/ra
 import { initiateOnChainRefund } from "./refund.js";
 import { config as appConfig, validateConfig } from "./config.js";
 
+process.on('uncaughtException', (err) => {
+    console.error('[CRITICAL UNCAUGHT EXCEPTION]', err?.stack || err);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('[CRITICAL UNHANDLED REJECTION]', reason);
+});
+
 config();
 validateConfig();
+
+console.log("[Boot] Initializing Gateway on Node.js runtime...", {
+    nodeEnv: process.env.NODE_ENV,
+    network: process.env.ALGORAND_NETWORK,
+    port: process.env.PORT,
+    escrow: process.env.ESCROW_ADDRESS ? `${process.env.ESCROW_ADDRESS.slice(0, 6)}...` : 'undefined',
+    hasPinataJwt: Boolean(process.env.PINATA_JWT),
+    hasSupabaseUrl: Boolean(process.env.SUPABASE_URL)
+});
 
 const escrowAddress = process.env.ESCROW_ADDRESS || "ZJEC6JMCNYZFJUQIA4KRVXPTU34F2UQCRZEB5BX5ZS57CPVKTUFK3WA5IY";
 const facilitatorUrl = process.env.FACILITATOR_URL || "https://facilitator.goplausible.xyz";
