@@ -1,0 +1,5 @@
+# Caddyfile for IPFS Pay-to-Pin Gateway (Reverse Proxy with Automated Let's Encrypt TLS)
+
+{$DUCKDNS_SUBDOMAIN}.duckdns.org {
+    reverse_proxy app:4021
+}

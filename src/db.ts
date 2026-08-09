@@ -19,8 +19,11 @@ export class DbManager {
   }
 
   async saveItems(items: QueueItem[]) {
-    // ⚡ Bolt: Replace synchronous file write with async to avoid blocking event loop
-    await fs.promises.writeFile(this.registryPath, JSON.stringify(items, null, 2));
+    // Atomic file write: Write to a temporary file then rename atomically over registryPath to prevent corruption during race conditions
+    const tempPath = `${this.registryPath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 7)}`;
+    const jsonString = JSON.stringify(items, null, 2);
+    await fs.promises.writeFile(tempPath, jsonString);
+    await fs.promises.rename(tempPath, this.registryPath);
 
     const client = this.getSupabaseClient();
     if (client) {
