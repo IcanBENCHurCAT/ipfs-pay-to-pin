@@ -27,8 +27,8 @@ importers:
         specifier: ^2.21.0
         version: 2.21.0
       '@x402/extensions':
-        specifier: ^2.19.0
-        version: 2.20.0(typescript@7.0.2)
+        specifier: ^2.21.0
+        version: 2.21.0(typescript@7.0.2)
       '@x402/hono':
         specifier: ^2.21.0
         version: 2.21.0(hono@4.13.0)(typescript@7.0.2)
@@ -932,14 +932,8 @@ packages:
   '@x402/avm@2.21.0':
     resolution: {integrity: sha512-DeyXcjTf+ld8YrQmVGEiUjF1jG95Z51w1JXxCGjVzApha4LgFIxAp3FIo8d2IFSa9Ar5hMCDnI+qMkNlmqOFWg==}
 
-  '@x402/core@2.20.0':
-    resolution: {integrity: sha512-BaPPVTZ4LAeYKB0yRMOnuzDGoratyLeYobBMH/leFmRe+al94RQnw/uwuw9Rgsupsywz6JQdHzhm4LsE4snuDg==}
-
   '@x402/core@2.21.0':
     resolution: {integrity: sha512-0djKE7V5/JKDMrjRe5he3DoMFzlbVnUcvMmLAb2j6OoAJDamupkFh6fFrXeoHwjkBIxOFUzjGI4FVixz2dMxSA==}
-
-  '@x402/extensions@2.20.0':
-    resolution: {integrity: sha512-7VFtQ+sTBIx3vdxemM0dJ5mOEMn1T8jQupe8sqm5xpx/IXhf5m2F1iIhqoDy/zmC+Zn8zgqc93zLRo/GBJBqcg==}
 
   '@x402/extensions@2.21.0':
     resolution: {integrity: sha512-0cZTRVtnWUUsp9KxBvbMERtLKo+57Ru1IhbAHtpgNdK08/LJWtK6CpqM4wgta8nMPth3jMvB/PdS3OdNaEPaBQ==}
@@ -1639,14 +1633,6 @@ packages:
   undici-types@8.3.0:
     resolution: {integrity: sha512-j375ScV60dom+YkPFIfTLcOiPxkN/buHz5GobjLhixFuANaNs3C9l4GmrWqejgXWJ7BbJcFYpTEUkS1Ge8bpZQ==}
 
-  viem@2.55.10:
-    resolution: {integrity: sha512-Q9Ba+/ma81U2M5o5P2AQ7Ux8rTIwmCZvUcr8rKdQ22bV0IBFHllM2m5gWDP8hFaUN2nH2oW3QG44amRazflYNQ==}
-    peerDependencies:
-      typescript: '>=5.0.4'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
-
   viem@2.55.11:
     resolution: {integrity: sha512-RR5MwtdUnFfqw6ZGoFptizywyLOkLuhTL7UafoP3Irf2upXpANakQkLgGqY4H7A7+8JBxjUs6lElGF5zuGjMEw==}
     peerDependencies:
@@ -2142,12 +2128,6 @@ snapshots:
       '@noble/hashes': 1.8.0
       apg-js: 4.4.0
 
-  '@signinwithethereum/siwe@4.2.0(viem@2.55.10(typescript@7.0.2)(zod@3.25.76))':
-    dependencies:
-      '@signinwithethereum/siwe-parser': 4.2.0
-    optionalDependencies:
-      viem: 2.55.10(typescript@7.0.2)(zod@3.25.76)
-
   '@signinwithethereum/siwe@4.2.0(viem@2.55.11(typescript@7.0.2)(zod@3.25.76))':
     dependencies:
       '@signinwithethereum/siwe-parser': 4.2.0
@@ -2329,30 +2309,9 @@ snapshots:
       '@algorandfoundation/algokit-utils': 10.0.0-alpha.46
       '@x402/core': 2.21.0
 
-  '@x402/core@2.20.0':
-    dependencies:
-      zod: 3.25.76
-
   '@x402/core@2.21.0':
     dependencies:
       zod: 3.25.76
-
-  '@x402/extensions@2.20.0(typescript@7.0.2)':
-    dependencies:
-      '@noble/curves': 1.9.7
-      '@scure/base': 1.2.6
-      '@signinwithethereum/siwe': 4.2.0(viem@2.55.10(typescript@7.0.2)(zod@3.25.76))
-      '@x402/core': 2.20.0
-      ajv: 8.20.0
-      jose: 5.10.0
-      tweetnacl: 1.0.3
-      viem: 2.55.10(typescript@7.0.2)(zod@3.25.76)
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - bufferutil
-      - ethers
-      - typescript
-      - utf-8-validate
 
   '@x402/extensions@2.21.0(typescript@7.0.2)':
     dependencies:
@@ -3106,23 +3065,6 @@ snapshots:
   ufo@1.6.4: {}
 
   undici-types@8.3.0: {}
-
-  viem@2.55.10(typescript@7.0.2)(zod@3.25.76):
-    dependencies:
-      '@noble/curves': 1.9.1
-      '@noble/hashes': 1.8.0
-      '@scure/bip32': 1.7.0
-      '@scure/bip39': 1.6.0
-      abitype: 1.2.3(typescript@7.0.2)(zod@3.25.76)
-      isows: 1.0.7(ws@8.21.0)
-      ox: 0.14.33(typescript@7.0.2)(zod@3.25.76)
-      ws: 8.21.0
-    optionalDependencies:
-      typescript: 7.0.2
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-      - zod
 
   viem@2.55.11(typescript@7.0.2)(zod@3.25.76):
     dependencies:
