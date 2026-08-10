@@ -65,6 +65,14 @@ export class PaymentDeclinedError extends Error {
   }
 }
 
+export class InvalidConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidConfigurationError';
+    Object.setPrototypeOf(this, InvalidConfigurationError.prototype);
+  }
+}
+
 /**
  * 1-Line Client SDK for IPFS Pay-to-Pin Gateway
  * Enables autonomous AI agents and applications to pin files to IPFS via Algorand microUSDC x402 payments.
@@ -85,6 +93,10 @@ export class IpfsPayToPinClient {
     this.gatewayUrl = (config.gatewayUrl || 'https://pay-to-pin.duckdns.org').replace(/\/$/, '');
     let secretKeyB64 = config.mnemonic;
     if (config.mnemonic.includes(' ')) {
+      const words = config.mnemonic.trim().split(/\s+/);
+      if (words.length !== 25) {
+        throw new InvalidConfigurationError(`Invalid mnemonic: Expected exactly 25 words, but got ${words.length}.`);
+      }
       this.account = algosdk.mnemonicToSecretKey(config.mnemonic);
       secretKeyB64 = Buffer.from(this.account.sk).toString('base64');
     } else {
