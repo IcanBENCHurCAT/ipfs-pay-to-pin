@@ -43,7 +43,7 @@
 - [ ] **Smart Contract Language**: Are all smart contracts written in Algorand Python (`algopy`) and compiled via the Puya compiler?
 - [ ] **RekeyTo Protection**: Are all state-modifying contract methods protected by RekeyTo checks (`Txn.rekey_to() == Account(0)`)?
 - [ ] **Owner-only Configuration**: Are base-price and per-byte pricing adjustments securely restricted to the contract owner?
-- [ ] **HTTP x402 Protocol Compliance**: Does the API return standard HTTP 402 with appropriate JSON body and standard `X-Algorand-*` headers?
+- [ ] **HTTP x402 Protocol Compliance**: Does the API return standard HTTP 402 with `@x402/hono` middleware using `PAYMENT-REQUIRED` and `PAYMENT-SIGNATURE` headers?
 - [ ] **IPFS Pinning Integration**: Does the pinning workflow output valid IPFS CIDs after verifying the payment on-chain?
 
 
