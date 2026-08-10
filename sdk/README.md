@@ -33,6 +33,7 @@ import { IpfsPayToPinClient } from 'ipfs-pay-to-pin-client';
 
 const client = new IpfsPayToPinClient({
   mnemonic: 'your 25 word algorand wallet mnemonic here...',
+  sender: 'OPTIONAL_ASSET_HOLDING_ADDRESS', // Use if wallet is re-keyed
   network: 'mainnet', // 'mainnet' (default) or 'testnet'
   maxPriceUsdc: 0.10 // optional max spend budget cap in USDC (default: $1.00)
 });
