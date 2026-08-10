@@ -20,3 +20,7 @@
 ## 2026-08-08 - [Synchronous `fs.existsSync` Blocking]
 **Learning:** While most synchronous file I/O operations (`readFileSync`, `writeFileSync`) were removed previously, checking file existence using `fs.existsSync` before file reads and directory creation was overlooked. In a high-throughput queue and storage module, doing this repeatedly inside hot paths (like `processJobs` and `unpinFileFromIPFS`) still synchronously blocks the Node.js event loop, causing latency spikes for concurrent API requests.
 **Action:** Completely removed `fs.existsSync` usage. Replaced it with try/catch blocks on asynchronous file reads (`fs.promises.readFile`), and unconditional asynchronous directory creations (`fs.promises.mkdir` with recursive: true) with catch blocks to silently handle existing directories.
+
+## 2026-08-10 - [Concurrent Sequential I/O Fallback Deletion]
+**Learning:** Sequential async operations (e.g. `await fs.promises.unlink` in a `for...of` loop) drastically increase end-to-end latency when processing many items, by introducing artificial blocking on each I/O await instead of letting the OS handle I/O concurrently.
+**Action:** Replaced sequential looping with `Promise.all` wrapped over an array of async tasks to execute I/O operations concurrently.

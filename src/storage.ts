@@ -168,16 +168,19 @@ export async function unpinFileFromIPFS(cid: string): Promise<void> {
   const storageDir = process.env.LOCAL_STORAGE_DIR || 'tmp/mock_storage';
   try {
     const files = await fs.promises.readdir(storageDir);
-    for (const file of files) {
-      if (file.startsWith(`${cid}_`)) {
+    // Performance optimization: Delete fallback files concurrently rather than sequentially
+    // Using Promise.all reduces overall I/O block time significantly.
+    const deletionPromises = files
+      .filter((file) => file.startsWith(`${cid}_`))
+      .map(async (file) => {
         try {
           await fs.promises.unlink(path.join(storageDir, file));
           console.log(`[Storage] Successfully deleted local fallback for CID ${cid}`);
         } catch (e: any) {
           console.warn(`[Storage] Failed to delete local fallback for CID ${cid}:`, e?.message);
         }
-      }
-    }
+      });
+    await Promise.all(deletionPromises);
   } catch {
     // Directory might not exist, ignore
   }
