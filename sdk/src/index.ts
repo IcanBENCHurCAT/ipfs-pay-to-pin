@@ -6,6 +6,7 @@ import axios from 'axios';
 export interface IpfsPayToPinConfig {
   gatewayUrl?: string;
   mnemonic: string;
+  sender?: string; // Original asset holding account address (if using a rekeyed signer)
   algodServer?: string;
   network?: 'mainnet' | 'testnet';
   maxPriceUsdc?: number; // Optional price safety cap (default $1.00 USDC)
@@ -71,6 +72,7 @@ export class PaymentDeclinedError extends Error {
 export class IpfsPayToPinClient {
   private gatewayUrl: string;
   private account: algosdk.Account;
+  private sender?: string;
   private algodClient: algosdk.Algodv2;
   private networkCaip2: string;
   private maxPriceUsdc: number;
@@ -79,8 +81,17 @@ export class IpfsPayToPinClient {
   private x402ClientInstance: x402Client;
 
   constructor(config: IpfsPayToPinConfig) {
-    this.gatewayUrl = (config.gatewayUrl || 'https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com').replace(/\/$/, '');
-    this.account = algosdk.mnemonicToSecretKey(config.mnemonic);
+    this.sender = config.sender;
+    this.gatewayUrl = (config.gatewayUrl || 'https://pay-to-pin.duckdns.org').replace(/\/$/, '');
+    let secretKeyB64 = config.mnemonic;
+    if (config.mnemonic.includes(' ')) {
+      this.account = algosdk.mnemonicToSecretKey(config.mnemonic);
+      secretKeyB64 = Buffer.from(this.account.sk).toString('base64');
+    } else {
+      const skBytes = Buffer.from(config.mnemonic, 'base64');
+      this.account = algosdk.secretKeyToMnemonic ? { addr: algosdk.encodeAddress(skBytes.subarray(32)), sk: skBytes } as any : { addr: '', sk: skBytes } as any;
+    }
+
     const network = config.network || 'mainnet';
     this.networkCaip2 = network === 'mainnet' ? ALGORAND_MAINNET_CAIP2 : ALGORAND_TESTNET_CAIP2;
     const defaultAlgod = network === 'mainnet' ? 'https://mainnet-api.algonode.cloud' : 'https://testnet-api.algonode.cloud';
@@ -88,15 +99,32 @@ export class IpfsPayToPinClient {
     this.maxPriceUsdc = config.maxPriceUsdc ?? 1.0;
     this.confirmPrice = config.confirmPrice;
 
-    const avmSigner = toClientAvmSigner(config.mnemonic);
+    let avmSigner;
+    if (config.sender) {
+      const authAccount = this.account;
+      avmSigner = {
+        address: config.sender,
+        signTransactions: async (transactions: Uint8Array[], indexesToSign?: number[]) => {
+          return transactions.map((txnBytes, i) => {
+            if (indexesToSign && !indexesToSign.includes(i)) return null;
+            const txn = algosdk.decodeUnsignedTransaction(txnBytes);
+            return txn.signTxn(authAccount.sk);
+          });
+        }
+      };
+    } else {
+      avmSigner = toClientAvmSigner(secretKeyB64);
+    }
 
     this.x402ClientInstance = new x402Client();
     this.x402ClientInstance.register(this.networkCaip2 as `${string}:${string}`, new ExactAvmScheme(avmSigner as any));
+    const fullCaip2 = 'algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=';
+    this.x402ClientInstance.register(fullCaip2 as `${string}:${string}`, new ExactAvmScheme(avmSigner as any));
     this.x402HttpClient = new x402HTTPClient(this.x402ClientInstance);
   }
 
   public getAddress(): string {
-    return this.account.addr.toString();
+    return this.sender || this.account.addr.toString();
   }
 
   /**
