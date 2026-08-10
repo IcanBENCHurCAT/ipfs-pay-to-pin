@@ -1,6 +1,9 @@
 import { Client } from 'pg';
+import * as dotenv from 'dotenv';
 
-const pgUrl = "postgresql://postgres.gtcguonqciokigxlvfyq:!D-HhcUi4*JU9Ms@aws-1-us-west-2.pooler.supabase.com:5432/postgres";
+dotenv.config();
+
+const pgUrl = process.env.SUPABASE_DATABASE_URL;
 
 const grantSql = `
 GRANT ALL ON TABLE public.pin_records TO postgres, anon, service_role, authenticated;
@@ -15,6 +18,12 @@ WITH CHECK (true);
 
 async function main() {
   console.log("Granting table privileges & Row Level Security policies on Supabase...");
+
+  if (!pgUrl) {
+    console.error("❌ Error: No SUPABASE_DATABASE_URL found in .env");
+    process.exit(1);
+  }
+
   const client = new Client({ connectionString: pgUrl, ssl: { rejectUnauthorized: false } });
   await client.connect();
 
