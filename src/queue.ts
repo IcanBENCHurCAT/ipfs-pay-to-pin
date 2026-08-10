@@ -323,20 +323,30 @@ export class FileQueue {
       const now = Date.now();
       let changed = false;
 
+      const unpinTasks: Promise<void>[] = [];
+
       for (const item of items) {
         if (item.status === 'PINNED') {
           const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
           if (now > gracePeriodEnd) {
-            console.log(`[Queue Worker] CID ${item.cid} has exceeded grace period. Unpinning...`);
-            try {
-              await unpinFileFromIPFS(item.cid);
-              item.status = 'EXPIRED';
-              changed = true;
-            } catch (e) {
-              console.warn(`[Queue Worker] Warning during unpin attempt for ${item.cid}:`, e);
-            }
+            unpinTasks.push(
+              (async () => {
+                console.log(`[Queue Worker] CID ${item.cid} has exceeded grace period. Unpinning...`);
+                try {
+                  await unpinFileFromIPFS(item.cid);
+                  item.status = 'EXPIRED';
+                  changed = true;
+                } catch (e) {
+                  console.warn(`[Queue Worker] Warning during unpin attempt for ${item.cid}:`, e);
+                }
+              })()
+            );
           }
         }
+      }
+
+      if (unpinTasks.length > 0) {
+        await Promise.allSettled(unpinTasks);
       }
 
       if (changed) {
