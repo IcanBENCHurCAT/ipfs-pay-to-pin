@@ -40,32 +40,24 @@ export class FileQueue {
   constructor(queueDir = 'queue') {
     this.queueDir = path.resolve(queueDir);
     this.registryPath = path.join(this.queueDir, 'registry.json');
-    this.ensureDirs();
     this.dbManager = new DbManager(this.registryPath);
-    this.itemsCache = this.getItemsSync();
-  }
-
-  private ensureDirs() {
-    if (!fs.existsSync(this.queueDir)) {
-      fs.mkdirSync(this.queueDir, { recursive: true });
-    }
-    if (!fs.existsSync(this.registryPath)) {
-      fs.writeFileSync(this.registryPath, JSON.stringify([], null, 2));
-    }
+    this.itemsCache = [];
   }
 
   public async init(): Promise<void> {
+    // ⚡ Bolt: Use asynchronous fs.promises inside init() instead of synchronous fs.existsSync/mkdirSync
+    // inside the constructor. This prevents blocking the Node.js event loop on startup.
+    try {
+      await fs.promises.mkdir(this.queueDir, { recursive: true });
+    } catch {}
+
+    try {
+      await fs.promises.readFile(this.registryPath);
+    } catch {
+      await fs.promises.writeFile(this.registryPath, JSON.stringify([], null, 2));
+    }
     this.itemsCache = await this.dbManager.getItems();
     console.log(`[Queue] Initialized & recovered ${this.itemsCache.length} records from Supabase/registry.`);
-  }
-
-  private getItemsSync(): QueueItem[] {
-    try {
-      const data = fs.readFileSync(this.registryPath, 'utf-8');
-      return JSON.parse(data);
-    } catch {
-      return [];
-    }
   }
 
   public async getItems(): Promise<QueueItem[]> {
