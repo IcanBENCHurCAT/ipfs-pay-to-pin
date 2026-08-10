@@ -89,7 +89,7 @@ export class IpfsPayToPinClient {
       secretKeyB64 = Buffer.from(this.account.sk).toString('base64');
     } else {
       const skBytes = Buffer.from(config.mnemonic, 'base64');
-      this.account = algosdk.secretKeyToMnemonic ? { addr: algosdk.encodeAddress(skBytes.subarray(32)), sk: skBytes } as any : { addr: '', sk: skBytes } as any;
+      this.account = typeof algosdk.secretKeyToMnemonic === 'function' ? { addr: algosdk.encodeAddress(skBytes.subarray(32)), sk: skBytes } as any : { addr: '', sk: skBytes } as any;
     }
 
     const network = config.network || 'mainnet';
