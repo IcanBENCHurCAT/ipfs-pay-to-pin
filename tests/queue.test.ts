@@ -19,10 +19,6 @@ describe('FileQueue Retention & Renewal Logic', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(fs, 'existsSync').mockReturnValue(true);
-    vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify([]));
-    vi.spyOn(fs, 'writeFileSync').mockImplementation(() => {});
-    vi.spyOn(fs, 'mkdirSync').mockImplementation(() => undefined);
     
     // We will bypass actual DbManager initialization issues for simple unit testing
     queue = new FileQueue('test-queue');
