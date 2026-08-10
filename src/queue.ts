@@ -201,7 +201,6 @@ export class FileQueue {
 
     try {
       const items = await this.getItems();
-      // Off-by-one fix: retryCount < maxRetries ensures exactly maxRetries (5) attempts
       const pendingItems = items.filter(item => item.status === 'PENDING' && item.retryCount < this.maxRetries);
 
       if (pendingItems.length === 0) return;
