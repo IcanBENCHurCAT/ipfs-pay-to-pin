@@ -46,10 +46,10 @@ console.log(`Expires At: ${pin.expires_at}`); // 365 days retention
 ## Local Setup
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Run dev server
-npm run dev
+pnpm run dev
 ```
 
 ## Production Docker & VPS Deployment (DuckDNS + Automated SSL)
