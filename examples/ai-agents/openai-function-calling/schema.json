@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ipfs_pin_file",
+  "description": "Upload a file to IPFS using pay-to-pin. The file is pinned for 365 days with a microUSDC x402 payment. Returns the IPFS Content ID (CID) and a gateway URL to access the file.",
+  "type": "object",
+  "properties": {
+    "filename": {
+      "type": "string",
+      "description": "Name of the file to upload, including the file extension. Examples: 'report.pdf', 'photo.jpg', 'data.json', 'agent-output.txt'. Must include the extension for proper content type handling.",
+      "examples": ["report.pdf", "agent-hello.txt", "image.png"]
+    },
+    "file_data": {
+      "type": "string",
+      "description": "Base64-encoded content of the file to upload. Encode the raw file bytes using standard base64 before passing them here. This allows binary files (images, PDFs, etc.) to be transmitted as a string.",
+      "examples": [
+        "SGVsbG8sIFdvcmxkIQ==",
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
+      ]
+    },
+    "max_price_usdc": {
+      "type": "number",
+      "description": "Maximum price in USDC (United States Dollar Coin) the agent is authorized to pay for this pin operation. Pinning costs between $0.10–$2.00 USDC depending on file size. Defaults to 1.0 if not specified. Set this lower to enforce a strict spending cap on behalf of the agent's wallet.",
+      "minimum": 0.01,
+      "maximum": 100.0,
+      "default": 1.0,
+      "examples": [0.50, 1.0, 5.0]
+    }
+  },
+  "required": ["filename", "file_data"],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "filename": "agent-note.txt",
+      "file_data": "SGVsbG8gZnJvbSBteSBBSSBhZ2VudCENCldlIGFyZSBwbm5pbmcgdGhpcyB0byBJUFZTIHZpYSB4NDAyLg==",
+      "max_price_usdc": 1.0
+    },
+    {
+      "filename": "analysis.json",
+      "file_data": "ewogICJhZ2VudCI6ICJpcGZzLXN0b3JlciIsCiAgInZlcnNpb24iOiAiMS4wLjAiLAogICJwcm9jZXNzZWQiOiAiMjAyNS0wOC0wOVQiCn0="
+    }
+  ]
+}
