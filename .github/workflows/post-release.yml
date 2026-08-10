@@ -32,7 +32,9 @@ jobs:
         run: pnpm --filter ipfs-pay-to-pin-client run build
 
       - name: Publish to NPM via OIDC
-        run: pnpm publish --filter ipfs-pay-to-pin-client --access public --no-git-checks --provenance
+        run: |
+          pnpm config set //registry.npmjs.org/:_authToken "${{ secrets.NPM_TOKEN }}"
+          pnpm publish --filter ipfs-pay-to-pin-client --access public --no-git-checks --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
