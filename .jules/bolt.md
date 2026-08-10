@@ -20,3 +20,7 @@
 ## 2026-08-08 - [Synchronous `fs.existsSync` Blocking]
 **Learning:** While most synchronous file I/O operations (`readFileSync`, `writeFileSync`) were removed previously, checking file existence using `fs.existsSync` before file reads and directory creation was overlooked. In a high-throughput queue and storage module, doing this repeatedly inside hot paths (like `processJobs` and `unpinFileFromIPFS`) still synchronously blocks the Node.js event loop, causing latency spikes for concurrent API requests.
 **Action:** Completely removed `fs.existsSync` usage. Replaced it with try/catch blocks on asynchronous file reads (`fs.promises.readFile`), and unconditional asynchronous directory creations (`fs.promises.mkdir` with recursive: true) with catch blocks to silently handle existing directories.
+
+## 2024-11-20 - [Sequential Network I/O in Loop]
+**Learning:** Awaiting asynchronous network calls like `unpinFileFromIPFS` sequentially inside a `for` loop halts the execution stream. It drastically increases the time taken since every I/O call is waiting for the previous to finish.
+**Action:** Created an array to collect task promises inside the loop, and used `Promise.allSettled(unpinTasks)` to run the unpin network operations concurrently. This significantly reduces overall execution time by executing tasks in parallel without short-circuiting on single task failures.
