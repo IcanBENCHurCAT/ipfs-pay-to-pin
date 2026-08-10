@@ -9,6 +9,8 @@ jobs:
   publish-npm:
     name: Publish NPM Package
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
