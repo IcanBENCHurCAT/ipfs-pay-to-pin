@@ -24,6 +24,8 @@ jobs:
           node-version: 20
           registry-url: 'https://registry.npmjs.org'
           cache: 'pnpm'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -34,6 +36,7 @@ jobs:
       - name: Publish to NPM via OIDC
         run: |
           cd sdk
+          npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
           npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
