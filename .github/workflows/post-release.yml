@@ -13,33 +13,28 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
           run_install: false
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
           registry-url: 'https://registry.npmjs.org'
-          cache: 'pnpm'
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      - name: Install dependencies
+      - name: Install SDK Dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Build SDK
+      - name: Build SDK Bundle & Type Declarations
         run: pnpm --filter ipfs-pay-to-pin-client run build
 
-      - name: Publish to NPM via OIDC
-        run: |
-          cd sdk
-          npm config set //registry.npmjs.org/:_authToken "${NODE_AUTH_TOKEN}"
-          npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      - name: Publish to npm via Trusted Publisher (OIDC)
+        run: pnpm publish --filter ipfs-pay-to-pin-client --access public --no-git-checks --provenance
 
   publish-pypi:
     name: Publish PyPI Package
