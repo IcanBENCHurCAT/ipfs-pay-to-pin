@@ -3,11 +3,15 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const supabaseUrl = process.env.SUPABASE_URL || "https://gtcguonqciokigxlvfyq.supabase.co";
+const supabaseUrl = process.env.SUPABASE_URL;
 // Service role key or anon key from env/heroku
-const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0Y2d1b25xY2lva2lneGx2ZnlxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1MDc4MjMsImV4cCI6MjEwMTA4MzgyM30.example";
+const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 async function main() {
+  if (!supabaseUrl || !supabaseKey) {
+    console.error("❌ Error: Missing SUPABASE_URL or SUPABASE_KEY in .env");
+    process.exit(1);
+  }
   console.log("======================================================================");
   console.log("  Altering Live Supabase Record to Trigger Heroku Worker Sweeper Log ");
   console.log("======================================================================");

@@ -1,9 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
 
-const supabaseUrl = "https://gtcguonqciokigxlvfyq.supabase.co";
-const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd0Y2d1b25xY2lva2lneGx2ZnlxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NDk2NzA0MiwiZXhwIjoyMTAwNTQzMDQyfQ.AN1a3mMgC4he1n8CJL29g4Lc9x8gBze35XJE1uvt_D8";
+dotenv.config();
+
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 async function main() {
+  if (!supabaseUrl || !supabaseKey) {
+    console.error("❌ Error: Missing SUPABASE_URL or SUPABASE_KEY in .env");
+    process.exit(1);
+  }
+
   const supabase = createClient(supabaseUrl, supabaseKey);
   const { data, error } = await supabase.from('pin_records').select('*');
   console.log("Supabase select result:");
