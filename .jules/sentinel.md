@@ -33,3 +33,8 @@
 **Vulnerability:** A hardcoded 25-word mnemonic phrase ("sheriff cruise oxygen...") was provided as a fallback value for `os.getenv("DEPLOYER_MNEMONIC")` in mainnet deployment scripts (`escrow/deploy_mainnet.py` and `escrow/opt_in_mainnet.py`).
 **Learning:** Providing a hardcoded, publicly known mnemonic as a fallback in mainnet scripts is extremely dangerous. If the `.env` file fails to load or the environment variable is missing, the script will silently deploy the production contract using a compromised public key, leading to potential loss of funds or hostile takeover of the smart contract.
 **Prevention:** Mainnet and production automation scripts must NEVER contain hardcoded default credentials or mnemonics. Always use environment variables and implement fail-fast validation that immediately exits with an error (e.g., `exit(1)`) if critical credentials are missing.
+
+## 2026-08-11 - Untested Rate Limiter Middleware
+**Vulnerability:** Untested rate limiters can easily have off-by-one errors or incorrect IP extraction logic (e.g., trust header spoofing or failing to read actual IP from native connection), leading to rate limit bypass or DDoS vulnerabilities.
+**Learning:** Testing rate limiting middleware requires deterministic time-travel and mocking Hono's complex Context and Request structures, ensuring that fallback IPs (native connection vs x-forwarded-for vs x-real-ip) are extracted in a strict, prioritized security order.
+**Prevention:** Implement unit tests with `vi.useFakeTimers()` to test exactly 60 requests per minute limit, the correct rate limit headers returned, the 429 response body when exceeded, and the correct IP fallback resolution.
