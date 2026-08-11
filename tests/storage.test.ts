@@ -111,3 +111,177 @@ describe('validateContentType', () => {
     });
   });
 });
+import { describe, it, expect } from 'vitest';
+import { sanitizeFilename } from '../src/storage.js';
+
+describe('sanitizeFilename', () => {
+  it('handles empty or non-string inputs', () => {
+    // @ts-expect-error - testing invalid JS types
+    expect(sanitizeFilename(null)).toBe('file.bin');
+    // @ts-expect-error - testing invalid JS types
+    expect(sanitizeFilename(undefined)).toBe('file.bin');
+    // @ts-expect-error - testing invalid JS types
+    expect(sanitizeFilename(123)).toBe('file.bin');
+    expect(sanitizeFilename('')).toBe('file.bin');
+  });
+
+  it('keeps valid standard names as is', () => {
+    expect(sanitizeFilename('document.pdf')).toBe('document.pdf');
+    expect(sanitizeFilename('image-123_test.png')).toBe('image-123_test.png');
+  });
+
+  it('decodes URL-encoded characters correctly', () => {
+    expect(sanitizeFilename('my%20document%20name.pdf')).toBe('my document name.pdf');
+    expect(sanitizeFilename('%E2%98%85star.png')).toBe('star.png'); // non-ASCII star character is decoded then stripped
+  });
+
+  it('keeps raw name if URL decoding fails', () => {
+    // Incomplete or invalid percent-encoding throws on decodeURIComponent
+    expect(sanitizeFilename('test%G123.bin')).toBe('test%G123.bin');
+  });
+
+  it('removes non-ASCII characters', () => {
+    expect(sanitizeFilename('hello★world.txt')).toBe('helloworld.txt');
+    expect(sanitizeFilename('résumé.pdf')).toBe('rsum.pdf');
+  });
+
+  it('strips path components and directory traversals', () => {
+    expect(sanitizeFilename('path/to/file.txt')).toBe('pathtofile.txt');
+    expect(sanitizeFilename('..\\..\\etc\\passwd')).toBe('etcpasswd');
+    expect(sanitizeFilename('/etc/hosts')).toBe('etchosts');
+  });
+
+  it('cleans leading dots', () => {
+    expect(sanitizeFilename('.hidden')).toBe('hidden');
+    expect(sanitizeFilename('...dotfile.txt')).toBe('dotfile.txt');
+  });
+
+  it('adds prefix to Windows reserved names', () => {
+    expect(sanitizeFilename('CON.txt')).toBe('safe_CON.txt');
+    expect(sanitizeFilename('aux')).toBe('safe_aux');
+    expect(sanitizeFilename('PRN.tar.gz')).toBe('safe_PRN.tar.gz');
+    expect(sanitizeFilename('com1.bin')).toBe('safe_com1.bin');
+    expect(sanitizeFilename('lpt9')).toBe('safe_lpt9');
+  });
+
+  it('truncates filename to maximum of 200 characters', () => {
+    const longName = 'a'.repeat(250) + '.txt';
+    const sanitized = sanitizeFilename(longName);
+    expect(sanitized.length).toBe(200);
+    expect(sanitized).toBe('a'.repeat(200));
+  });
+
+  it('falls back to file.bin if the entire name is cleaned to nothing', () => {
+    expect(sanitizeFilename('///')).toBe('file.bin');
+    expect(sanitizeFilename('★')).toBe('file.bin');
+    expect(sanitizeFilename('..')).toBe('file.bin');
+  });
+});
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import axios from 'axios';
+import fs from 'fs';
+import { pinFileToStorage } from '../src/storage.js';
+
+vi.mock('axios');
+
+describe('pinFileToStorage Error Paths & Fallbacks', () => {
+  const originalEnv = { ...process.env };
+  let mkdirSpy: any;
+  let writeFileSpy: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env = { ...originalEnv };
+
+    mkdirSpy = vi.spyOn(fs.promises, 'mkdir').mockResolvedValue(undefined as any);
+    writeFileSpy = vi.spyOn(fs.promises, 'writeFile').mockResolvedValue(undefined as any);
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+    mkdirSpy.mockRestore();
+    writeFileSpy.mockRestore();
+  });
+
+  it('throws error when PINATA_JWT is missing and ALLOW_LOCAL_FALLBACK is false', async () => {
+    delete process.env.PINATA_JWT;
+    process.env.ALLOW_LOCAL_FALLBACK = 'false';
+
+    const buffer = Buffer.from('test content');
+    await expect(pinFileToStorage(buffer, 'test.txt')).rejects.toThrow(
+      'PINATA_JWT environment variable is not configured.'
+    );
+  });
+
+  it('uploads to Pinata successfully when PINATA_JWT is present', async () => {
+    process.env.PINATA_JWT = 'mock-jwt-token';
+    process.env.ALLOW_LOCAL_FALLBACK = 'false';
+
+    const mockCid = 'bafybeigpinatacid';
+    vi.mocked(axios.post).mockResolvedValueOnce({
+      data: { IpfsHash: mockCid },
+    });
+
+    const buffer = Buffer.from('test content');
+    const result = await pinFileToStorage(buffer, 'test.txt');
+
+    expect(axios.post).toHaveBeenCalledTimes(1);
+    expect(result.ipfs_cid).toBe(mockCid);
+    expect(result.gateway_url).toBe(`https://ipfs.io/ipfs/${mockCid}`);
+  });
+
+  it('throws an error when Pinata fails and ALLOW_LOCAL_FALLBACK is false', async () => {
+    process.env.PINATA_JWT = 'mock-jwt-token';
+    process.env.ALLOW_LOCAL_FALLBACK = 'false';
+
+    const apiError = new Error('Network timeout');
+    vi.mocked(axios.post).mockRejectedValueOnce(apiError);
+
+    const buffer = Buffer.from('test content');
+    await expect(pinFileToStorage(buffer, 'test.txt')).rejects.toThrow(
+      'Pinata upload failed: Network timeout'
+    );
+  });
+
+  it('warns and falls back to local storage when Pinata fails and ALLOW_LOCAL_FALLBACK is true', async () => {
+    process.env.PINATA_JWT = 'mock-jwt-token';
+    process.env.ALLOW_LOCAL_FALLBACK = 'true';
+    process.env.LOCAL_STORAGE_DIR = 'tmp/mock_test_storage';
+
+    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const apiError = new Error('API down');
+    vi.mocked(axios.post).mockRejectedValueOnce(apiError);
+
+    const buffer = Buffer.from('fallback content');
+    const result = await pinFileToStorage(buffer, 'fallback.txt');
+
+    expect(axios.post).toHaveBeenCalledTimes(1);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(
+      'Pinata API failed, falling back to local hash pinning in dev/test:',
+      'API down'
+    );
+    expect(result.ipfs_cid).toBeDefined();
+    expect(result.gateway_url).toBe(`https://ipfs.io/ipfs/${result.ipfs_cid}`);
+
+    expect(mkdirSpy).toHaveBeenCalledWith('tmp/mock_test_storage', { recursive: true });
+    expect(writeFileSpy).toHaveBeenCalled();
+
+    consoleWarnSpy.mockRestore();
+  });
+
+  it('falls back directly to local storage when PINATA_JWT is missing but ALLOW_LOCAL_FALLBACK is true', async () => {
+    delete process.env.PINATA_JWT;
+    process.env.ALLOW_LOCAL_FALLBACK = 'true';
+    process.env.LOCAL_STORAGE_DIR = 'tmp/mock_test_storage_direct';
+
+    const buffer = Buffer.from('direct fallback');
+    const result = await pinFileToStorage(buffer, 'direct.txt');
+
+    expect(axios.post).not.toHaveBeenCalled();
+    expect(result.ipfs_cid).toBeDefined();
+    expect(result.gateway_url).toBe(`https://ipfs.io/ipfs/${result.ipfs_cid}`);
+
+    expect(mkdirSpy).toHaveBeenCalledWith('tmp/mock_test_storage_direct', { recursive: true });
+    expect(writeFileSpy).toHaveBeenCalled();
+  });
+});
