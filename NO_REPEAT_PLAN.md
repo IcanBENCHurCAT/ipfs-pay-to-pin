@@ -51,6 +51,19 @@ npm install -D gitleaks
 - Keys: `your_key_here` ✅ | `eyJhbGciOi...` ❌
 - Subdomains: `your-domain` ✅ | `pay-to-pin` ❌
 
+### 1.4 Lockfile Sync Protocol (Preventing `ERR_PNPM_OUTDATED_LOCKFILE`)
+
+**Why `ERR_PNPM_OUTDATED_LOCKFILE` Happens:**
+When a dependency (e.g. `@x402/evm` or `@x402/svm`) is added to `package.json` or `sdk/package.json` using `npm install` or manual edits instead of `pnpm install`, `package.json` specifiers drift from `pnpm-lock.yaml`. GitHub Actions CI defaults to `pnpm install --frozen-lockfile` and fails build checks.
+
+**No-Repeat Rules:**
+1. **Always run lockfile update after dependency edits**: Whenever `package.json` dependencies change, execute:
+   ```bash
+   npx pnpm install --no-frozen-lockfile
+   ```
+2. **Automated Pre-commit Lockfile Verification**:
+   Add a pre-commit check (`.githooks/pre-commit`) that validates `pnpm-lock.yaml` is completely synchronized with `package.json` prior to committing code.
+
 ---
 
 ## Layer 2: CI Detection (Catches what pre-commit misses)
