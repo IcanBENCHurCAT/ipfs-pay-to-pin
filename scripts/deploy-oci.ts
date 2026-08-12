@@ -137,9 +137,13 @@ try {
       console.log('⏳ Waiting for cloud-init and pulling latest code on VM (this might take a few minutes)...');
       
       const sshKeyPath = path.join(process.env.USERPROFILE || process.env.HOME || 'C:/Users/Garret', '.ssh', 'id_ed25519');
-      const sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ${sshKeyPath} ubuntu@${publicIp} "sudo cloud-init status --wait && cd /opt/ipfs-pay-to-pin && sudo git pull && sudo docker compose -f docker-compose.yml up -d --build"`;
+      const scpCommand = `scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ${sshKeyPath} ${envPath} ubuntu@${publicIp}:/tmp/.env`;
+      const sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ${sshKeyPath} ubuntu@${publicIp} "sudo cloud-init status --wait && sudo cp /tmp/.env /opt/ipfs-pay-to-pin/.env && cd /opt/ipfs-pay-to-pin && sudo git pull && sudo docker compose -f docker-compose.yml up -d --build"`;
       
       try {
+        console.log('📤 Syncing .env file to VM...');
+        execSync(scpCommand, { stdio: 'inherit' });
+        console.log('🔄 Rebuilding docker containers in-place...');
         execSync(sshCommand, { stdio: 'inherit' });
         console.log('✅ In-place code update and Docker build finished successfully!');
       } catch (sshErr: any) {

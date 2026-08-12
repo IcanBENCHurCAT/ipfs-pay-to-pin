@@ -312,6 +312,10 @@ ENVEOF
     EOF
     , "\r", ""))
   }
+
+  lifecycle {
+    ignore_changes = [metadata["user_data"]]
+  }
 }
 
 data "oci_identity_availability_domains" "ads" {
