@@ -225,7 +225,7 @@ resource "oci_core_instance" "pay_to_pin_vm" {
 
   metadata = {
     ssh_authorized_keys = var.ssh_public_key
-    user_data           = base64encode(<<-EOF
+    user_data           = base64encode(replace(<<-EOF
       #!/bin/bash
       set -ex
 
@@ -240,6 +240,18 @@ resource "oci_core_instance" "pay_to_pin_vm" {
         echo "Network/DNS not ready yet, retrying in 5s..."
         sleep 5
       done
+
+      # Create 2GB swap file to prevent OOM during Docker build on 1GB RAM VM
+      if [ ! -f /swapfile ]; then
+        fallocate -l 2G /swapfile
+        chmod 600 /swapfile
+        mkswap /swapfile
+        swapon /swapfile
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+        echo "vm.swappiness=10" >> /etc/sysctl.conf
+        sysctl vm.swappiness=10
+        echo "Swap enabled: $(free -h | grep Swap)"
+      fi
 
       # Retry function for network operations
       retry() {
@@ -298,7 +310,7 @@ ENVEOF
       # Launch Containers
       retry docker compose up -d --build
     EOF
-    )
+    , "\r", ""))
   }
 }
 
