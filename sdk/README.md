@@ -1,10 +1,10 @@
 # `ipfs-pay-to-pin-client`
 
-TypeScript client library for pinning files to IPFS via the **IPFS Pay-to-Pin Gateway** using standard **x402 HTTP micropayments** settled in **Algorand microUSDC**.
+TypeScript client library for pinning files to IPFS via the **IPFS Pay-to-Pin Gateway** using standard **x402 HTTP micropayments** across **Base L2, Solana, Algorand, and Ethereum L1**.
 
 - **Merchant Dashboard**: [GoPlausible Merchant Catalog](https://facilitator.goplausible.xyz/dashboard/merchants/c4f55ee4a1a2ae08)
 - **Live Gateway API**: `https://pay-to-pin.duckdns.org`
-- **Protocol Standard**: HTTP `402 Payment Required` via `@x402/core` & `@x402/avm`
+- **Protocol Standard**: HTTP `402 Payment Required` via `@x402/core`, `@x402/evm`, `@x402/svm`, & `@x402/avm`
 
 ---
 
@@ -12,46 +12,57 @@ TypeScript client library for pinning files to IPFS via the **IPFS Pay-to-Pin Ga
 
 The IPFS Pay-to-Pin Gateway eliminates the need to sign up for monthly SaaS subscriptions or manage Pinata API keys when uploading files to IPFS.
 
-With an Algorand wallet containing microUSDC (ASA `31566704`), any script or agent can upload a file, receive an HTTP `402 Payment Required` challenge, sign the microUSDC payment transaction on-chain, and receive an instant 365-day IPFS pin confirmation.
+With an EVM private key (Base L2), Solana Keypair, or Algorand wallet containing microUSDC, any script or agent can upload a file, receive an HTTP `402 Payment Required` challenge, sign the microUSDC payment or gasless authorization, and receive an instant 365-day IPFS pin confirmation.
 
 ---
 
 ## Installation
 
 ```bash
-npm install ipfs-pay-to-pin-client @x402/core @x402/avm algosdk
+npm install ipfs-pay-to-pin-client @x402/core @x402/evm @x402/svm @x402/avm
 ```
 
 ---
 
 ## Quickstart
 
-### 1. Upload & Pin a File
+### 1. Multi-Chain Initialization Options
 
 ```typescript
 import { IpfsPayToPinClient } from 'ipfs-pay-to-pin-client';
 
-const client = new IpfsPayToPinClient({
-  mnemonic: 'your 25 word algorand wallet mnemonic here...',
-  sender: 'OPTIONAL_ASSET_HOLDING_ADDRESS', // Use if wallet is re-keyed
-  network: 'mainnet', // 'mainnet' (default) or 'testnet'
-  maxPriceUsdc: 0.10 // optional max spend budget cap in USDC (default: $1.00)
+// Option A: Base L2 / EVM Wallet (Gasless EIP-3009 transfer authorization)
+const baseClient = new IpfsPayToPinClient({
+  evmPrivateKey: '0xYourBaseEvmPrivateKey...',
+  maxPriceUsdc: 0.10 // budget cap safety limit in USDC
 });
 
-async function main() {
-  const fileBuffer = Buffer.from('Hello IPFS Pay-to-Pin!');
+// Option B: Solana Mainnet Wallet
+const solanaClient = new IpfsPayToPinClient({
+  solanaPrivateKey: 'YourSolanaBase58PrivateKey...',
+  maxPriceUsdc: 0.10
+});
 
-  const result = await client.pinFile({
-    filename: 'hello.txt',
-    data: fileBuffer
-  });
+// Option C: Algorand Mainnet Wallet
+const algoClient = new IpfsPayToPinClient({
+  mnemonic: 'your 25 word algorand wallet mnemonic here...',
+  network: 'mainnet'
+});
+```
 
-  console.log('Pinned CID:', result.cid);
-  console.log('Gateway URL:', result.gateway_url);
-  console.log('Expires At:', result.expires_at);
-}
+### 2. Upload & Pin a File (1-Line Call)
 
-main().catch(console.error);
+```typescript
+const fileBuffer = Buffer.from('Hello Multi-Chain Pay-to-Pin!');
+
+const result = await baseClient.pinFile({
+  filename: 'hello.txt',
+  data: fileBuffer
+});
+
+console.log('Pinned CID:', result.cid);
+console.log('Gateway URL:', result.gateway_url);
+console.log('Expires At:', result.expires_at);
 ```
 
 ### 2. Renew an Existing Pin (50% Early Renewal Discount)
