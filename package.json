@@ -1,6 +1,6 @@
 {
   "name": "ipfs-pay-to-pin-gateway",
-  "version": "2.1.0",
+  "version": "2.0.0",
   "description": "IPFS Pay-to-Pin Gateway built with official Algorand Foundation @x402/hono and @x402/avm stack",
   "license": "AGPL-3.0-or-later",
   "main": "src/index.ts",
@@ -38,6 +38,7 @@
     "@types/pg": "^8.20.0",
     "@types/supertest": "^7.2.1",
     "@types/ws": "^8.18.1",
+    "gitleaks": "^1.0.0",
     "pg": "^8.22.0",
     "supertest": "^7.2.2",
     "vitest": "^4.1.10"

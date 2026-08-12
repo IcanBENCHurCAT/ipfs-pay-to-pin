@@ -1,25 +1,60 @@
-# Security Policy
+# Security
 
-## Supported Versions
+## Reporting Vulnerabilities
 
-The following versions of the IPFS Pay-to-Pin Gateway and Client SDK are currently supported with security updates.
+If you discover a security vulnerability in this project, please disclose it responsibly.
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 2.x.x   | :white_check_mark: |
-| 1.x.x   | :x:                |
-| < 1.0.0 | :x:                |
+### What to include
 
-## Reporting a Vulnerability
+1. **Description** of the vulnerability (be specific)
+2. **Reproduction steps** if possible
+3. **Impact assessment** (what could an attacker do?)
 
-Security is a critical priority for the IPFS Pay-to-Pin Gateway, especially concerning x402 microUSDC micropayments, algorithmic payment settlements, and local state buffers.
+### What to expect
 
-If you discover a potential vulnerability, please **DO NOT** publicly disclose it in a GitHub issue, Pull Request, or public discussion.
+1. **Acknowledgment** within 48 hours
+2. **Status updates** every 7 days
+3. **Fix timeline** — critical vulnerabilities are patched immediately
+4. **Credit** in release notes (unless you prefer anonymity)
 
-Instead, please report any security issues or potential attack vectors directly and privately to the repository maintainers via the GitHub Security Advisory feature:
+### Security best practices for contributors
 
-1. Navigate to the [Security Advisories](https://github.com/IcanBENCHurCAT/ipfs-pay-to-pin/security/advisories) tab.
-2. Click **Report a vulnerability**.
-3. Provide a detailed description of the issue, including steps to reproduce, the impacted components (e.g. smart contract, Hono API, SDK), and the potential impact.
+- **Never commit real credentials** — use environment variables or `.env` files (gitignored)
+- **Example files must use placeholders** — `your-project.supabase.co`, not real project URLs
+- **Run `git diff --cached` before committing** — always double-check what you're staging
+- **Use `git restore --staged <file>`** to unstage accidentally committed secrets
 
-Maintainers will acknowledge receipt of your vulnerability report as soon as possible and provide regular updates on the mitigation and resolution progress.
+---
+
+## Credential Policy
+
+### What must NEVER appear in the repo
+
+| Type | Examples |
+|------|----------|
+| API keys | `eyJhbGciOiJIUzI1NiJ...`, `sk-...`, `pk_live_...` |
+| Database URLs | `postgresql://user:pass@host:port/db` |
+| Project URLs | `https://*.supabase.co`, `https://*.algolia.net` |
+| Tokens | UUIDs that are tokens (not public UUIDs) |
+| Private keys | RSA/EC/EdDSA private key material |
+
+### What MUST appear in example files
+
+| Type | Example |
+|------|---------|
+| Database URL | `postgresql://user:your_password@localhost:5432/mydb` |
+| API keys | `your_api_key_here` |
+| Project URLs | `https://your-project.supabase.co` |
+
+### What to use instead of hardcoded credentials
+
+- **Development**: `.env` file (gitignored) → `process.env.VAR`
+- **Production**: Environment variables via deployment config (Terraform, Heroku vars, etc.)
+- **CI/CD**: GitHub Actions secrets → `${{ secrets.VAR }}`
+- **Shared config**: `.env.example` with ONLY placeholder values
+
+---
+
+## Postmortem
+
+See [POSTMORTEM_SUPABASE_LEAK.md](./POSTMORTEM_SUPABASE_LEAK.md) for the most recent credential leak postmortem and the no-repeat prevention plan.

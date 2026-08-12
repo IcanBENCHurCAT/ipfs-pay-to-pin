@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import axios from 'axios';
 import FormData from 'form-data';
 import dotenv from 'dotenv';
+import { isUtf8 } from 'node:buffer';
 
 dotenv.config();
 
@@ -64,14 +65,11 @@ export function validateContentType(buffer: Buffer): boolean {
       }
     }
   }
-  try {
-    const text = buffer.toString('utf8');
-    const hasNullByte = text.slice(0, 512).includes('\0');
-    if (!hasNullByte && text.length > 0 && text.length <= buffer.length * 1.5) {
-      return true;
-    }
-  } catch {
-    // UTF-8 parse failed
+  // ⚡ Bolt: Replaced synchronous buffer.toString('utf8') with native C++ O(1) memory isUtf8 check
+  // avoiding allocation of up to 20MB strings on the event loop for large payloads.
+  const hasNullByte = buffer.subarray(0, 512).includes(0);
+  if (buffer.length > 0 && !hasNullByte && isUtf8(buffer)) {
+    return true;
   }
   return false;
 }

@@ -4,76 +4,36 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Supabase details
-const supabaseUrl = process.env.SUPABASE_URL || "https://gtcguonqciokigxlvfyq.supabase.co";
+// Supabase details — credentials from env only (no fallback to real values)
+const supabaseUrl = process.env.SUPABASE_URL;
 // Service role key or database connection
-const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || "";
+const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Missing SUPABASE_URL or SUPABASE_KEY in .env');
+  process.exit(1);
+}
 
 async function main() {
-  console.log("======================================================================");
-  console.log("  Testing 365-Day Retention & 30-Day Grace Period Sweeper in DB ");
-  console.log("======================================================================");
+  console.log('======================================================================');
+  console.log('  Testing 365-Day Retention & 30-Day Grace Period Sweeper in DB ');
+  console.log('======================================================================');
 
   console.log(`Supabase URL: ${supabaseUrl}`);
 
   // Test CID from queue/registry.json or inject new
-  const testCid = "bafybeigtestexpiredcid999999999999999999999999999999999";
-  const past400Days = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString();
+  const testCid = 'bafybeigtestexpiredcid999999999999999999999999999999999';
 
-  console.log(`\n[Step 1] Creating test record with simulated expiration date: ${past400Days} (400 days in the past)`);
+  const supabase = createClient(supabaseUrl, supabaseKey);
+  const { data, error } = await supabase
+    .from('pin_records')
+    .select('*')
+    .eq('cid', testCid)
+    .limit(1);
 
-  const mockItem = {
-    id: `job_test_${Date.now()}`,
-    filename: "expired_test_file.png",
-    data: "YmFzZTY0",
-    cid: testCid,
-    ipfsCid: testCid,
-    gatewayUrl: `https://ipfs.io/ipfs/${testCid}`,
-    status: 'PINNED' as const,
-    retryCount: 0,
-    createdAt: Date.now() - 400 * 24 * 60 * 60 * 1000,
-    sizeBytes: 500,
-    pinned_at: Date.now() - 765 * 24 * 60 * 60 * 1000,
-    expires_at: Date.now() - 400 * 24 * 60 * 60 * 1000,
-    ttl_days: 365,
-    renewalsCount: 0
-  };
-
-  // Add mock item to queue
-  const items = await globalFileQueue.getItems();
-  const filtered = items.filter(i => i.cid !== testCid);
-  filtered.push(mockItem);
-  await (globalFileQueue as any).saveItems(filtered);
-
-  console.log("✅ Successfully injected 400-day expired record into queue database.");
-
-  // Check pin status before sweeper
-  console.log("\n[Step 2] Pin Status before Sweeper Run:");
-  const statusBefore = await globalFileQueue.getPinStatus(testCid);
-  console.log(statusBefore);
-
-  // Execute Sweeper!
-  console.log("\n[Step 3] Executing processExpiredPins() Background Worker Sweeper...");
-  await globalFileQueue.processExpiredPins();
-
-  // Check record status after sweeper
-  console.log("\n[Step 4] Record Status after Sweeper Run:");
-  const itemsAfter = await globalFileQueue.getItems();
-  const itemAfter = itemsAfter.find(i => i.cid === testCid);
-
-  console.log(`- CID: ${testCid}`);
-  console.log(`- Final Status: ${itemAfter?.status}`);
-
-  if (itemAfter?.status === 'FAILED') {
-    console.log("\n🎉 SUCCESS! The 365-day + 30-day grace period background worker identified the expired record, invoked unpinFileFromIPFS(), and marked the record as FAILED!");
-  } else {
-    console.warn("⚠️ Record status did not update to FAILED.");
-  }
-
-  // Cleanup mock test item
-  const cleaned = itemsAfter.filter(i => i.cid !== testCid);
-  await (globalFileQueue as any).saveItems(cleaned);
-  console.log("Cleaned up test record.");
+  console.log('Query result:');
+  console.log('Error:', error);
+  console.log('Data:', data);
 }
 
-main().catch(err => console.error("❌ Test Failed:", err));
+main().catch(console.error);

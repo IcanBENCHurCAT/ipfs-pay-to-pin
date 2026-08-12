@@ -1,6 +1,6 @@
 {
   "name": "ipfs-pay-to-pin-client",
-  "version": "1.2.0",
+  "version": "1.1.1",
   "description": "TypeScript client library for IPFS Pay-to-Pin Gateway via Algorand microUSDC x402 payments",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -14,10 +14,6 @@
     "dist",
     "README.md"
   ],
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
-  },
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm && tsc --declaration --emitDeclarationOnly --outDir dist",
     "test": "vitest run --passWithNoTests"

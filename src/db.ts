@@ -45,11 +45,15 @@ export class DbManager {
 
       const validRecords = records.filter(r => Boolean(r.cid));
       if (validRecords.length > 0) {
+<<<<<<< HEAD
         // Deduplicate records by CID (keeping latest) to prevent Postgres 'ON CONFLICT DO UPDATE cannot affect row a second time' batch error
         const uniqueByCid = Array.from(
           validRecords.reduce((map, record) => map.set(record.cid, record), new Map()).values()
         );
         const { error } = await client.from('pin_records').upsert(uniqueByCid, { onConflict: 'cid' });
+=======
+        const { error } = await client.from('pin_records').upsert(validRecords, { onConflict: 'cid' });
+>>>>>>> origin/main
         if (error) {
           console.error(`[DbManager] Failed to batch sync ${uniqueByCid.length} items to Supabase:`, error);
         }
