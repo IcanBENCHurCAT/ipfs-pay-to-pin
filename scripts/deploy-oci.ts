@@ -128,6 +128,25 @@ try {
     execSync('terraform init', { cwd: tfDir, stdio: 'inherit' });
     console.log('Applying Terraform Plan...');
     execSync('terraform apply -auto-approve', { cwd: tfDir, stdio: 'inherit' });
+    
+    console.log('🔍 Fetching public IP...');
+    const publicIp = execSync('terraform output -raw public_ip', { cwd: tfDir }).toString().trim();
+    console.log(`🌐 Public IP: ${publicIp}`);
+    
+    if (publicIp) {
+      console.log('⏳ Waiting for cloud-init and pulling latest code on VM (this might take a few minutes)...');
+      
+      const sshKeyPath = path.join(process.env.USERPROFILE || process.env.HOME || 'C:/Users/Garret', '.ssh', 'id_ed25519');
+      const sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ${sshKeyPath} ubuntu@${publicIp} "sudo cloud-init status --wait && cd /opt/ipfs-pay-to-pin && sudo git pull && sudo docker compose -f docker-compose.yml up -d --build"`;
+      
+      try {
+        execSync(sshCommand, { stdio: 'inherit' });
+        console.log('✅ In-place code update and Docker build finished successfully!');
+      } catch (sshErr: any) {
+        console.warn('⚠️ SSH update failed. The VM might still be booting or SSH is not ready yet.', sshErr.message);
+      }
+    }
+
     console.log('🎉 TURN-KEY DEPLOYMENT COMPLETE! Gateway live on OCI.');
   }).catch(err => {
     console.error('❌ Migration error:', err);
