@@ -38,11 +38,10 @@ if (!supabaseUrl || !supabaseKey) {
   process.exit(1);
 }
 
-// 2. Run Supabase Database Migration
-console.log('📦 Step 1: Running Supabase database migration for multi-chain schema...');
-const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+import { Client } from 'pg';
 
 async function runMigration() {
+  const pgUrl = env.SUPABASE_DATABASE_URL;
   const migrationSql = `
   ALTER TABLE public.pin_records
     ADD COLUMN IF NOT EXISTS payment_network VARCHAR(64) NOT NULL DEFAULT 'algorand:mainnet',
@@ -57,12 +56,26 @@ async function runMigration() {
     WHERE tx_hash IS NOT NULL;
   `;
 
-  // Verify table access
+  if (pgUrl) {
+    try {
+      console.log('Connecting via Postgres connection string to execute DDL schema migration...');
+      const client = new Client({ connectionString: pgUrl, ssl: { rejectUnauthorized: false } });
+      await client.connect();
+      await client.query(migrationSql);
+      await client.end();
+      console.log('✅ Direct PostgreSQL schema migration executed successfully!');
+      return;
+    } catch (err: any) {
+      console.warn('⚠️ Direct Postgres connection failed, checking REST endpoint:', err.message);
+    }
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
   const { error } = await supabase.from('pin_records').select('cid').limit(1);
   if (error) {
     console.warn('⚠️ Supabase test query warning:', error.message);
   } else {
-    console.log('✅ Connected to Supabase PostgreSQL database.');
+    console.log('✅ Connected to Supabase REST API endpoint.');
   }
 }
 
