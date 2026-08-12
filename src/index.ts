@@ -45,11 +45,26 @@ const ALGORAND_MAINNET_FULL_CAIP2 = "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73kti
 const networkCaip2 = networkEnv === "mainnet" ? ALGORAND_MAINNET_FULL_CAIP2 : ALGORAND_TESTNET_CAIP2;
 const usdcAsaId = networkEnv === "mainnet" ? USDC_MAINNET_ASA_ID : USDC_TESTNET_ASA_ID;
 
+import { ExactEvmScheme } from "@x402/evm/exact/server";
+import { ExactSvmScheme } from "@x402/svm/exact/server";
+
+const BASE_MAINNET_CAIP2 = "eip155:8453";
+const ARBITRUM_ONE_CAIP2 = "eip155:42161";
+const ETHEREUM_MAINNET_CAIP2 = "eip155:1";
+const SOLANA_MAINNET_CAIP2 = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+
+const evmEscrowAddress = process.env.EVM_ESCROW_ADDRESS || "0x0000000000000000000000000000000000000000";
+const solanaEscrowAddress = process.env.SOLANA_ESCROW_ADDRESS || "11111111111111111111111111111111";
+
 const facilitatorClient = new HTTPFacilitatorClient({ url: facilitatorUrl });
 const server = new x402ResourceServer(facilitatorClient)
     .register(ALGORAND_MAINNET_CAIP2, new ExactAvmScheme())
     .register(ALGORAND_MAINNET_FULL_CAIP2, new ExactAvmScheme())
-    .register(ALGORAND_TESTNET_CAIP2, new ExactAvmScheme());
+    .register(ALGORAND_TESTNET_CAIP2, new ExactAvmScheme())
+    .register(BASE_MAINNET_CAIP2, new ExactEvmScheme())
+    .register(ARBITRUM_ONE_CAIP2, new ExactEvmScheme())
+    .register(ETHEREUM_MAINNET_CAIP2, new ExactEvmScheme())
+    .register(SOLANA_MAINNET_CAIP2, new ExactSvmScheme());
 
 // Register Bazaar discovery extension
 server.registerExtension(bazaarResourceServerExtension as unknown as ResourceServerExtension);
@@ -142,14 +157,14 @@ const x402MetadataHandler = (c: any) => {
                 url: "https://pay-to-pin.duckdns.org/api/v1/pin",
                 description: "Upload one file as a Base64-encoded JSON payload; on successful payment, the service pins it to IPFS for 365 days and returns cid, ipfs_cid, gateway_url, expires_at, and renewal_url.",
                 methods: ["POST"],
-                networks: ["algorand:mainnet", "algorand:testnet"]
+                networks: ["algorand:mainnet", "algorand:testnet", BASE_MAINNET_CAIP2, SOLANA_MAINNET_CAIP2, ETHEREUM_MAINNET_CAIP2]
             },
             {
                 path: "/api/v1/renew",
                 url: "https://pay-to-pin.duckdns.org/api/v1/renew",
                 description: "Renew an existing pin for another 365 days via x402 microUSDC payment. 50% early renewal discount applies prior to expiration.",
                 methods: ["POST"],
-                networks: ["algorand:mainnet", "algorand:testnet"]
+                networks: ["algorand:mainnet", "algorand:testnet", BASE_MAINNET_CAIP2, SOLANA_MAINNET_CAIP2, ETHEREUM_MAINNET_CAIP2]
             }
         ]
     });
@@ -439,6 +454,30 @@ app.use("*", async (c, next) => {
     await next();
 });
 
+const calculateUsdcPrice = async (ctx: any, isEthereumL1 = false) => {
+    let binaryBytes = 1000;
+    try {
+        const body = await ctx.adapter.getBody();
+        if (body && typeof body.data === 'string') {
+            const dataLen = body.data.length;
+            let padding = 0;
+            if (body.data.endsWith('==')) padding = 2;
+            else if (body.data.endsWith('=')) padding = 1;
+            binaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
+        }
+    } catch {
+        const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
+        binaryBytes = Math.max(1000, Math.floor(contentLength * 0.75));
+    }
+    const baseMicroUsdc = 10000; // $0.01 base price
+    const bytePriceMicroUsdc = 0.02; // $0.02 per MB (0.02 microUSDC per byte)
+    let totalMicroUsdc = baseMicroUsdc + (binaryBytes * bytePriceMicroUsdc);
+    if (isEthereumL1) {
+        totalMicroUsdc += 2500000; // $2.50 L1 gas floor surcharge
+    }
+    return `$${(totalMicroUsdc / 1000000).toFixed(6)}`;
+};
+
 try {
     app.use(
         paymentMiddleware(
@@ -447,27 +486,30 @@ try {
                     accepts: [
                         {
                             scheme: "exact",
-                            price: async (ctx: any) => {
-                                let binaryBytes = 1000;
-                                try {
-                                    const body = await ctx.adapter.getBody();
-                                    if (body && typeof body.data === 'string') {
-                                        // ⚡ Bolt: O(1) calculation to avoid blocking event loop and allocating huge strings for large payloads
-                                        const dataLen = body.data.length;
-                                        let padding = 0;
-                                        if (body.data.endsWith('==')) padding = 2;
-                                        else if (body.data.endsWith('=')) padding = 1;
-                                        binaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
-                                    }
-                                } catch {
-                                    const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
-                                    binaryBytes = Math.max(1000, Math.floor(contentLength * 0.75));
-                                }
-                                const baseMicroUsdc = 10000; // $0.01 base price
-                                const bytePriceMicroUsdc = 0.02; // $0.02 per MB (0.02 microUSDC per byte)
-                                const totalMicroUsdc = baseMicroUsdc + (binaryBytes * bytePriceMicroUsdc);
-                                return `$${(totalMicroUsdc / 1000000).toFixed(6)}`;
-                            },
+                            price: (ctx: any) => calculateUsdcPrice(ctx),
+                            network: BASE_MAINNET_CAIP2,
+                            payTo: evmEscrowAddress,
+                            maxTimeoutSeconds: 300,
+                            extra: {
+                                asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                                eip3009: true,
+                                decimals: 6
+                            }
+                        },
+                        {
+                            scheme: "exact",
+                            price: (ctx: any) => calculateUsdcPrice(ctx),
+                            network: SOLANA_MAINNET_CAIP2,
+                            payTo: solanaEscrowAddress,
+                            maxTimeoutSeconds: 300,
+                            extra: {
+                                asset: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v",
+                                decimals: 6
+                            }
+                        },
+                        {
+                            scheme: "exact",
+                            price: (ctx: any) => calculateUsdcPrice(ctx),
                             network: networkCaip2,
                             payTo: escrowAddress,
                             maxTimeoutSeconds: 300,

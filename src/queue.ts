@@ -19,6 +19,14 @@ export interface QueueItem {
   expires_at: number;
   ttl_days: number;
   renewalsCount: number;
+
+  // Multi-Chain Payment Fields
+  paymentNetwork?: string;  // e.g. "eip155:8453", "solana:5eykt4...", "algorand:mainnet", "eip155:1"
+  txHash?: string;          // On-chain transaction hash or signature proof
+  tokenAddress?: string;    // USDC contract / ASA ID / Mint address
+  payerAddress?: string;    // Client wallet address
+  amountPaid?: number;      // Payment in microUSDC / atomic units (6 decimals)
+  settlementStatus?: 'PENDING' | 'VERIFIED' | 'SETTLED' | 'FAILED';
 }
 
 export class FileQueue {
@@ -40,32 +48,24 @@ export class FileQueue {
   constructor(queueDir = 'queue') {
     this.queueDir = path.resolve(queueDir);
     this.registryPath = path.join(this.queueDir, 'registry.json');
-    this.ensureDirs();
     this.dbManager = new DbManager(this.registryPath);
-    this.itemsCache = this.getItemsSync();
-  }
-
-  private ensureDirs() {
-    if (!fs.existsSync(this.queueDir)) {
-      fs.mkdirSync(this.queueDir, { recursive: true });
-    }
-    if (!fs.existsSync(this.registryPath)) {
-      fs.writeFileSync(this.registryPath, JSON.stringify([], null, 2));
-    }
+    this.itemsCache = [];
   }
 
   public async init(): Promise<void> {
+    // ⚡ Bolt: Use asynchronous fs.promises inside init() instead of synchronous fs.existsSync/mkdirSync
+    // inside the constructor. This prevents blocking the Node.js event loop on startup.
+    try {
+      await fs.promises.mkdir(this.queueDir, { recursive: true });
+    } catch {}
+
+    try {
+      await fs.promises.readFile(this.registryPath);
+    } catch {
+      await fs.promises.writeFile(this.registryPath, JSON.stringify([], null, 2));
+    }
     this.itemsCache = await this.dbManager.getItems();
     console.log(`[Queue] Initialized & recovered ${this.itemsCache.length} records from Supabase/registry.`);
-  }
-
-  private getItemsSync(): QueueItem[] {
-    try {
-      const data = fs.readFileSync(this.registryPath, 'utf-8');
-      return JSON.parse(data);
-    } catch {
-      return [];
-    }
   }
 
   public async getItems(): Promise<QueueItem[]> {
@@ -134,7 +134,22 @@ export class FileQueue {
     return items.find(item => item.cid === cid);
   }
 
-  public async addJob(filename: string, buffer: Buffer): Promise<QueueItem> {
+  public async findByTxHash(paymentNetwork: string, txHash: string): Promise<QueueItem | undefined> {
+    return this.dbManager.findByTxHash(paymentNetwork, txHash);
+  }
+
+  public async addJob(
+    filename: string,
+    buffer: Buffer,
+    paymentDetails?: {
+      paymentNetwork?: string;
+      txHash?: string;
+      tokenAddress?: string;
+      payerAddress?: string;
+      amountPaid?: number;
+      settlementStatus?: 'PENDING' | 'VERIFIED' | 'SETTLED' | 'FAILED';
+    }
+  ): Promise<QueueItem> {
     const safeFilename = sanitizeFilename(filename);
 
     if (!validateContentType(buffer)) {
@@ -190,7 +205,13 @@ export class FileQueue {
       pinned_at: now,
       expires_at: now + 365 * 24 * 60 * 60 * 1000,
       ttl_days: 365,
-      renewalsCount: 0
+      renewalsCount: 0,
+      paymentNetwork: paymentDetails?.paymentNetwork ?? 'algorand:mainnet',
+      txHash: paymentDetails?.txHash ?? '',
+      tokenAddress: paymentDetails?.tokenAddress ?? '',
+      payerAddress: paymentDetails?.payerAddress ?? '',
+      amountPaid: paymentDetails?.amountPaid ?? 0,
+      settlementStatus: paymentDetails?.settlementStatus ?? 'SETTLED'
     };
 
     const items = await this.getItems();

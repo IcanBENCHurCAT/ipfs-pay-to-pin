@@ -74,6 +74,22 @@ variable "escrow_address" {
   default = "W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG3TE"
 }
 
+variable "evm_escrow_address" {
+  type    = string
+  default = "0x0000000000000000000000000000000000000000"
+}
+
+variable "solana_escrow_address" {
+  type    = string
+  default = "11111111111111111111111111111111"
+}
+
+variable "notification_email" {
+  type        = string
+  default     = "your-email@example.com"
+  description = "Email address to receive critical OCI monitoring alerts"
+}
+
 provider "oci" {
   tenancy_ocid     = var.tenancy_ocid
   user_ocid        = var.user_ocid
@@ -267,6 +283,8 @@ NODE_ENV=production
 ALGORAND_NETWORK=mainnet
 ALGORAND_SERVER=https://mainnet-api.algonode.cloud
 ESCROW_ADDRESS=${var.escrow_address}
+EVM_ESCROW_ADDRESS=${var.evm_escrow_address}
+SOLANA_ESCROW_ADDRESS=${var.solana_escrow_address}
 FACILITATOR_URL=https://facilitator.goplausible.xyz
 PINATA_JWT=${var.pinata_jwt}
 SUPABASE_URL=${var.supabase_url}
@@ -296,4 +314,14 @@ output "public_ip" {
 output "gateway_url" {
   value       = "https://${var.duckdns_subdomain}.duckdns.org"
   description = "HTTPS Gateway URL with automated Let's Encrypt SSL"
+}
+
+output "notification_topic_ocid" {
+  value       = oci_ons_notification_topic.pay_to_pin_alerts.id
+  description = "OCID of ONS Notification Topic"
+}
+
+output "notification_email" {
+  value       = var.notification_email
+  description = "Subscribed email address for OCI Monitoring alarms"
 }
