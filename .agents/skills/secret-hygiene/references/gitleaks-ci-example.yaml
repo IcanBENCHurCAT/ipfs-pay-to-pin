@@ -1,0 +1,26 @@
+# gitleaks GitHub Actions CI example
+
+# Add this to .github/workflows/ci.yml or create as a separate workflow file
+
+name: Secret Scan
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  gitleaks:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for full history scan
+
+      - name: gitleaks action
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: *** secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}

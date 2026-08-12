@@ -1,7 +1,7 @@
 {
   "name": "ipfs-pay-to-pin-client",
-  "version": "1.1.1",
-  "description": "TypeScript client library for IPFS Pay-to-Pin Gateway via Algorand microUSDC x402 payments",
+  "version": "2.0.0",
+  "description": "TypeScript client library for pinning files to IPFS via x402 microUSDC micropayments across Base L2, Solana, Algorand, and Ethereum L1.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
@@ -25,10 +25,22 @@
     "usdc",
     "pay-to-pin",
     "micropayments",
-    "pinata"
+    "pinata",
+    "multi-chain",
+    "solana",
+    "base",
+    "ethereum",
+    "ai-agent"
   ],
   "author": "IcanBENCHurCAT",
-  "license": "AGPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/IcanBENCHurCAT/ipfs-pay-to-pin/issues",
+    "email": "github@icanbenchur.cat"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "MIT",
   "peerDependencies": {
     "@x402/avm": "^2.21.0",
     "@x402/evm": "^2.21.0",
