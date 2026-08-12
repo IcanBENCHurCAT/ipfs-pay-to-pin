@@ -1,11 +1,18 @@
 # IPFS Pay-to-Pin Python SDK (`ipfs-pay-to-pin-client`)
 
-Python client library for pinning files to IPFS via the standard 402 Payment Required microUSDC gateway on Algorand.
+Python client library for pinning files to IPFS via standard HTTP 402 Payment Required microUSDC micropayments across **Base L2, Solana, and Algorand**.
 
 ## Installation
 
 ```bash
+# Basic install
 pip install ipfs-pay-to-pin-client
+
+# Install with EVM support (Base L2 gasless EIP-3009)
+pip install "ipfs-pay-to-pin-client[evm]"
+
+# Install with all multi-chain signers
+pip install "ipfs-pay-to-pin-client[all]"
 ```
 
 ## Usage
@@ -13,9 +20,21 @@ pip install ipfs-pay-to-pin-client
 ```python
 from ipfs_pay_to_pin_client import IpfsPayToPinClient
 
-# Initialize client with Gateway URL and Algorand 25-word mnemonic
+# Option A: Base L2 / EVM Private Key (Gasless EIP-3009 transfer)
 client = IpfsPayToPinClient(
-    gateway_url="https://your-pay-to-pin-gateway.com",
+    gateway_url="https://pay-to-pin.duckdns.org",
+    evm_private_key="0xYourBaseEvmPrivateKey..."
+)
+
+# Option B: Solana Wallet
+client = IpfsPayToPinClient(
+    gateway_url="https://pay-to-pin.duckdns.org",
+    solana_private_key="YourSolanaBase58PrivateKey..."
+)
+
+# Option C: Algorand Wallet
+client = IpfsPayToPinClient(
+    gateway_url="https://pay-to-pin.duckdns.org",
     sender_mnemonic="your twenty five word algorand account mnemonic phrase goes here..."
 )
 
@@ -35,7 +54,8 @@ print(status)
 
 ## Features
 
-- Automatic x402 402 Payment Required challenge handler
-- Algorand microUSDC settlement
-- Account rekey detection for security
+- Automatic multi-chain x402 402 Payment Required challenge handler
+- Native support for Base L2 (EIP-3009), Solana Mainnet, and Algorand Mainnet
+- Automated network steering prioritizing zero-gas / lowest-fee options
 - Maximum price ceiling enforcement (`max_price_usdc`)
+
