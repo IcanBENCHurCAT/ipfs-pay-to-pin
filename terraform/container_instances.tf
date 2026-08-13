@@ -43,3 +43,15 @@ resource "oci_container_instances_container_instance" "pay_to_pin_container" {
     command      = ["sh", "-c", "while true; do wget -qO- \"https://www.duckdns.org/update?domains=${var.duckdns_subdomain}&token=${var.duckdns_token}\"; sleep 300; done"]
   }
 }
+
+# Load Balancer Backend Registration
+resource "oci_load_balancer_backend" "pay_to_pin_backend" {
+  load_balancer_id = oci_load_balancer_load_balancer.pay_to_pin_lb.id
+  backendset_name  = oci_load_balancer_backend_set.pay_to_pin_backend_set.name
+  ip_address       = oci_container_instances_container_instance.pay_to_pin_container.vnics[0].private_ip
+  port             = 4021
+  backup           = false
+  drain            = false
+  offline          = false
+  weight           = 1
+}
