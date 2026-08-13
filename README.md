@@ -72,6 +72,22 @@ docker compose up -d
 - **Reverse Proxy**: Caddy 2 automatically provisions and renews Let's Encrypt TLS certificates for `https://<subdomain>.duckdns.org`.
 - **Volume Persistence**: Upload queue buffers and registry state persist across container restarts via the `queue_data` Docker volume.
 
+## OCI Container Instances (Serverless 0-to-N Auto-Scaling)
+
+Deploy to Oracle Cloud Infrastructure using Terraform with automatic 0-to-N HTTP auto-scaling and Workload Identity Federation (WLIF) for GitHub Actions:
+
+```bash
+cd terraform
+cp terraform.tfvars.example terraform.tfvars
+# Fill in OCI credentials & app settings in terraform.tfvars
+terraform init
+terraform apply
+```
+- **0-to-N Scaling**: Automatically provisions container instances on HTTP traffic demand and scales down to 0 instances when idle to minimize cost.
+- **Shared FSS Storage**: Persists local fallback queue registry across dynamic container instances.
+- **CI/CD Deployment**: Automated container build and push to OCIR via GitHub Actions (`.github/workflows/deploy.yml`).
+
+
 ## License
 
 GNU Affero General Public License v3 (AGPLv3)

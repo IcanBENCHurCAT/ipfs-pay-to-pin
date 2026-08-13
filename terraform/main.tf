@@ -177,6 +177,27 @@ resource "oci_core_subnet" "pay_to_pin_subnet" {
   security_list_ids = [oci_core_security_list.pay_to_pin_sl.id]
 }
 
+# OCI File Storage (FSS) for Shared Local Queue State
+resource "oci_file_storage_file_system" "pay_to_pin_fss" {
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
+  compartment_id      = var.compartment_ocid
+  display_name        = "pay-to-pin-queue-fss"
+}
+
+resource "oci_file_storage_mount_target" "pay_to_pin_mount_target" {
+  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
+  compartment_id      = var.compartment_ocid
+  subnet_id           = oci_core_subnet.pay_to_pin_subnet.id
+  display_name        = "pay-to-pin-mount-target"
+}
+
+resource "oci_file_storage_export" "pay_to_pin_export" {
+  export_set_id  = oci_file_storage_mount_target.pay_to_pin_mount_target.export_set_id
+  file_system_id = oci_file_storage_file_system.pay_to_pin_fss.id
+  path           = "/queue"
+}
+
+
 variable "availability_domain_index" {
   type        = number
   default     = 0
@@ -341,3 +362,41 @@ output "notification_email" {
   value       = var.notification_email
   description = "Subscribed email address for OCI Monitoring alarms"
 }
+
+# OCI Flexible Load Balancer for 0-to-N Traffic Routing
+resource "oci_load_balancer_load_balancer" "pay_to_pin_lb" {
+  compartment_id = var.compartment_ocid
+  display_name   = "pay-to-pin-load-balancer"
+  shape          = "flexible"
+  subnet_ids     = [oci_core_subnet.pay_to_pin_subnet.id]
+
+  shape_details {
+    minimum_bandwidth_in_mbps = 10
+    maximum_bandwidth_in_mbps = 100
+  }
+}
+
+resource "oci_load_balancer_backend_set" "pay_to_pin_backend_set" {
+  name             = "pay-to-pin-backend-set"
+  load_balancer_id = oci_load_balancer_load_balancer.pay_to_pin_lb.id
+  policy           = "ROUND_ROBIN"
+
+  health_checker {
+    protocol          = "HTTP"
+    port              = 4021
+    url_path          = "/health"
+    return_code       = 200
+    interval_ms       = 10000
+    timeout_in_millis = 3000
+    retries           = 3
+  }
+}
+
+resource "oci_load_balancer_listener" "pay_to_pin_listener" {
+  load_balancer_id = oci_load_balancer_load_balancer.pay_to_pin_lb.id
+  name             = "pay-to-pin-http-listener"
+  default_backend_set_name = oci_load_balancer_backend_set.pay_to_pin_backend_set.name
+  port             = 80
+  protocol         = "HTTP"
+}
+
