@@ -40,7 +40,7 @@ resource "oci_container_instances_container_instance" "pay_to_pin_container" {
   containers {
     display_name = "duckdns-updater"
     image_url    = "alpine:latest"
-    command      = ["sh", "-c", "while true; do wget -qO- \"https://www.duckdns.org/update?domains=${var.duckdns_subdomain}&token=${var.duckdns_token}\"; sleep 300; done"]
+    command      = ["sh", "-c", "while true; do wget -qO- \"https://www.duckdns.org/update?domains=${var.duckdns_subdomain}&token=${var.duckdns_token}&ip=${oci_load_balancer_load_balancer.pay_to_pin_lb.ip_address_details[0].ip_address}\"; sleep 300; done"]
   }
 }
 
