@@ -36,4 +36,10 @@ resource "oci_container_instances_container_instance" "pay_to_pin_container" {
       ALLOW_LOCAL_FALLBACK  = "false"
     }
   }
+
+  containers {
+    display_name = "duckdns-updater"
+    image_url    = "curlimages/curl:latest"
+    command      = ["sh", "-c", "while true; do curl -fsSL \"https://www.duckdns.org/update?domains=${var.duckdns_subdomain}&token=${var.duckdns_token}\"; sleep 300; done"]
+  }
 }
