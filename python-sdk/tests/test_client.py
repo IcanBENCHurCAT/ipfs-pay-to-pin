@@ -18,8 +18,8 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         self.gateway_url = "http://localhost:4021"
         self.private_key, self.sender_address = account.generate_account()
 
-    @patch("ipfs_pay_to_pin_client.client.AlgodClient")
-    @patch("ipfs_pay_to_pin_client.client.mnemonic.to_private_key")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
     def test_init(self, mock_to_priv, mock_algod):
         mock_to_priv.return_value = self.private_key
         client = IpfsPayToPinClient(
@@ -32,8 +32,8 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         self.assertEqual(client.sender_address, self.sender_address)
 
     @patch("ipfs_pay_to_pin_client.client.requests.get")
-    @patch("ipfs_pay_to_pin_client.client.AlgodClient")
-    @patch("ipfs_pay_to_pin_client.client.mnemonic.to_private_key")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
     def test_get_status(self, mock_to_priv, mock_algod, mock_get):
         mock_to_priv.return_value = self.private_key
         mock_response = MagicMock()
@@ -46,8 +46,8 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         self.assertEqual(res["cid"], "QmTest")
 
     @patch("ipfs_pay_to_pin_client.client.requests.post")
-    @patch("ipfs_pay_to_pin_client.client.AlgodClient")
-    @patch("ipfs_pay_to_pin_client.client.mnemonic.to_private_key")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
     def test_pin_bytes_max_price_exceeded(self, mock_to_priv, mock_algod, mock_post):
         mock_to_priv.return_value = self.private_key
         mock_algod_inst = MagicMock()
@@ -60,7 +60,8 @@ class TestIpfsPayToPinClient(unittest.TestCase):
             "accepts": [
                 {
                     "scheme": "exact",
-                    "assetId": 10458941,
+                    "network": "algorand:mainnet",
+                    "assetId": 31566704,
                     "amount": 2000000, # 2.0 USDC > max 1.0 USDC
                     "payTo": self.sender_address,
                 }

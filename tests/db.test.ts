@@ -152,7 +152,13 @@ describe('DbManager', () => {
             pinned_at: new Date(1786484034000).toISOString(),
             expires_at: new Date(1786484034000 + 365 * 24 * 60 * 60 * 1000).toISOString(),
             renewals_count: 1,
-            status: 'PINNED'
+            status: 'PINNED',
+            payment_network: 'algorand:mainnet',
+            tx_hash: null,
+            payer_address: null,
+            token_address: null,
+            amount_paid: null,
+            settlement_status: 'SETTLED'
           }
         ],
         { onConflict: 'cid' }

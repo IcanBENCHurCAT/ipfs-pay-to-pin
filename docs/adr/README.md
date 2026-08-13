@@ -9,3 +9,5 @@ This directory contains records of key architectural decisions made in the IPFS 
 * [0003 - Payment Challenge & Local Verification](0003-payment-challenge.md)
 * [0004 - 365-Day Timeboxed Retention & Annual Renewal](0004-timeboxed-retention-renew.md)
 * [0005 - Production Containerization & Queue Hardening](0005-production-hardening.md)
+* [0006 - PyPI Python Client SDK](0006-python-pypi-sdk.md)
+* [0007 - OCI Container Instances & Serverless Autoscaling Architecture](0007-oci-container-instances-autoscaling.md)

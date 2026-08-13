@@ -111,7 +111,6 @@ describe('validateContentType', () => {
     });
   });
 });
-import { describe, it, expect } from 'vitest';
 import { sanitizeFilename } from '../src/storage.js';
 
 describe('sanitizeFilename', () => {
@@ -177,7 +176,7 @@ describe('sanitizeFilename', () => {
     expect(sanitizeFilename('..')).toBe('file.bin');
   });
 });
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { beforeEach, afterEach, vi } from 'vitest';
 import axios from 'axios';
 import fs from 'fs';
 import { pinFileToStorage } from '../src/storage.js';

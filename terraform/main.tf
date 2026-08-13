@@ -167,7 +167,7 @@ resource "oci_core_security_list" "pay_to_pin_sl" {
 
   ingress_security_rules {
     protocol = "6" # TCP
-    source   = "10.0.0.0/16"
+    source   = "0.0.0.0/0"
     tcp_options {
       min = 4021
       max = 4021

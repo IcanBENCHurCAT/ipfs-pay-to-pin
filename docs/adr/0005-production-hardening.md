@@ -5,7 +5,7 @@ This document details the architectural decisions made during the implementation
 ---
 
 ## Status
-Approved / Implemented
+Partially Superseded by ADR 0007 (Hosting architecture migrated from static VM / Docker Compose to OCI Container Instances & Flexible Load Balancer)
 
 ## Context & Problem
 Retiring legacy single-container hosts (such as Heroku free dynos) required establishing a self-hosted, multi-container architecture for zero-cost deployment on Linux virtual machines (e.g., Oracle Cloud Infrastructure Always Free VM). Furthermore, state persistence needed hardening against race conditions and ephemeral disk wipes so that microUSDC paid uploads remain safe across container restarts and high concurrent load.
