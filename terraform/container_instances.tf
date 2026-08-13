@@ -5,7 +5,7 @@ resource "oci_container_instances_container_instance" "pay_to_pin_container" {
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
   display_name        = "ipfs-pay-to-pin-container"
   container_restart_policy = "ALWAYS"
-  shape               = "CI.Standard.A1.Flex"
+  shape               = "CI.Standard.E4.Flex"
 
   shape_config {
     ocpus         = 1

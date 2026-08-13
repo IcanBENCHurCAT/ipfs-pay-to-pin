@@ -27,3 +27,5 @@ escrow_address        = "W5IRXJWPSXNUJVSN2MOEJGTDGKUGFKUDVPTR5ZQVMDG5O4KYD5M3QPG
 evm_escrow_address    = "0x0000000000000000000000000000000000000000"
 solana_escrow_address = "11111111111111111111111111111111"
 notification_email    = "your-email@example.com"
+container_image_url   = "iad.ocir.io/your_tenancy_namespace/pay-to-pin-gateway:latest"
+
