@@ -5,7 +5,7 @@ resource "oci_container_instances_container_instance" "pay_to_pin_container" {
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
   display_name        = "ipfs-pay-to-pin-container"
   container_restart_policy = "ALWAYS"
-  shape               = "CI.Standard.E4.Flex"
+  shape               = "CI.Standard.A1.Flex"
 
   shape_config {
     ocpus         = 1
@@ -39,7 +39,7 @@ resource "oci_container_instances_container_instance" "pay_to_pin_container" {
 
   containers {
     display_name = "duckdns-updater"
-    image_url    = "curlimages/curl:latest"
-    command      = ["sh", "-c", "while true; do curl -fsSL \"https://www.duckdns.org/update?domains=${var.duckdns_subdomain}&token=${var.duckdns_token}\"; sleep 300; done"]
+    image_url    = "alpine:latest"
+    command      = ["sh", "-c", "while true; do wget -qO- \"https://www.duckdns.org/update?domains=${var.duckdns_subdomain}&token=${var.duckdns_token}\"; sleep 300; done"]
   }
 }
