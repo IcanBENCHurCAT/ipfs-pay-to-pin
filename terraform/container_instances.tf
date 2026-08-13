@@ -13,9 +13,9 @@ resource "oci_container_instances_container_instance" "pay_to_pin_container" {
   }
 
   vnics {
-    subnet_id        = oci_core_subnet.pay_to_pin_subnet.id
-    display_name     = "pay-to-pin-container-vnic"
-    is_public_ip_assigned = false
+    subnet_id             = oci_core_subnet.pay_to_pin_subnet.id
+    display_name          = "pay-to-pin-container-vnic"
+    is_public_ip_assigned = true
   }
 
   containers {
@@ -23,27 +23,17 @@ resource "oci_container_instances_container_instance" "pay_to_pin_container" {
     image_url    = var.container_image_url
 
     environment_variables = {
-      PORT                   = "4021"
-      NODE_ENV               = "production"
-      ALGORAND_NETWORK       = "mainnet"
-      ESCROW_ADDRESS         = var.escrow_address
-      EVM_ESCROW_ADDRESS     = var.evm_escrow_address
-      SOLANA_ESCROW_ADDRESS  = var.solana_escrow_address
-      FACILITATOR_URL        = "https://facilitator.goplausible.xyz"
-      PINATA_JWT             = var.pinata_jwt
-      SUPABASE_URL           = var.supabase_url
-      SUPABASE_KEY           = var.supabase_key
-      ALLOW_LOCAL_FALLBACK   = "false"
+      PORT                  = "4021"
+      NODE_ENV              = "production"
+      ALGORAND_NETWORK      = "mainnet"
+      ESCROW_ADDRESS        = var.escrow_address
+      EVM_ESCROW_ADDRESS    = var.evm_escrow_address
+      SOLANA_ESCROW_ADDRESS = var.solana_escrow_address
+      FACILITATOR_URL       = "https://facilitator.goplausible.xyz"
+      PINATA_JWT            = var.pinata_jwt
+      SUPABASE_URL          = var.supabase_url
+      SUPABASE_KEY          = var.supabase_key
+      ALLOW_LOCAL_FALLBACK  = "false"
     }
-
-    volume_mounts {
-      mount_path  = "/app/queue"
-      volume_name = "queue-storage"
-    }
-  }
-
-  volumes {
-    name        = "queue-storage"
-    volume_type = "CONFIGFILE"
   }
 }

@@ -177,25 +177,7 @@ resource "oci_core_subnet" "pay_to_pin_subnet" {
   security_list_ids = [oci_core_security_list.pay_to_pin_sl.id]
 }
 
-# OCI File Storage (FSS) for Shared Local Queue State
-resource "oci_file_storage_file_system" "pay_to_pin_fss" {
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
-  compartment_id      = var.compartment_ocid
-  display_name        = "pay-to-pin-queue-fss"
-}
 
-resource "oci_file_storage_mount_target" "pay_to_pin_mount_target" {
-  availability_domain = data.oci_identity_availability_domains.ads.availability_domains[var.availability_domain_index].name
-  compartment_id      = var.compartment_ocid
-  subnet_id           = oci_core_subnet.pay_to_pin_subnet.id
-  display_name        = "pay-to-pin-mount-target"
-}
-
-resource "oci_file_storage_export" "pay_to_pin_export" {
-  export_set_id  = oci_file_storage_mount_target.pay_to_pin_mount_target.export_set_id
-  file_system_id = oci_file_storage_file_system.pay_to_pin_fss.id
-  path           = "/queue"
-}
 
 
 variable "availability_domain_index" {
