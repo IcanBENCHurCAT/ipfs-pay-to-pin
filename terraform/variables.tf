@@ -9,7 +9,7 @@ variable "oci_compartment_ocid" {
 variable "container_image_url" {
   type        = string
   description = "The OCIR URL of the gateway docker image."
-  default     = "iad.ocir.io/tenancy/pay-to-pin-gateway:latest"
+  default     = "iad.ocir.io/id1fbfmorrpo/pay-to-pin-gateway:latest"
 }
 
 variable "min_instances" {
