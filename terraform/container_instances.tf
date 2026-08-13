@@ -43,9 +43,7 @@ resource "oci_container_instances_container_instance" "pay_to_pin_container" {
   }
 
   volumes {
-    name         = "queue-storage"
-    volume_type  = "CONFIGFILE"
+    name        = "queue-storage"
+    volume_type = "CONFIGFILE"
   }
-
-  graceful_shutdown_timeout_in_sec = 30
 }

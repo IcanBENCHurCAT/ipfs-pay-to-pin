@@ -3,9 +3,10 @@
 resource "oci_identity_identity_provider" "github_oidc" {
   compartment_id = var.tenancy_ocid
   name           = "GitHubActionsOIDC"
-  product_name   = "IDCS"
-  type           = "SAML2"
+  protocol       = "SAML2"
+  product_type   = "IDCS"
   description    = "Workload Identity Federation for GitHub Actions CI/CD pipeline"
+  metadata       = "https://token.actions.githubusercontent.com/.well-known/openid-configuration"
   metadata_url   = "https://token.actions.githubusercontent.com/.well-known/openid-configuration"
   freeform_tags  = { "ManagedBy" = "Terraform" }
 }
