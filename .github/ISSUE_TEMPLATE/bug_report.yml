@@ -1,0 +1,45 @@
+name: Bug Report
+description: Create a report to help us improve the gateway or client SDK
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: Describe the bug. What is the unexpected behavior?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this bug?
+    validations:
+      required: true
+  - type: input
+    id: node-version
+    attributes:
+      label: Node Version
+  - type: input
+    id: sdk-version
+    attributes:
+      label: SDK Version
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network
+      options:
+        - Mainnet
+        - Testnet
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional Context
+      description: Any error logs, screenshots, or other relevant info.
