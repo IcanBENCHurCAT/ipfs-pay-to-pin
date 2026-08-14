@@ -38,7 +38,7 @@ describe('Multi-Chain x402 Payment Gateway', () => {
   });
 
   it('should support cross-chain transaction replay lookup in Queue', async () => {
-    const mockTxHash = '0x8f7a6b5c4d3e2f1a0b9c8d7e6f5a4b3c2d1e0f9a8b7c6d5e4f3a2b1c0d9e8f7a';
+    const mockTxHash = `0x${Date.now().toString(16)}${Math.random().toString(16).substring(2)}`;
     const mockNetwork = 'eip155:8453';
 
     // Verify no existing item with this txHash
