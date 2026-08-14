@@ -7,6 +7,7 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,6 +18,7 @@ permissions:
 
 jobs:
   test:
+    name: Run Test Suites (TS & Python)
     runs-on: ubuntu-latest
 
     steps:
@@ -34,19 +36,28 @@ jobs:
           node-version: '20'
           cache: 'pnpm'
 
-      - name: Install dependencies
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check types
+      - name: Check TypeScript types
         run: pnpm exec tsc --noEmit
 
-      - name: Run build
-        run: pnpm run -r build
+      - name: Run TypeScript build & test suite
+        run: pnpm run -r build && pnpm run -r test
 
-      - name: Run tests
-        run: pnpm run -r test
+      - name: Install Python dependencies & run Python SDK unit tests
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e "python-sdk[dev]"
+          python -m unittest discover -s python-sdk/tests
 
   security:
+    name: Secret Hygiene & Security Scan
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
