@@ -21,6 +21,7 @@ class IpfsPayToPinClient:
         self,
         gateway_url: str = "https://pay-to-pin.duckdns.org",
         sender_mnemonic: Optional[str] = None,
+        sender: Optional[str] = None,
         evm_private_key: Optional[str] = None,
         solana_private_key: Optional[str] = None,
         algod_server: str = "https://mainnet-api.algonode.cloud",
@@ -35,6 +36,7 @@ class IpfsPayToPinClient:
         this_gateway_url = gateway_url or "https://pay-to-pin.duckdns.org"
         self.gateway_url = this_gateway_url.rstrip("/")
         self.sender_mnemonic = sender_mnemonic
+        self.sender = sender
         self.evm_private_key = evm_private_key
         self.solana_private_key = solana_private_key
         self.algod_server = algod_server
@@ -85,7 +87,7 @@ class IpfsPayToPinClient:
     ) -> PinResponse:
         b64_content = base64.b64encode(data).decode("utf-8")
         payload = {
-            "file": b64_content,
+            "data": b64_content,
             "filename": filename,
         }
         url = f"{self.gateway_url}/api/v1/pin"
@@ -206,18 +208,29 @@ class IpfsPayToPinClient:
         elif self.sender_mnemonic and self._algod_client:
             from algosdk.transaction import AssetTransferTxn
             recipient = payment_opt["payTo"]
-            asset_id = payment_opt.get("assetId", 31566704)
+            asset_id = int(payment_opt.get("asset") or payment_opt.get("assetId") or 31566704)
             params = self._algod_client.suggested_params()
+            sender_addr = self.sender or self.sender_address
             txn = AssetTransferTxn(
-                sender=self.sender_address,
+                sender=sender_addr,
                 sp=params,
                 receiver=recipient,
                 amt=amount_micro_usdc,
                 index=asset_id,
             )
+            from algosdk import encoding
             stxn = txn.sign(self._algorand_private_key)
-            signed_b64 = base64.b64encode(stxn.to_byte_array()).decode("utf-8")
-            sig_header = json.dumps({"signedTransaction": signed_b64})
+            signed_b64 = encoding.msgpack_encode(stxn)
+            sig_data = {
+                "x402Version": 2,
+                "resource": challenge.get("resource"),
+                "accepted": payment_opt,
+                "payload": {
+                    "paymentGroup": [signed_b64],
+                    "paymentIndex": 0
+                }
+            }
+            sig_header = json.dumps(sig_data)
         else:
             raise PaymentRequiredError(f"No wallet configured for challenge network: {network}")
 
@@ -235,5 +248,6 @@ class IpfsPayToPinClient:
                 tx_id=res_json.get("tx_id"),
             )
 
-        raise PinningFailedError(f"Post-payment request failed with status {paid_resp.status_code}: {paid_resp.text}")
+        err_hdr = paid_resp.headers.get("payment-required") or paid_resp.headers.get("PAYMENT-REQUIRED") or ""
+        raise PinningFailedError(f"Post-payment request failed with status {paid_resp.status_code}: {paid_resp.text} | Header: {err_hdr}")
 
