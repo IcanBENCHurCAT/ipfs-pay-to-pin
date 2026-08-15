@@ -44,28 +44,16 @@ export class FileQueue {
   private itemsCache: QueueItem[] = [];
   private lastCacheTime: number = 0;
   private cacheTtlMs: number = 5000; // ⚡ Bolt: 5s TTL database read cache to sync cleanly with 10s worker loop
-  private cachedQueueSize: number = 0; // ⚡ Bolt: O(1) cache for queue size
-  private cachedQueueBytes: number = 0; // ⚡ Bolt: O(1) cache for queue bytes
+
+  // ⚡ Bolt: O(1) cached metrics to prevent event loop blocking on every HTTP request
+  private cachedQueueSize: number = 0;
+  private cachedQueueBytes: number = 0;
 
   constructor(queueDir = 'queue') {
     this.queueDir = path.resolve(queueDir);
     this.registryPath = path.join(this.queueDir, 'registry.json');
     this.dbManager = new DbManager(this.registryPath);
     this.itemsCache = [];
-  }
-
-  // ⚡ Bolt: Private O(N) update that runs only when cache changes
-  private updateMetrics() {
-    let count = 0;
-    let sum = 0;
-    for (let i = 0; i < this.itemsCache.length; i++) {
-      if (this.itemsCache[i].status === 'PENDING') {
-        count++;
-        sum += (this.itemsCache[i].sizeBytes || 0);
-      }
-    }
-    this.cachedQueueSize = count;
-    this.cachedQueueBytes = sum;
   }
 
   public async init(): Promise<void> {
@@ -81,8 +69,22 @@ export class FileQueue {
       await fs.promises.writeFile(this.registryPath, JSON.stringify([], null, 2));
     }
     this.itemsCache = await this.dbManager.getItems();
-    this.updateMetrics();
+    this.refreshMetrics();
     console.log(`[Queue] Initialized & recovered ${this.itemsCache.length} records from Supabase/registry.`);
+  }
+
+  // ⚡ Bolt: Recalculate metrics only when cache is mutated, not on every request
+  private refreshMetrics(): void {
+    let size = 0;
+    let bytes = 0;
+    for (let i = 0; i < this.itemsCache.length; i++) {
+      if (this.itemsCache[i].status === 'PENDING') {
+        size++;
+        bytes += (this.itemsCache[i].sizeBytes || 0);
+      }
+    }
+    this.cachedQueueSize = size;
+    this.cachedQueueBytes = bytes;
   }
 
   public async getItems(): Promise<QueueItem[]> {
@@ -90,7 +92,7 @@ export class FileQueue {
     const now = Date.now();
     if (now - this.lastCacheTime > this.cacheTtlMs) {
       this.itemsCache = await this.dbManager.getItems();
-      this.updateMetrics();
+      this.refreshMetrics();
       this.lastCacheTime = now;
     }
     return this.itemsCache;
@@ -98,18 +100,18 @@ export class FileQueue {
 
   private async saveItems(items: QueueItem[]) {
     this.itemsCache = items;
-    this.updateMetrics();
+    this.refreshMetrics();
     this.lastCacheTime = Date.now(); // ⚡ Bolt: reset cache TTL on save
     await this.dbManager.saveItems(items);
   }
 
   public getQueueSize(): number {
-    // ⚡ Bolt: O(1) lookup to prevent O(N) event loop blocking in circuit breaker middleware
+    // ⚡ Bolt: O(1) lookup instead of O(N) iteration for circuit breaker middleware
     return this.cachedQueueSize;
   }
 
   public getQueueBytes(): number {
-    // ⚡ Bolt: O(1) lookup to prevent O(N) event loop blocking in circuit breaker middleware
+    // ⚡ Bolt: O(1) lookup instead of O(N) iteration for circuit breaker middleware
     return this.cachedQueueBytes;
   }
 
