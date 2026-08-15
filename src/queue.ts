@@ -45,6 +45,10 @@ export class FileQueue {
   private lastCacheTime: number = 0;
   private cacheTtlMs: number = 5000; // ⚡ Bolt: 5s TTL database read cache to sync cleanly with 10s worker loop
 
+  // ⚡ Bolt: O(1) cached metrics to prevent event loop blocking on every HTTP request
+  private cachedQueueSize: number = 0;
+  private cachedQueueBytes: number = 0;
+
   constructor(queueDir = 'queue') {
     this.queueDir = path.resolve(queueDir);
     this.registryPath = path.join(this.queueDir, 'registry.json');
@@ -65,7 +69,22 @@ export class FileQueue {
       await fs.promises.writeFile(this.registryPath, JSON.stringify([], null, 2));
     }
     this.itemsCache = await this.dbManager.getItems();
+    this.refreshMetrics();
     console.log(`[Queue] Initialized & recovered ${this.itemsCache.length} records from Supabase/registry.`);
+  }
+
+  // ⚡ Bolt: Recalculate metrics only when cache is mutated, not on every request
+  private refreshMetrics(): void {
+    let size = 0;
+    let bytes = 0;
+    for (let i = 0; i < this.itemsCache.length; i++) {
+      if (this.itemsCache[i].status === 'PENDING') {
+        size++;
+        bytes += (this.itemsCache[i].sizeBytes || 0);
+      }
+    }
+    this.cachedQueueSize = size;
+    this.cachedQueueBytes = bytes;
   }
 
   public async getItems(): Promise<QueueItem[]> {
@@ -73,6 +92,7 @@ export class FileQueue {
     const now = Date.now();
     if (now - this.lastCacheTime > this.cacheTtlMs) {
       this.itemsCache = await this.dbManager.getItems();
+      this.refreshMetrics();
       this.lastCacheTime = now;
     }
     return this.itemsCache;
@@ -80,26 +100,19 @@ export class FileQueue {
 
   private async saveItems(items: QueueItem[]) {
     this.itemsCache = items;
+    this.refreshMetrics();
     this.lastCacheTime = Date.now(); // ⚡ Bolt: reset cache TTL on save
     await this.dbManager.saveItems(items);
   }
 
   public getQueueSize(): number {
-    // ⚡ Bolt: Use O(N) loops instead of filter().length/reduce to avoid O(N) intermediate array memory allocations and GC pressure
-    let count = 0;
-    for (let i = 0; i < this.itemsCache.length; i++) {
-      if (this.itemsCache[i].status === 'PENDING') count++;
-    }
-    return count;
+    // ⚡ Bolt: O(1) lookup instead of O(N) iteration for circuit breaker middleware
+    return this.cachedQueueSize;
   }
 
   public getQueueBytes(): number {
-    // ⚡ Bolt: Use O(N) loops instead of filter().length/reduce to avoid O(N) intermediate array memory allocations and GC pressure
-    let sum = 0;
-    for (let i = 0; i < this.itemsCache.length; i++) {
-      if (this.itemsCache[i].status === 'PENDING') sum += (this.itemsCache[i].sizeBytes || 0);
-    }
-    return sum;
+    // ⚡ Bolt: O(1) lookup instead of O(N) iteration for circuit breaker middleware
+    return this.cachedQueueBytes;
   }
 
   public getMaxQueueSize(): number {
