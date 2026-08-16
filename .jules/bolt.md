@@ -24,3 +24,7 @@
 ## 2025-02-09 - [Synchronous Large Buffer to String Allocation]
 **Learning:** The application was synchronously allocating massive V8 string objects by calling `buffer.toString('utf8')` on large 20MB file payloads just to validate content types (checking for null bytes and text structure). This copies the entire buffer into memory again, blocks the Node.js event loop during UTF-8 string conversion, and creates severe garbage collection pressure.
 **Action:** Replaced synchronous full-buffer string casting with native C++ Node.js buffer checks: `buffer.subarray(0, 512).includes(0)` and `isUtf8(buffer)` from `node:buffer`. These native methods run in O(1) memory overhead and are over 10x faster, entirely avoiding string creation in the event loop for large payloads.
+
+## 2025-02-23 - [O(N) Synchronous Iteration in High-Throughput Middleware]
+**Learning:** The application was using synchronous O(N) array iteration for `getQueueSize()` and `getQueueBytes()` inside `circuitBreakerMiddleware`. Even though it used raw `for` loops to avoid allocations, performing O(N) iterations on every single HTTP request blocks the Node.js event loop, creating a scaling bottleneck as the application receives high throughput and the queue size grows.
+**Action:** Refactored the `FileQueue` to maintain O(1) cached metrics (`cachedQueueSize`, `cachedQueueBytes`). These values are only re-calculated when the underlying queue state (`itemsCache`) mutates, completely removing the O(N) operation from the high-frequency HTTP request path.
