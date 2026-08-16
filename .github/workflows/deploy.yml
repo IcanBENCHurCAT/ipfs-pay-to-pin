@@ -40,7 +40,7 @@ jobs:
           password: ${{ secrets.OCIR_AUTH_TOKEN }}
 
       - name: Build and Push Multi-Arch Docker Image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: ./Dockerfile
