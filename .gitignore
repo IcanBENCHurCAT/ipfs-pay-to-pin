@@ -23,5 +23,5 @@ Thumbs.db
 *.tfstate
 *.tfstate.*
 .terraform/
-queue/job_*.txt
-queue/registry.json
+queue/
+>>>>>>> 21b30ce (🐧 Tux: Enhance CI workflow to enforce SDK type checking)
