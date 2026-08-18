@@ -123,9 +123,20 @@ for file in $STAGED_FILES; do
   
 done
 
+# Pattern 6: Validate pnpm-lock.yaml is in sync with package.json
+# If either file is staged or modified, run dry-run install
+if echo "$STAGED_FILES" | grep -qE "(^|/)package\.json$"; then
+  echo "  Checking pnpm lockfile synchronization..."
+  if ! pnpm install --frozen-lockfile --prefer-offline --dry-run > /dev/null 2>&1; then
+    echo -e "${RED}❌ BLOCKED: pnpm-lock.yaml is out of sync with package.json${NC}"
+    echo -e "${YELLOW}  Hint: Run 'pnpm install --no-frozen-lockfile' to update it.${NC}"
+    EXIT_CODE=1
+  fi
+fi
+
 if [ $EXIT_CODE -ne 0 ]; then
   echo ""
-  echo "🛑 Commit BLOCKED — credentials detected in staged files."
+  echo "🛑 Commit BLOCKED — Pre-commit checks failed."
   echo ""
   echo "  To fix:"
   echo "  1. Replace hardcoded credentials with process.env.VAR references"
