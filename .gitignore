@@ -23,3 +23,5 @@ Thumbs.db
 *.tfstate
 *.tfstate.*
 .terraform/
+queue/job_*.txt
+queue/registry.json
