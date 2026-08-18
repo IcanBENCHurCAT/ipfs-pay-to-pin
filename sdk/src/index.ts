@@ -70,6 +70,24 @@ export class PaymentDeclinedError extends Error {
   }
 }
 
+export class ConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConfigurationError';
+    Object.setPrototypeOf(this, ConfigurationError.prototype);
+  }
+}
+
+export class GatewayError extends Error {
+  public status?: number;
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = 'GatewayError';
+    this.status = status;
+    Object.setPrototypeOf(this, GatewayError.prototype);
+  }
+}
+
 /**
  * 1-Line Multi-Chain Client SDK for IPFS Pay-to-Pin Gateway
  * Enables autonomous AI agents and applications to pin files to IPFS via Base L2, Solana, or Algorand microUSDC x402 payments.
@@ -89,7 +107,7 @@ export class IpfsPayToPinClient {
 
   constructor(config: IpfsPayToPinConfig) {
     if (!config.mnemonic && !config.evmPrivateKey && !config.solanaPrivateKey) {
-      throw new Error('IpfsPayToPinClient requires at least one wallet key (mnemonic, evmPrivateKey, or solanaPrivateKey).');
+      throw new ConfigurationError('IpfsPayToPinClient requires at least one wallet key (mnemonic, evmPrivateKey, or solanaPrivateKey).');
     }
 
     this.sender = config.sender;
@@ -120,7 +138,7 @@ export class IpfsPayToPinClient {
       if (config.sender) {
         const authAccount = this.algorandAccount;
         if (!authAccount) {
-          throw new Error('Mnemonic required when specifying sender.');
+          throw new ConfigurationError('Mnemonic required when specifying sender.');
         }
         avmSigner = {
           address: config.sender,
@@ -179,7 +197,7 @@ export class IpfsPayToPinClient {
   private selectBestAcceptOption(challenge: any): any {
     const accepts: any[] = challenge?.accepts || [];
     if (!accepts.length) {
-      throw new Error('Invalid 402 challenge: No accepts options found.');
+      throw new GatewayError('Invalid 402 challenge: No accepts options found.');
     }
 
     // Filter to options where we have a registered signer
@@ -189,7 +207,7 @@ export class IpfsPayToPinClient {
     });
 
     if (!validOptions.length) {
-      throw new Error(`Client wallet lacks registered signers for available challenge networks (${accepts.map(a => a.network).join(', ')}).`);
+      throw new ConfigurationError(`Client wallet lacks registered signers for available challenge networks (${accepts.map(a => a.network).join(', ')}).`);
     }
 
     // Priority 1: User's explicit preferredNetwork if available
@@ -221,9 +239,25 @@ export class IpfsPayToPinClient {
   }
 
   /**
-   * Pin a file payload to IPFS for 365 days using a multi-chain microUSDC x402 payment.
+   * Pins a file payload to IPFS for 365 days using an automated multi-chain microUSDC x402 payment.
+   *
+   * @param options - Configuration for the file to pin (filename and buffer/string data).
+   * @returns {Promise<PinResponse>} Returns pinned CID, gateway URL, and expiration data.
+   * @throws {ConfigurationError} If inputs are missing or invalid.
+   * @throws {GatewayError} If network fails or gateway returns unexpected status.
+   * @throws {InsufficientBudgetError} If requested x402 payment price exceeds `maxPriceUsdc`.
+   * @throws {PaymentDeclinedError} If user explicit `confirmPrice` callback rejects payment.
+   *
+   * @example
+   * const client = new IpfsPayToPinClient({ mnemonic: process.env.MNEMONIC });
+   * const result = await client.pinFile({ filename: 'test.txt', data: Buffer.from('hello world') });
+   * console.log('Pinned to', result.ipfs_cid);
    */
   public async pinFile(options: PinOptions): Promise<PinResponse> {
+    if (!options || !options.filename || !options.data) {
+      throw new ConfigurationError('[IpfsClient] Missing required pinFile options (filename or data).');
+    }
+
     const base64Data = typeof options.data === 'string'
       ? options.data
       : options.data.toString('base64');
@@ -240,7 +274,7 @@ export class IpfsPayToPinClient {
       if (err.response && err.response.status === 402) {
         res402 = err.response;
       } else {
-        throw new Error(`Upload request failed (${err?.response?.status || 'network error'}): ${err?.response?.data?.message || err?.message}`);
+        throw new GatewayError(`Upload request failed (${err?.response?.status || 'network error'}): ${err?.response?.data?.message || err?.message}`, err?.response?.status);
       }
     }
 
@@ -286,7 +320,18 @@ export class IpfsPayToPinClient {
   }
 
   /**
-   * Renew an existing pin for another 365 days (50% early renewal discount applies before expiration).
+   * Renews an existing pinned CID for another 365 days.
+   * Note: A 50% early renewal discount applies before original expiration.
+   *
+   * @param cid - The IPFS CID to renew (e.g. 'bafybeig...').
+   * @returns {Promise<RenewResponse>} Status, expiration details, and renewal count.
+   * @throws {GatewayError} If network fails or gateway returns unexpected status.
+   * @throws {InsufficientBudgetError} If requested x402 renewal price exceeds `maxPriceUsdc`.
+   * @throws {PaymentDeclinedError} If user explicit `confirmPrice` callback rejects renewal.
+   *
+   * @example
+   * const result = await client.renewPin('bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi');
+   * console.log('Renewed until:', result.expires_at);
    */
   public async renewPin(cid: string): Promise<RenewResponse> {
     const renewUrl = `${this.gatewayUrl}/api/v1/renew`;
@@ -300,7 +345,7 @@ export class IpfsPayToPinClient {
       if (err.response && err.response.status === 402) {
         res402 = err.response;
       } else {
-        throw new Error(`Renewal request failed (${err?.response?.status}): ${err?.response?.data?.message || err?.message}`);
+        throw new GatewayError(`Renewal request failed (${err?.response?.status}): ${err?.response?.data?.message || err?.message}`, err?.response?.status);
       }
     }
 
