@@ -44,12 +44,28 @@ export class FileQueue {
   private itemsCache: QueueItem[] = [];
   private lastCacheTime: number = 0;
   private cacheTtlMs: number = 5000; // ⚡ Bolt: 5s TTL database read cache to sync cleanly with 10s worker loop
+  private cachedQueueSize: number = 0; // ⚡ Bolt: O(1) cache for queue size
+  private cachedQueueBytes: number = 0; // ⚡ Bolt: O(1) cache for queue bytes
 
   constructor(queueDir = 'queue') {
     this.queueDir = path.resolve(queueDir);
     this.registryPath = path.join(this.queueDir, 'registry.json');
     this.dbManager = new DbManager(this.registryPath);
     this.itemsCache = [];
+  }
+
+  // ⚡ Bolt: Private O(N) update that runs only when cache changes
+  private updateMetrics() {
+    let count = 0;
+    let sum = 0;
+    for (let i = 0; i < this.itemsCache.length; i++) {
+      if (this.itemsCache[i].status === 'PENDING') {
+        count++;
+        sum += (this.itemsCache[i].sizeBytes || 0);
+      }
+    }
+    this.cachedQueueSize = count;
+    this.cachedQueueBytes = sum;
   }
 
   public async init(): Promise<void> {
@@ -65,6 +81,7 @@ export class FileQueue {
       await fs.promises.writeFile(this.registryPath, JSON.stringify([], null, 2));
     }
     this.itemsCache = await this.dbManager.getItems();
+    this.updateMetrics();
     console.log(`[Queue] Initialized & recovered ${this.itemsCache.length} records from Supabase/registry.`);
   }
 
@@ -73,6 +90,7 @@ export class FileQueue {
     const now = Date.now();
     if (now - this.lastCacheTime > this.cacheTtlMs) {
       this.itemsCache = await this.dbManager.getItems();
+      this.updateMetrics();
       this.lastCacheTime = now;
     }
     return this.itemsCache;
@@ -80,26 +98,19 @@ export class FileQueue {
 
   private async saveItems(items: QueueItem[]) {
     this.itemsCache = items;
+    this.updateMetrics();
     this.lastCacheTime = Date.now(); // ⚡ Bolt: reset cache TTL on save
     await this.dbManager.saveItems(items);
   }
 
   public getQueueSize(): number {
-    // ⚡ Bolt: Use O(N) loops instead of filter().length/reduce to avoid O(N) intermediate array memory allocations and GC pressure
-    let count = 0;
-    for (let i = 0; i < this.itemsCache.length; i++) {
-      if (this.itemsCache[i].status === 'PENDING') count++;
-    }
-    return count;
+    // ⚡ Bolt: O(1) lookup to prevent O(N) event loop blocking in circuit breaker middleware
+    return this.cachedQueueSize;
   }
 
   public getQueueBytes(): number {
-    // ⚡ Bolt: Use O(N) loops instead of filter().length/reduce to avoid O(N) intermediate array memory allocations and GC pressure
-    let sum = 0;
-    for (let i = 0; i < this.itemsCache.length; i++) {
-      if (this.itemsCache[i].status === 'PENDING') sum += (this.itemsCache[i].sizeBytes || 0);
-    }
-    return sum;
+    // ⚡ Bolt: O(1) lookup to prevent O(N) event loop blocking in circuit breaker middleware
+    return this.cachedQueueBytes;
   }
 
   public getMaxQueueSize(): number {
