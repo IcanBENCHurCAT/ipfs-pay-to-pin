@@ -28,3 +28,7 @@
 ## 2025-02-23 - [O(N) Synchronous Iteration in High-Throughput Middleware]
 **Learning:** The application was using synchronous O(N) array iteration for `getQueueSize()` and `getQueueBytes()` inside `circuitBreakerMiddleware`. Even though it used raw `for` loops to avoid allocations, performing O(N) iterations on every single HTTP request blocks the Node.js event loop, creating a scaling bottleneck as the application receives high throughput and the queue size grows.
 **Action:** Refactored the `FileQueue` to maintain O(1) cached metrics (`cachedQueueSize`, `cachedQueueBytes`). These values are only re-calculated when the underlying queue state (`itemsCache`) mutates, completely removing the O(N) operation from the high-frequency HTTP request path.
+
+## 2025-03-02 - [O(N) Synchronous Pruning inside Rate Limiter Middleware]
+**Learning:** The application was using synchronous O(N) `Map` iteration for pruning stale IP request counts inside `rateLimiterMiddleware`. Once the map reached its maximum size limit (e.g. 5000 entries during a DDOS attack), this iteration occurred on *every single request*. Doing O(N) map entry traversal in high-throughput middleware synchronously blocks the Node.js event loop, turning the rate limiter itself into a DOS vulnerability.
+**Action:** Throttled the cache pruning logic using a simple timestamp check (`now - lastPruneTime > PRUNE_THROTTLE_MS`) to ensure the O(N) iteration runs at most once every 10 seconds, drastically reducing CPU load during traffic spikes.
