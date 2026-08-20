@@ -9,8 +9,6 @@ const rateLimitMap = new Map<string, RateLimitRecord>();
 const WINDOW_MS = 60 * 1000; // 1 minute window
 const MAX_REQUESTS = 60;     // 60 requests per minute per IP
 const MAX_MAP_SIZE = 5000;   // Prevent memory growth from infinite unique IPs
-const PRUNE_THROTTLE_MS = 10 * 1000; // ⚡ Bolt: Prevent event loop blocking by throttling synchronous sweeps to max once per 10s
-
 let lastPruneTime = Date.now();
 
 // Clean up stale entries every 5 minutes to prevent memory leaks
@@ -35,8 +33,9 @@ export async function rateLimiterMiddleware(c: Context, next: Next) {
 
   const now = Date.now();
 
-  // ⚡ Bolt: Prune map if it exceeds size limit, but throttle sweeps to prevent synchronous O(N) blocking on every request
-  if (rateLimitMap.size > MAX_MAP_SIZE && now - lastPruneTime > PRUNE_THROTTLE_MS) {
+  // ⚡ Bolt: Throttle O(N) map pruning to at most once per second.
+  // Iterating a large map synchronously on every request blocks the event loop and causes DOS vulnerabilities during traffic spikes.
+  if (rateLimitMap.size > MAX_MAP_SIZE && now - lastPruneTime > 1000) {
     lastPruneTime = now;
     for (const [ipKey, record] of rateLimitMap.entries()) {
       if (now > record.resetTime) {
