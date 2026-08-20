@@ -32,3 +32,7 @@
 ## 2025-03-02 - [O(N) Synchronous Pruning inside Rate Limiter Middleware]
 **Learning:** The application was using synchronous O(N) `Map` iteration for pruning stale IP request counts inside `rateLimiterMiddleware`. Once the map reached its maximum size limit (e.g. 5000 entries during a DDOS attack), this iteration occurred on *every single request*. Doing O(N) map entry traversal in high-throughput middleware synchronously blocks the Node.js event loop, turning the rate limiter itself into a DOS vulnerability.
 **Action:** Throttled the cache pruning logic using a simple timestamp check (`now - lastPruneTime > PRUNE_THROTTLE_MS`) to ensure the O(N) iteration runs at most once every 10 seconds, drastically reducing CPU load during traffic spikes.
+
+## 2026-08-09 - [Avoid Intermediate Allocations in Validation Loops]
+**Learning:** The application was synchronously allocating intermediate buffer objects and calling `Object.entries()` inside the `validateContentType` function on every uploaded file to extract magic byte signatures. This caused thousands of hidden small object array creations and `Buffer.slice()` intermediate clones blocking the event loop on large throughput.
+**Action:** Flattend `MAGIC_BYTE_SIGNATURES` into an O(1) statically loaded array, and used native `buffer.toString('latin1', 0, 12)` bounds to completely bypass intermediate memory slice allocation, dropping validation latency significantly.

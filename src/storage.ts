@@ -54,15 +54,17 @@ const MAGIC_BYTE_SIGNATURES: Record<string, string[]> = {
   'audio/ogg':      ['OggS'],
 };
 
+// ⚡ Bolt: Flatten object values once at startup to prevent O(N) array allocation via Object.entries() on every upload
+const FLAT_SIGNATURES = Object.values(MAGIC_BYTE_SIGNATURES).flat();
+
 /** Validate file content by checking magic bytes & safe text types */
 export function validateContentType(buffer: Buffer): boolean {
   if (buffer.length < 4) return true; // too small to inspect, allow
-  const magic = buffer.slice(0, 12).toString('latin1');
-  for (const [_, signatures] of Object.entries(MAGIC_BYTE_SIGNATURES)) {
-    for (const sig of signatures) {
-      if (magic.includes(sig)) {
-        return true;
-      }
+  // ⚡ Bolt: Use direct toString with bounds instead of allocating an intermediate Buffer via slice()
+  const magic = buffer.toString('latin1', 0, 12);
+  for (let i = 0; i < FLAT_SIGNATURES.length; i++) {
+    if (magic.includes(FLAT_SIGNATURES[i])) {
+      return true;
     }
   }
   // ⚡ Bolt: Replaced synchronous buffer.toString('utf8') with native C++ O(1) memory isUtf8 check
