@@ -1,0 +1,27 @@
+name: "PR Title Check"
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize]
+
+jobs:
+  check-title:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify PR Title Format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          echo "Checking PR Title: $PR_TITLE"
+          if echo "$PR_TITLE" | grep -E "^(🐧 Tux|⚡ Bolt|🎨 Palette|🛡️ Sentinel): .+"; then
+            echo "PR title is valid."
+            exit 0
+          else
+            echo "Error: The PR title must follow the format: \"[Persona]: [Short description]\""
+            echo "Available Personas:"
+            echo "- 🐧 Tux: [Repository hygiene, CI/CD, documentation, or code clarity]"
+            echo "- ⚡ Bolt: [Performance optimization or improvement]"
+            echo "- 🎨 Palette: [AX/DX improvement, typing, or custom Error classes]"
+            echo "- 🛡️ Sentinel: [Severity] Fix [vulnerability]"
+            exit 1
+          fi
