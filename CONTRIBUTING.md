@@ -18,7 +18,11 @@ Thank you for your interest in contributing to the IPFS Pay-to-Pin Gateway and C
    ```bash
    pnpm run -r build
    ```
-4. Run tests across the workspace:
+4. Run lint checks across the workspace:
+   ```bash
+   pnpm run -r lint
+   ```
+5. Run tests across the workspace:
    ```bash
    pnpm run -r test
    ```
