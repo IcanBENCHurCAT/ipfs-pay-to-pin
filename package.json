@@ -9,7 +9,8 @@
     "start": "tsx src/index.ts",
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "tsc --noEmit"
   },
   "engines": {
     "node": ">=20.0.0",
