@@ -27,6 +27,9 @@ jobs:
     name: Publish NPM Package
     if: ${{ github.event_name == 'release' || github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'npm' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -49,10 +52,9 @@ jobs:
         run: pnpm --filter ipfs-pay-to-pin-client run build
 
       - name: Publish to npm
+        run: pnpm publish --filter ipfs-pay-to-pin-client --access public --no-git-checks --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ env.NODE_AUTH_TOKEN != '' }}
-        run: pnpm publish --filter ipfs-pay-to-pin-client --access public --no-git-checks
 
   publish-pypi:
     name: Publish PyPI Package
@@ -81,3 +83,4 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: python-sdk/dist/
+          skip-existing: true
