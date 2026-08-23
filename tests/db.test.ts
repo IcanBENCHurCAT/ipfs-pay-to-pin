@@ -220,7 +220,7 @@ describe('DbManager', () => {
 
       expect(mockWriteFile).toHaveBeenCalledWith(
         'test_registry.json',
-        expect.stringContaining('"cid": "Qm123"')
+        expect.stringContaining('"cid":"Qm123"')
       );
     });
 

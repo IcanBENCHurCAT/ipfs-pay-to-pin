@@ -41,34 +41,38 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
   async saveItems(items: QueueItem[]) {
     // Atomic file write: Write to a temporary file then rename atomically over registryPath to prevent corruption during race conditions
     const tempPath = `${this.registryPath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 7)}`;
-    const jsonString = JSON.stringify(items, null, 2);
+    // ⚡ Bolt: Removed JSON pretty printing overhead to prevent massive string allocations
+    const jsonString = JSON.stringify(items);
     await fs.promises.writeFile(tempPath, jsonString);
     await fs.promises.rename(tempPath, this.registryPath);
 
     const client = this.getSupabaseClient();
     if (client) {
-      const records = items.map(item => ({
-        cid: item.cid,
-        filename: item.filename,
-        size_bytes: item.sizeBytes || 0,
-        pinned_at: item.pinned_at ? new Date(item.pinned_at).toISOString() : new Date().toISOString(),
-        expires_at: item.expires_at ? new Date(item.expires_at).toISOString() : new Date().toISOString(),
-        renewals_count: item.renewalsCount || 0,
-        status: item.status,
-        payment_network: item.paymentNetwork || 'algorand:mainnet',
-        tx_hash: item.txHash || null,
-        token_address: item.tokenAddress || null,
-        payer_address: item.payerAddress || null,
-        amount_paid: item.amountPaid !== undefined && item.amountPaid !== null ? item.amountPaid : null,
-        settlement_status: item.settlementStatus || 'SETTLED'
-      }));
+      // ⚡ Bolt: Single pass O(N) deduplication and valid check directly into Map, avoiding chained map/filter/reduce allocations
+      const uniqueByCidMap = new Map();
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.cid) {
+          uniqueByCidMap.set(item.cid, {
+            cid: item.cid,
+            filename: item.filename,
+            size_bytes: item.sizeBytes || 0,
+            pinned_at: item.pinned_at ? new Date(item.pinned_at).toISOString() : new Date().toISOString(),
+            expires_at: item.expires_at ? new Date(item.expires_at).toISOString() : new Date().toISOString(),
+            renewals_count: item.renewalsCount || 0,
+            status: item.status,
+            payment_network: item.paymentNetwork || 'algorand:mainnet',
+            tx_hash: item.txHash || null,
+            token_address: item.tokenAddress || null,
+            payer_address: item.payerAddress || null,
+            amount_paid: item.amountPaid !== undefined && item.amountPaid !== null ? item.amountPaid : null,
+            settlement_status: item.settlementStatus || 'SETTLED'
+          });
+        }
+      }
 
-      const validRecords = records.filter(r => Boolean(r.cid));
-      if (validRecords.length > 0) {
-        // Deduplicate records by CID (keeping latest) to prevent Postgres 'ON CONFLICT DO UPDATE cannot affect row a second time' batch error
-        const uniqueByCid = Array.from(
-          validRecords.reduce((map, record) => map.set(record.cid, record), new Map()).values()
-        );
+      const uniqueByCid = Array.from(uniqueByCidMap.values());
+      if (uniqueByCid.length > 0) {
         const { error } = await client.from('pin_records').upsert(uniqueByCid, { onConflict: 'cid' });
         if (error) {
           console.error(`[DbManager] Failed to batch sync ${uniqueByCid.length} items to Supabase:`, error);
@@ -107,7 +111,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
 
           // Sync loaded Supabase items to local disk fallback
           // ⚡ Bolt: Replace synchronous file write with async to avoid blocking event loop
-          await fs.promises.writeFile(this.registryPath, JSON.stringify(items, null, 2));
+          await fs.promises.writeFile(this.registryPath, JSON.stringify(items));
           return items;
         }
       } catch (err) {

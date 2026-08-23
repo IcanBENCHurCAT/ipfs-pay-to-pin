@@ -66,7 +66,7 @@ export class FileQueue {
     try {
       await fs.promises.readFile(this.registryPath);
     } catch {
-      await fs.promises.writeFile(this.registryPath, JSON.stringify([], null, 2));
+      await fs.promises.writeFile(this.registryPath, JSON.stringify([]));
     }
     this.itemsCache = await this.dbManager.getItems();
     this.recalculateMetrics();
