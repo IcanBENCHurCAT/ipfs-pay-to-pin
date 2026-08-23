@@ -3,7 +3,16 @@ import { FileQueue } from '../src/queue.js';
 import fs from 'fs';
 import path from 'path';
 
-vi.mock('fs');
+vi.mock('fs', () => ({
+  default: {
+    promises: {
+      mkdir: vi.fn().mockResolvedValue(undefined),
+      readFile: vi.fn().mockResolvedValue(Buffer.from('')),
+      writeFile: vi.fn().mockResolvedValue(undefined),
+      unlink: vi.fn().mockResolvedValue(undefined),
+    }
+  }
+}));
 vi.mock('../src/storage.js', () => ({
   pinFileToStorage: vi.fn().mockResolvedValue({
     ipfs_cid: 'mock-cid-123',
@@ -104,5 +113,48 @@ describe('FileQueue Retention & Renewal Logic', () => {
     expect(status).toBeDefined();
     expect(status!.is_active).toBe(false);
     expect(status!.days_remaining).toBe(0);
+  });
+
+  it('processJobs: correctly enforces maxRetries limit and increments retryCount', async () => {
+    const { pinFileToStorage } = await import('../src/storage.js');
+    vi.mocked(pinFileToStorage).mockRejectedValue(new Error('Storage failure'));
+
+    const item = {
+      id: 'job_test_retry',
+      filename: 'test.txt',
+      cid: 'cid_test',
+      filePath: '/tmp/test.txt',
+      status: 'PENDING' as const,
+      retryCount: 0,
+      createdAt: Date.now(),
+      gatewayUrl: '',
+      sizeBytes: 100,
+      pinned_at: Date.now(),
+      expires_at: Date.now() + 365 * 24 * 60 * 60 * 1000,
+      ttl_days: 365,
+      renewalsCount: 0
+    };
+
+    (queue as any).itemsCache = [item];
+
+    vi.mocked(fs.promises.readFile).mockResolvedValue(Buffer.from('test content'));
+    vi.mocked(fs.promises.unlink).mockResolvedValue(undefined);
+
+    // Initial state: retryCount is 0, status is PENDING
+    await queue.processJobs();
+    expect(item.retryCount).toBe(1);
+    expect(item.status).toBe('PENDING');
+
+    // Process retries up to maxRetries (5)
+    item.retryCount = 4;
+    await queue.processJobs();
+    expect(item.retryCount).toBe(5);
+    expect(item.status).toBe('FAILED');
+
+    // Once retryCount >= maxRetries (5), processJobs ignores it (since pendingItems filters retryCount < maxRetries)
+    vi.mocked(pinFileToStorage).mockClear();
+    item.status = 'PENDING'; // manually reset status to test filter logic
+    await queue.processJobs();
+    expect(pinFileToStorage).not.toHaveBeenCalled();
   });
 });
