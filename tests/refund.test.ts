@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { USDC_MAINNET_ASA_ID } from '@x402/avm';
 import { initiateOnChainRefund } from '../src/refund.js';
 import { config } from '../src/config.js';
 
@@ -8,7 +9,7 @@ describe('Feature-Flagged On-Chain Refund Module', () => {
     const result = await initiateOnChainRefund({
       recipientAddress: 'ZJEC6JMCNYZFJUQIA4KRVXPTU34F2UQCRZEB5BX5ZS57CPVKTUFK3WA5IY',
       amountMicroUsdc: 10000,
-      asaId: 31566704,
+      asaId: Number(USDC_MAINNET_ASA_ID),
       reason: 'Unit test failure'
     });
 
@@ -22,7 +23,7 @@ describe('Feature-Flagged On-Chain Refund Module', () => {
     const result = await initiateOnChainRefund({
       recipientAddress: 'ZJEC6JMCNYZFJUQIA4KRVXPTU34F2UQCRZEB5BX5ZS57CPVKTUFK3WA5IY',
       amountMicroUsdc: 10000,
-      asaId: 31566704,
+      asaId: Number(USDC_MAINNET_ASA_ID),
       reason: 'Unit test failure'
     });
 
