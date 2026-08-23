@@ -8,7 +8,7 @@ import { isUtf8 } from 'node:buffer';
 
 dotenv.config();
 
-export interface PinResult {
+interface PinResult {
   ipfs_cid: string;
   gateway_url: string;
 }
