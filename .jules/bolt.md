@@ -36,3 +36,7 @@
 ## 2026-08-09 - [Avoid Intermediate Allocations in Validation Loops]
 **Learning:** The application was synchronously allocating intermediate buffer objects and calling `Object.entries()` inside the `validateContentType` function on every uploaded file to extract magic byte signatures. This caused thousands of hidden small object array creations and `Buffer.slice()` intermediate clones blocking the event loop on large throughput.
 **Action:** Flattend `MAGIC_BYTE_SIGNATURES` into an O(1) statically loaded array, and used native `buffer.toString('latin1', 0, 12)` bounds to completely bypass intermediate memory slice allocation, dropping validation latency significantly.
+
+## 2026-08-10 - [Avoid Intermediate Allocations and JSON formatting overhead in DB Sync]
+**Learning:** Using chained array methods (`.map().filter().reduce()`) on large collections during database synchronization creates multiple large intermediate arrays, causing significant garbage collection pressure during high-throughput file uploads. Furthermore, using `JSON.stringify(items, null, 2)` inside hot paths causes massive unnecessary string allocations for pretty-printing.
+**Action:** Replaced chained array methods with a single O(N) `for` loop and a `Map` in `src/db.ts` to directly deduplicate and filter valid records. Removed `null, 2` formatting arguments from `JSON.stringify` calls in both `src/db.ts` and `src/queue.ts` to prevent excessive string allocations on the event loop.
