@@ -13,7 +13,7 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           echo "Checking PR Title: $PR_TITLE"
-          if echo "$PR_TITLE" | grep -E "^(🐧 Tux|⚡ Bolt|🎨 Palette|🛡️ Sentinel|🧹 Code Health|🧹):? .+"; then
+          if echo "$PR_TITLE" | grep -E "^(🐧 Tux|⚡ Bolt|🎨 Palette|🛡️ Sentinel|🧪|🧹 Code Health|🧹):? .+"; then
             echo "PR title is valid."
             exit 0
           else
@@ -24,5 +24,6 @@ jobs:
             echo "- 🎨 Palette: [AX/DX improvement, typing, or custom Error classes]"
             echo "- 🛡️ Sentinel: [Severity] Fix [vulnerability]"
             echo "- 🧹 [Code Health / Refactoring]"
+            echo "- 🧪 Testing: [Testing improvements]"
             exit 1
           fi
