@@ -588,6 +588,7 @@ try {
 
 
 app.post("/api/v1/pin", async (c) => {
+    let parsedBinaryBytes: number | null = null;
     try {
         const body = await c.req.json();
         const filename = body['filename'];
@@ -596,6 +597,11 @@ app.post("/api/v1/pin", async (c) => {
         if (!filename || !data || typeof data !== 'string') {
             return c.json({ error: "Missing or invalid filename or data parameter in JSON payload" }, 400);
         }
+
+        let padding = 0;
+        if (data.endsWith('==')) padding = 2;
+        else if (data.endsWith('=')) padding = 1;
+        parsedBinaryBytes = Math.floor(((data.length - padding) * 3) / 4);
 
         const buffer = Buffer.from(data, 'base64');
 
@@ -627,9 +633,15 @@ app.post("/api/v1/pin", async (c) => {
             const paidAmountHeader = c.req.header("x-payment-amount");
 
             // Security: Prevent escrow drain by capping the refund to the maximum expected price
-            // based on the payload size (base 10000 + 0.02 microUSDC per byte)
-            const contentLength = Number(c.req.header("content-length")) || 0;
-            const maxExpectedPrice = 10000 + Math.floor(contentLength * 0.02);
+            // based on the exact size calculation used during payment verification.
+            let binaryBytes = 1000;
+            if (parsedBinaryBytes !== null) {
+                binaryBytes = parsedBinaryBytes;
+            } else {
+                const contentLength = Number(c.req.header("content-length")) || 0;
+                binaryBytes = Math.max(1000, Math.floor(contentLength * 0.75));
+            }
+            const maxExpectedPrice = 10000 + Math.floor(binaryBytes * 0.02);
             let paidAmount = paidAmountHeader ? Number(paidAmountHeader) : 10000;
             paidAmount = Math.min(paidAmount, maxExpectedPrice);
 
