@@ -105,4 +105,59 @@ describe('FileQueue Retention & Renewal Logic', () => {
     expect(status!.is_active).toBe(false);
     expect(status!.days_remaining).toBe(0);
   });
+
+  describe('Finder Methods (findByCid & findAnyByCid)', () => {
+    it('findByCid returns item when status is PINNED or PENDING', async () => {
+      const buffer = Buffer.from('finder test 1');
+      const jobPending = await queue.addJob('test1.txt', buffer);
+      jobPending.cid = 'cid-pending-1';
+      jobPending.status = 'PENDING';
+
+      const foundPending = await queue.findByCid('cid-pending-1');
+      expect(foundPending).toBeDefined();
+      expect(foundPending?.id).toBe(jobPending.id);
+
+      jobPending.status = 'PINNED';
+      const foundPinned = await queue.findByCid('cid-pending-1');
+      expect(foundPinned).toBeDefined();
+      expect(foundPinned?.id).toBe(jobPending.id);
+    });
+
+    it('findByCid returns undefined when status is FAILED, EXPIRED, or non-existent', async () => {
+      const buffer = Buffer.from('finder test 2');
+      const job = await queue.addJob('test2.txt', buffer);
+      job.cid = 'cid-failed-1';
+      job.status = 'FAILED';
+
+      const foundFailed = await queue.findByCid('cid-failed-1');
+      expect(foundFailed).toBeUndefined();
+
+      job.status = 'EXPIRED';
+      const foundExpired = await queue.findByCid('cid-failed-1');
+      expect(foundExpired).toBeUndefined();
+
+      const foundNonExistent = await queue.findByCid('non-existent-cid');
+      expect(foundNonExistent).toBeUndefined();
+    });
+
+    it('findAnyByCid returns item regardless of status (PINNED, PENDING, FAILED, EXPIRED)', async () => {
+      const buffer = Buffer.from('finder test 3');
+      const job = await queue.addJob('test3.txt', buffer);
+      job.cid = 'cid-any-1';
+
+      job.status = 'PENDING';
+      expect((await queue.findAnyByCid('cid-any-1'))?.id).toBe(job.id);
+
+      job.status = 'PINNED';
+      expect((await queue.findAnyByCid('cid-any-1'))?.id).toBe(job.id);
+
+      job.status = 'FAILED';
+      expect((await queue.findAnyByCid('cid-any-1'))?.id).toBe(job.id);
+
+      job.status = 'EXPIRED';
+      expect((await queue.findAnyByCid('cid-any-1'))?.id).toBe(job.id);
+
+      expect(await queue.findAnyByCid('non-existent-cid')).toBeUndefined();
+    });
+  });
 });
