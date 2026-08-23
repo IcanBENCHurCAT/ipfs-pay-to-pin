@@ -43,7 +43,6 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version-file: '.node-version'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install SDK Dependencies
         run: pnpm install --frozen-lockfile
@@ -52,9 +51,9 @@ jobs:
         run: pnpm --filter ipfs-pay-to-pin-client run build
 
       - name: Publish to npm
-        run: pnpm publish --filter ipfs-pay-to-pin-client --access public --no-git-checks --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          cd sdk
+          npm publish --access public --provenance
 
   publish-pypi:
     name: Publish PyPI Package
