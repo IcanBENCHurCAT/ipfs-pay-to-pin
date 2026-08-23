@@ -13,15 +13,16 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           echo "Checking PR Title: $PR_TITLE"
-          if echo "$PR_TITLE" | grep -E "^(🐧 Tux|⚡ Bolt|🎨 Palette|🛡️ Sentinel): .+"; then
+          if echo "$PR_TITLE" | grep -E "^(🐧 Tux|⚡ Bolt|🎨 Palette|🛡️ Sentinel|🧹 Code Health|🧹): .+|^🧹 .+"; then
             echo "PR title is valid."
             exit 0
           else
-            echo "Error: The PR title must follow the format: \"[Persona]: [Short description]\""
+            echo "Error: The PR title must follow the format: \"[Persona]: [Short description]\" or \"🧹 [code health improvement description]\""
             echo "Available Personas:"
             echo "- 🐧 Tux: [Repository hygiene, CI/CD, documentation, or code clarity]"
             echo "- ⚡ Bolt: [Performance optimization or improvement]"
             echo "- 🎨 Palette: [AX/DX improvement, typing, or custom Error classes]"
             echo "- 🛡️ Sentinel: [Severity] Fix [vulnerability]"
+            echo "- 🧹 [code health improvement description]"
             exit 1
           fi
