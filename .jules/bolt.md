@@ -40,3 +40,7 @@
 ## 2026-08-10 - [Avoid Intermediate Allocations and JSON formatting overhead in DB Sync]
 **Learning:** Using chained array methods (`.map().filter().reduce()`) on large collections during database synchronization creates multiple large intermediate arrays, causing significant garbage collection pressure during high-throughput file uploads. Furthermore, using `JSON.stringify(items, null, 2)` inside hot paths causes massive unnecessary string allocations for pretty-printing.
 **Action:** Replaced chained array methods with a single O(N) `for` loop and a `Map` in `src/db.ts` to directly deduplicate and filter valid records. Removed `null, 2` formatting arguments from `JSON.stringify` calls in both `src/db.ts` and `src/queue.ts` to prevent excessive string allocations on the event loop.
+
+## 2026-08-11 - [Redundant DB Read Disk Fallback Write]
+**Learning:** Writing the entire queued state back to the local fallback registry file (`registry.json`) using `fs.promises.writeFile(..., JSON.stringify(items))` on *every single database read* creates massive string allocations and blocks disk I/O on a hot path, especially when polled frequently. `saveItems()` already handles writing to the fallback registry safely when mutations occur.
+**Action:** Removed the redundant file write in `DbManager.getItems()`, keeping it strictly a read operation, which drastically lowers CPU and I/O pressure for read-heavy operations like polling.
