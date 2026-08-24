@@ -109,9 +109,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
             settlementStatus: (r.settlement_status as any) || 'SETTLED'
           }));
 
-          // Sync loaded Supabase items to local disk fallback
-          // ⚡ Bolt: Replace synchronous file write with async to avoid blocking event loop
-          await fs.promises.writeFile(this.registryPath, JSON.stringify(items));
+          // ⚡ Bolt: Removed redundant fs.promises.writeFile and JSON.stringify here.
+          // Persisting to the local registry on every database read creates massive
+          // JSON string allocations and blocks disk I/O on hot paths. saveItems()
+          // already properly maintains the local fallback state.
           return items;
         }
       } catch (err) {
