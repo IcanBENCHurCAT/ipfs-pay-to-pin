@@ -1,0 +1,29 @@
+name: Feature Request
+description: Suggest an idea for this project (e.g. AX improvements, SDK features)
+title: '[FEATURE] '
+labels: ['enhancement']
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: A clear and concise description of what you want to add or change.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why
+      description: Why is this feature needed? How does it improve the open-source repository or agent consumption experience?
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution
+      description: A clear description of how you think this feature could be implemented.
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternative Solutions
+      description: Have you considered other approaches?

@@ -23,9 +23,25 @@ const rateLimitCleanupInterval = setInterval(() => {
 
 export { rateLimitCleanupInterval };
 
+/**
+ * Safely extracts the native IP address from Node/Hono request objects without unsafe `any` casting.
+ */
+function getNativeIp(c: Context): string | undefined {
+  const rawObj = c.req.raw as unknown as Record<string, unknown> | undefined;
+  if (typeof rawObj?.ip === 'string') {
+    return rawObj.ip;
+  }
+  const reqObj = c.req as unknown as Record<string, unknown> | undefined;
+  const nestedRaw = reqObj?.raw as Record<string, unknown> | undefined;
+  if (typeof nestedRaw?.ip === 'string') {
+    return nestedRaw.ip;
+  }
+  return undefined;
+}
+
 export async function rateLimiterMiddleware(c: Context, next: Next) {
   // Try native IP first (more secure), then fall back to headers (behind proxy)
-  const nativeIp = (c.req.raw as any)?.ip || (c.req as any).raw?.ip;
+  const nativeIp = getNativeIp(c);
   const ip = nativeIp
     || c.req.header('x-forwarded-for')?.split(',')[0]?.trim()
     || c.req.header('x-real-ip')

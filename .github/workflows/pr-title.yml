@@ -23,5 +23,6 @@ jobs:
             echo "- ⚡ Bolt: [Performance optimization or improvement]"
             echo "- 🎨 Palette: [AX/DX improvement, typing, or custom Error classes]"
             echo "- 🛡️ Sentinel: [Severity] Fix [vulnerability]"
+            echo "- 🧹 [Code Health / Refactoring]"
             exit 1
           fi

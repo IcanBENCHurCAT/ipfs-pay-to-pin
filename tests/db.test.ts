@@ -190,7 +190,7 @@ describe('DbManager', () => {
       consoleErrorSpy.mockRestore();
     });
 
-    it('should fetch from Supabase, write to local fallback, and return mapped items on getItems success', async () => {
+    it('should fetch from Supabase, and return mapped items on getItems success (without redundant disk writes)', async () => {
       const db = new DbManager('test_registry.json');
       const mockRecord = {
         cid: 'Qm123',
@@ -218,10 +218,8 @@ describe('DbManager', () => {
       expect(item.status).toBe('PINNED');
       expect(item.createdAt).toBe(Date.parse('2026-08-01T00:00:00.000Z'));
 
-      expect(mockWriteFile).toHaveBeenCalledWith(
-        'test_registry.json',
-        expect.stringContaining('"cid":"Qm123"')
-      );
+      // ⚡ Bolt: We specifically ensure mockWriteFile is NOT called here anymore
+      expect(mockWriteFile).not.toHaveBeenCalled();
     });
 
     it('should fall back to local registry read if Supabase fetch returns error', async () => {
