@@ -3,7 +3,16 @@ import { FileQueue } from '../src/queue.js';
 import fs from 'fs';
 import path from 'path';
 
-vi.mock('fs');
+vi.mock('fs', () => ({
+  default: {
+    promises: {
+      mkdir: vi.fn().mockResolvedValue(undefined),
+      readFile: vi.fn().mockResolvedValue(Buffer.from('')),
+      writeFile: vi.fn().mockResolvedValue(undefined),
+      unlink: vi.fn().mockResolvedValue(undefined),
+    }
+  }
+}));
 vi.mock('../src/storage.js', () => ({
   pinFileToStorage: vi.fn().mockResolvedValue({
     ipfs_cid: 'mock-cid-123',
@@ -26,6 +35,8 @@ describe('FileQueue Retention & Renewal Logic', () => {
     // Mock saveItems to not actually try to hit a db
     (queue as any).saveItems = vi.fn().mockImplementation(async (items) => {
         (queue as any).itemsCache = items;
+        // Need to recalculate metrics so the new Map is populated
+        (queue as any).recalculateMetrics();
     });
     // Mock getItems to avoid hitting db
     (queue as any).getItems = vi.fn().mockImplementation(async () => {
@@ -106,33 +117,92 @@ describe('FileQueue Retention & Renewal Logic', () => {
     expect(status!.days_remaining).toBe(0);
   });
 
+  it('processJobs: correctly enforces maxRetries limit and increments retryCount', async () => {
+    const { pinFileToStorage } = await import('../src/storage.js');
+    vi.mocked(pinFileToStorage).mockRejectedValue(new Error('Storage failure'));
+
+    const item = {
+      id: 'job_test_retry',
+      filename: 'test.txt',
+      cid: 'cid_test',
+      filePath: '/tmp/test.txt',
+      status: 'PENDING' as const,
+      retryCount: 0,
+      createdAt: Date.now(),
+      gatewayUrl: '',
+      sizeBytes: 100,
+      pinned_at: Date.now(),
+      expires_at: Date.now() + 365 * 24 * 60 * 60 * 1000,
+      ttl_days: 365,
+      renewalsCount: 0
+    };
+
+    (queue as any).itemsCache = [item];
+
+    vi.mocked(fs.promises.readFile).mockResolvedValue(Buffer.from('test content'));
+    vi.mocked(fs.promises.unlink).mockResolvedValue(undefined);
+
+    // Initial state: retryCount is 0, status is PENDING
+    await queue.processJobs();
+    expect(item.retryCount).toBe(1);
+    expect(item.status).toBe('PENDING');
+
+    // Process retries up to maxRetries (5)
+    item.retryCount = 4;
+    await queue.processJobs();
+    expect(item.retryCount).toBe(5);
+    expect(item.status).toBe('FAILED');
+
+    // Once retryCount >= maxRetries (5), processJobs ignores it (since pendingItems filters retryCount < maxRetries)
+    vi.mocked(pinFileToStorage).mockClear();
+    item.status = 'PENDING'; // manually reset status to test filter logic
+    await queue.processJobs();
+    expect(pinFileToStorage).not.toHaveBeenCalled();
+  });
+
   describe('Finder Methods (findByCid & findAnyByCid)', () => {
     it('findByCid returns item when status is PINNED or PENDING', async () => {
+      const { pinFileToStorage } = await import('../src/storage.js');
+      vi.mocked(pinFileToStorage).mockResolvedValue({
+        ipfs_cid: 'mock-cid-123',
+        gateway_url: 'https://ipfs.io/ipfs/mock-cid-123'
+      });
+
       const buffer = Buffer.from('finder test 1');
       const jobPending = await queue.addJob('test1.txt', buffer);
       jobPending.cid = 'cid-pending-1';
       jobPending.status = 'PENDING';
+      (queue as any).recalculateMetrics();
 
       const foundPending = await queue.findByCid('cid-pending-1');
       expect(foundPending).toBeDefined();
       expect(foundPending?.id).toBe(jobPending.id);
 
       jobPending.status = 'PINNED';
+      (queue as any).recalculateMetrics();
       const foundPinned = await queue.findByCid('cid-pending-1');
       expect(foundPinned).toBeDefined();
       expect(foundPinned?.id).toBe(jobPending.id);
     });
 
     it('findByCid returns undefined when status is FAILED, EXPIRED, or non-existent', async () => {
+      const { pinFileToStorage } = await import('../src/storage.js');
+      vi.mocked(pinFileToStorage).mockResolvedValue({
+        ipfs_cid: 'mock-cid-123',
+        gateway_url: 'https://ipfs.io/ipfs/mock-cid-123'
+      });
+
       const buffer = Buffer.from('finder test 2');
       const job = await queue.addJob('test2.txt', buffer);
       job.cid = 'cid-failed-1';
       job.status = 'FAILED';
+      (queue as any).recalculateMetrics();
 
       const foundFailed = await queue.findByCid('cid-failed-1');
       expect(foundFailed).toBeUndefined();
 
       job.status = 'EXPIRED';
+      (queue as any).recalculateMetrics();
       const foundExpired = await queue.findByCid('cid-failed-1');
       expect(foundExpired).toBeUndefined();
 
@@ -141,20 +211,30 @@ describe('FileQueue Retention & Renewal Logic', () => {
     });
 
     it('findAnyByCid returns item regardless of status (PINNED, PENDING, FAILED, EXPIRED)', async () => {
+      const { pinFileToStorage } = await import('../src/storage.js');
+      vi.mocked(pinFileToStorage).mockResolvedValue({
+        ipfs_cid: 'mock-cid-123',
+        gateway_url: 'https://ipfs.io/ipfs/mock-cid-123'
+      });
+
       const buffer = Buffer.from('finder test 3');
       const job = await queue.addJob('test3.txt', buffer);
       job.cid = 'cid-any-1';
 
       job.status = 'PENDING';
+      (queue as any).recalculateMetrics();
       expect((await queue.findAnyByCid('cid-any-1'))?.id).toBe(job.id);
 
       job.status = 'PINNED';
+      (queue as any).recalculateMetrics();
       expect((await queue.findAnyByCid('cid-any-1'))?.id).toBe(job.id);
 
       job.status = 'FAILED';
+      (queue as any).recalculateMetrics();
       expect((await queue.findAnyByCid('cid-any-1'))?.id).toBe(job.id);
 
       job.status = 'EXPIRED';
+      (queue as any).recalculateMetrics();
       expect((await queue.findAnyByCid('cid-any-1'))?.id).toBe(job.id);
 
       expect(await queue.findAnyByCid('non-existent-cid')).toBeUndefined();

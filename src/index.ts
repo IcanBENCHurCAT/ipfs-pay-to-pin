@@ -10,7 +10,6 @@ import { ALGORAND_MAINNET_CAIP2, ALGORAND_TESTNET_CAIP2, USDC_MAINNET_ASA_ID, US
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { bazaarResourceServerExtension, declareDiscoveryExtension } from "@x402/extensions";
 import type { ResourceServerExtension } from "@x402/core/types";
-import { pinFileToStorage } from "./storage.js";
 import { globalFileQueue } from "./queue.js";
 import { circuitBreakerMiddleware } from "./middleware/circuitBreaker.js";
 import { rateLimiterMiddleware, rateLimitCleanupInterval } from "./middleware/rateLimiter.js";

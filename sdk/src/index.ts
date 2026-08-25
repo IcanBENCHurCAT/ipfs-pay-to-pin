@@ -313,10 +313,22 @@ export class IpfsPayToPinClient {
 
   /**
    * Free retention status lookup for a pinned CID.
+   *
+   * @param cid - The IPFS CID to check (e.g., 'bafybeig...').
+   * @returns {Promise<PinStatusResponse>} Current pin status, expiration, and remaining days.
+   * @throws {GatewayError} If the network fails, CID is not found (404), or gateway returns an unexpected status.
+   *
+   * @example
+   * const status = await client.getPinStatus('bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi');
+   * console.log(status.is_active ? 'Pin is active' : 'Pin is expired');
    */
   public async getPinStatus(cid: string): Promise<PinStatusResponse> {
-    const res = await axios.get(`${this.gatewayUrl}/api/v1/pin/${encodeURIComponent(cid)}`);
-    return res.data;
+    try {
+      const res = await axios.get(`${this.gatewayUrl}/api/v1/pin/${encodeURIComponent(cid)}`);
+      return res.data;
+    } catch (err: any) {
+      throw new GatewayError(`Status lookup failed for CID ${cid} (${err?.response?.status || 'network error'}): ${err?.response?.data?.error || err?.response?.data?.message || err?.message}`, err?.response?.status);
+    }
   }
 
   /**

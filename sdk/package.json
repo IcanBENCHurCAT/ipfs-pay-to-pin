@@ -1,6 +1,6 @@
 {
   "name": "ipfs-pay-to-pin-client",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "TypeScript client library for pinning files to IPFS via x402 microUSDC micropayments across Base L2, Solana, Algorand, and Ethereum L1.",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

@@ -27,6 +27,9 @@ jobs:
     name: Publish NPM Package
     if: ${{ github.event_name == 'release' || github.event_name == 'push' || inputs.target == 'all' || inputs.target == 'npm' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v7
@@ -40,7 +43,6 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version-file: '.node-version'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install SDK Dependencies
         run: pnpm install --frozen-lockfile
@@ -49,10 +51,9 @@ jobs:
         run: pnpm --filter ipfs-pay-to-pin-client run build
 
       - name: Publish to npm
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        if: ${{ env.NODE_AUTH_TOKEN != '' }}
-        run: pnpm publish --filter ipfs-pay-to-pin-client --access public --no-git-checks
+        run: |
+          cd sdk
+          pnpm publish --access public --provenance
 
   publish-pypi:
     name: Publish PyPI Package
@@ -79,6 +80,6 @@ jobs:
 
       - name: Publish Package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        continue-on-error: true
         with:
           packages-dir: python-sdk/dist/
+          skip-existing: true
