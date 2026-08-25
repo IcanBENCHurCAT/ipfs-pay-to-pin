@@ -35,6 +35,8 @@ describe('FileQueue Retention & Renewal Logic', () => {
     // Mock saveItems to not actually try to hit a db
     (queue as any).saveItems = vi.fn().mockImplementation(async (items) => {
         (queue as any).itemsCache = items;
+        // Need to recalculate metrics so the new Map is populated
+        (queue as any).recalculateMetrics();
     });
     // Mock getItems to avoid hitting db
     (queue as any).getItems = vi.fn().mockImplementation(async () => {

@@ -44,3 +44,7 @@
 ## 2026-08-11 - [Redundant DB Read Disk Fallback Write]
 **Learning:** Writing the entire queued state back to the local fallback registry file (`registry.json`) using `fs.promises.writeFile(..., JSON.stringify(items))` on *every single database read* creates massive string allocations and blocks disk I/O on a hot path, especially when polled frequently. `saveItems()` already handles writing to the fallback registry safely when mutations occur.
 **Action:** Removed the redundant file write in `DbManager.getItems()`, keeping it strictly a read operation, which drastically lowers CPU and I/O pressure for read-heavy operations like polling.
+
+## 2026-08-12 - [O(N) Synchronous Array Iteration for Lookup]
+**Learning:** The application was using O(N) array iterations (`items.find(item => item.cid === cid)`) for every incoming request to `findByCid`, `findAnyByCid`, and `renewPin`. On a high-throughput queue this O(N) lookup synchronously blocks the event loop and increases latency.
+**Action:** Introduced an O(1) `itemsByCid` Map cache inside `FileQueue` that is populated once during state mutations (`recalculateMetrics`). Replaced all `Array.prototype.find()` and `Array.prototype.findIndex()` calls with O(1) Map lookups to improve status check latency and reduce CPU utilization. Also replaced `.filter()` with a single-pass `for` loop in `processJobs` to prevent intermediate array allocations.

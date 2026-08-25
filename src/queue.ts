@@ -48,6 +48,8 @@ export class FileQueue {
   // ⚡ Bolt: Cache O(N) metrics to prevent event loop blocking on every HTTP request
   private cachedQueueSize: number = 0;
   private cachedQueueBytes: number = 0;
+  // ⚡ Bolt: Cache O(1) map lookup for high-frequency CID status checks
+  private itemsByCid: Map<string, QueueItem> = new Map();
 
   constructor(queueDir = 'queue') {
     this.queueDir = path.resolve(queueDir);
@@ -76,11 +78,14 @@ export class FileQueue {
   private recalculateMetrics(): void {
     let size = 0;
     let bytes = 0;
+    this.itemsByCid.clear();
     for (let i = 0; i < this.itemsCache.length; i++) {
-      if (this.itemsCache[i].status === 'PENDING') {
+      const item = this.itemsCache[i];
+      if (item.status === 'PENDING') {
         size++;
-        bytes += (this.itemsCache[i].sizeBytes || 0);
+        bytes += (item.sizeBytes || 0);
       }
+      this.itemsByCid.set(item.cid, item);
     }
     this.cachedQueueSize = size;
     this.cachedQueueBytes = bytes;
@@ -93,6 +98,10 @@ export class FileQueue {
       this.itemsCache = await this.dbManager.getItems();
       this.recalculateMetrics();
       this.lastCacheTime = now;
+    }
+    // Note: recalculateMetrics is also called on initialization and save, ensuring itemsByCid is populated
+    if (this.itemsByCid.size === 0 && this.itemsCache.length > 0) {
+      this.recalculateMetrics();
     }
     return this.itemsCache;
   }
@@ -135,13 +144,17 @@ export class FileQueue {
   }
 
   public async findByCid(cid: string): Promise<QueueItem | undefined> {
-    const items = await this.getItems();
-    return items.find(item => item.cid === cid && (item.status === 'PINNED' || item.status === 'PENDING'));
+    await this.getItems();
+    const item = this.itemsByCid.get(cid);
+    if (item && (item.status === 'PINNED' || item.status === 'PENDING')) {
+      return item;
+    }
+    return undefined;
   }
 
   public async findAnyByCid(cid: string): Promise<QueueItem | undefined> {
-    const items = await this.getItems();
-    return items.find(item => item.cid === cid);
+    await this.getItems();
+    return this.itemsByCid.get(cid);
   }
 
   public async findByTxHash(paymentNetwork: string, txHash: string): Promise<QueueItem | undefined> {
@@ -241,7 +254,12 @@ export class FileQueue {
     try {
       const items = await this.getItems();
       // Off-by-one fix: retryCount < maxRetries ensures exactly maxRetries (5) attempts
-      const pendingItems = items.filter(item => item.status === 'PENDING' && item.retryCount < this.maxRetries);
+      const pendingItems: QueueItem[] = [];
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].status === 'PENDING' && items[i].retryCount < this.maxRetries) {
+          pendingItems.push(items[i]);
+        }
+      }
 
       if (pendingItems.length === 0) return;
 
@@ -309,13 +327,12 @@ export class FileQueue {
 
   public async renewPin(cid: string): Promise<QueueItem | undefined> {
     const items = await this.getItems();
-    const itemIndex = items.findIndex(i => i.cid === cid && (i.status === 'PINNED' || i.status === 'PENDING'));
+    const item = this.itemsByCid.get(cid);
     
-    if (itemIndex === -1) {
+    if (!item || (item.status !== 'PINNED' && item.status !== 'PENDING')) {
       return undefined;
     }
     
-    const item = items[itemIndex];
     const now = Date.now();
     const baseTime = item.expires_at > now ? item.expires_at : now;
     
