@@ -45,9 +45,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Check TypeScript types
-        run: |
-          pnpm exec tsc --noEmit
-          pnpm --filter ipfs-pay-to-pin-client exec tsc --noEmit
+        run: pnpm run -r lint
 
       - name: Run TypeScript build & test suite
         run: pnpm run -r build && pnpm run -r test
