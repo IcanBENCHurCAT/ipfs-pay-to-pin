@@ -31,6 +31,22 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         self.assertEqual(client.gateway_url, "http://localhost:4021")
         self.assertEqual(client.sender_address, self.sender_address)
 
+    def test_init_algosdk_import_error(self):
+        real_import = __import__
+
+        def custom_import(name, *args, **kwargs):
+            if name.startswith("algosdk"):
+                raise ImportError(f"No module named '{name}'")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=custom_import):
+            client = IpfsPayToPinClient(
+                gateway_url=self.gateway_url,
+                sender_mnemonic="fake mnemonic",
+            )
+            self.assertIsNone(client.sender_address)
+            self.assertIsNone(client._algod_client)
+
     @patch("ipfs_pay_to_pin_client.client.requests.get")
     @patch("algosdk.v2client.algod.AlgodClient")
     @patch("algosdk.mnemonic.to_private_key")
