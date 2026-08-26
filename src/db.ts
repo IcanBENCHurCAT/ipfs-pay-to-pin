@@ -1,5 +1,6 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import WebSocket from 'ws';
+import crypto from 'crypto';
 import { config } from './config.js';
 import { QueueItem } from './queue.js';
 import fs from 'fs';
@@ -40,7 +41,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
 
   async saveItems(items: QueueItem[]) {
     // Atomic file write: Write to a temporary file then rename atomically over registryPath to prevent corruption during race conditions
-    const tempPath = `${this.registryPath}.tmp.${Date.now()}.${Math.random().toString(36).substring(2, 7)}`;
+    const tempPath = `${this.registryPath}.tmp.${Date.now()}.${crypto.randomBytes(4).toString('hex')}`;
     // ⚡ Bolt: Removed JSON pretty printing overhead to prevent massive string allocations
     const jsonString = JSON.stringify(items);
     await fs.promises.writeFile(tempPath, jsonString);
