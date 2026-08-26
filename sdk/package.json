@@ -28,7 +28,7 @@
   ],
   "scripts": {
     "build": "tsup src/index.ts --format cjs,esm && tsc --declaration --emitDeclarationOnly --outDir dist",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "lint": "tsc --noEmit"
   },
   "keywords": [
