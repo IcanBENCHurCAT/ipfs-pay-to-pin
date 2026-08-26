@@ -76,7 +76,7 @@ export function validateContentType(buffer: Buffer): boolean {
   return false;
 }
 
-export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Promise<PinResult> {
+export async function pinFileToStorage(fileInput: Buffer | fs.ReadStream, filename: string): Promise<PinResult> {
   const safeFilename = sanitizeFilename(filename);
   const pinataJwt = process.env.PINATA_JWT;
   const allowLocalFallback = process.env.ALLOW_LOCAL_FALLBACK === 'true';
@@ -89,7 +89,7 @@ export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Pr
   if (pinataJwt && pinataJwt.trim().length > 0) {
     try {
       const formData = new FormData();
-      formData.append('file', fileBuffer, { filename: safeFilename });
+      formData.append('file', fileInput, { filename: safeFilename });
 
       const metadata = JSON.stringify({
         name: safeFilename,
@@ -128,14 +128,26 @@ export async function pinFileToStorage(fileBuffer: Buffer, filename: string): Pr
   }
 
   // Local fallback storage for dev / test environments
-  const hash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+  let buffer: Buffer;
+  if (Buffer.isBuffer(fileInput)) {
+    buffer = fileInput;
+  } else {
+    buffer = await new Promise<Buffer>((resolve, reject) => {
+      const chunks: Buffer[] = [];
+      fileInput.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+      fileInput.on('end', () => resolve(Buffer.concat(chunks)));
+      fileInput.on('error', reject);
+    });
+  }
+
+  const hash = crypto.createHash('sha256').update(buffer).digest('hex');
   const mockCid = `bafybeig${hash.substring(0, 52)}`;
 
   const storageDir = process.env.LOCAL_STORAGE_DIR || 'tmp/mock_storage';
   await fs.promises.mkdir(storageDir, { recursive: true }).catch(() => {});
 
   const filePath = path.join(storageDir, `${mockCid}_${safeFilename}`);
-  await fs.promises.writeFile(filePath, fileBuffer);
+  await fs.promises.writeFile(filePath, buffer);
 
   return {
     ipfs_cid: mockCid,

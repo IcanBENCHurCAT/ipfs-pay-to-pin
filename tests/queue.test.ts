@@ -2,11 +2,14 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { FileQueue } from '../src/queue.js';
 import fs from 'fs';
 import path from 'path';
+import { Readable } from 'stream';
 
 vi.mock('fs', () => ({
   default: {
+    createReadStream: vi.fn().mockImplementation(() => Readable.from([Buffer.from('test content')])),
     promises: {
       mkdir: vi.fn().mockResolvedValue(undefined),
+      access: vi.fn().mockResolvedValue(undefined),
       readFile: vi.fn().mockResolvedValue(Buffer.from('')),
       writeFile: vi.fn().mockResolvedValue(undefined),
       unlink: vi.fn().mockResolvedValue(undefined),

@@ -267,17 +267,18 @@ export class FileQueue {
 
       for (let i = 0; i < pendingItems.length; i += this.maxConcurrent) {
         const chunk = pendingItems.slice(i, i + this.maxConcurrent);
+        // ⚡ Bolt: Stream file directly from disk via fs.createReadStream to pinFileToStorage to eliminate in-memory buffer allocation
         const results = await Promise.allSettled(
           chunk.map(async (item) => {
-            let buffer: Buffer;
             try {
-              buffer = await fs.promises.readFile(item.filePath);
+              await fs.promises.access(item.filePath);
             } catch {
               item.status = 'FAILED';
               return;
             }
 
-            const result = await pinFileToStorage(buffer, item.filename);
+            const stream = fs.createReadStream(item.filePath);
+            const result = await pinFileToStorage(stream, item.filename);
 
             item.status = 'PINNED';
             item.cid = result.ipfs_cid;
