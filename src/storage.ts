@@ -26,7 +26,7 @@ export function sanitizeFilename(name: string): string {
     // Keep raw if decoding fails
   }
 
-  const base = decoded.replace(/[^\x20-\x7E]/g, '').replace(/\//g, '').replace(/\\/g, '').trim();
+  const base = decoded.replace(/[^\x20-\x7E]/g, '').replace(/\//g, '').replace(/\\/g, '').replace(/\.\./g, '').trim();
   const cleaned = base.replace(/^\.+/g, '');
   
   const nameWithoutExt = cleaned.split('.')[0];
