@@ -378,27 +378,34 @@ export class FileQueue {
     try {
       const items = await this.getItems();
       const now = Date.now();
-      let changed = false;
 
-      for (const item of items) {
+      const expiredItems: QueueItem[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
         if (item.status === 'PINNED') {
           const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
           if (now > gracePeriodEnd) {
-            console.log(`[Queue Worker] CID ${item.cid} has exceeded grace period. Unpinning...`);
-            try {
-              await unpinFileFromIPFS(item.cid);
-              item.status = 'EXPIRED';
-              changed = true;
-            } catch (e) {
-              console.warn(`[Queue Worker] Warning during unpin attempt for ${item.cid}:`, e);
-            }
+            expiredItems.push(item);
           }
         }
       }
 
-      if (changed) {
-        await this.saveItems(items);
-      }
+      if (expiredItems.length === 0) return;
+
+      // ⚡ Bolt: Parallelize IPFS storage unpin calls with Promise.all to prevent sequential loop blocking
+      await Promise.all(
+        expiredItems.map(async (item) => {
+          console.log(`[Queue Worker] CID ${item.cid} has exceeded grace period. Unpinning...`);
+          try {
+            await unpinFileFromIPFS(item.cid);
+            item.status = 'EXPIRED';
+          } catch (e) {
+            console.warn(`[Queue Worker] Warning during unpin attempt for ${item.cid}:`, e);
+          }
+        })
+      );
+
+      await this.saveItems(items);
     } finally {
       this.isProcessingExpired = false;
     }

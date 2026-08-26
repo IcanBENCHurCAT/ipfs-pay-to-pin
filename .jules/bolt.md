@@ -52,3 +52,7 @@
 ## 2026-08-13 - [Streaming Disk I/O vs Full File Buffering in Queue Worker]
 **Learning:** In high-concurrency pinning workers, using `fs.promises.readFile` to buffer queued files entirely into V8 memory before passing them to Pinata/axios multi-part forms consumes massive memory (up to 1GB at queue limit) and causes GC pressure.
 **Action:** Streamed queued files directly from disk via `fs.createReadStream(item.filePath)` into `pinFileToStorage` (updating `pinFileToStorage` signature to accept `Buffer | fs.ReadStream`), preventing intermediate full-file memory allocations.
+
+## 2026-08-26 - [Sequential Storage Unpinning in Background Sweeper]
+**Learning:** Sequential `await unpinFileFromIPFS(item.cid)` inside a `for` loop in `processExpiredPins()` causes head-of-line blocking during garbage collection when unpinning multiple expired IPFS files, significantly extending background sweeper processing time and blocking state updates.
+**Action:** Collected all expired queue items in a single O(N) pass and executed IPFS unpin requests concurrently via `Promise.all()`, improving garbage collection throughput and reducing total sweeper execution time from O(N * T) to O(T).

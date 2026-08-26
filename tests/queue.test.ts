@@ -162,4 +162,50 @@ describe('FileQueue Retention & Renewal Logic', () => {
     await queue.processJobs();
     expect(pinFileToStorage).not.toHaveBeenCalled();
   });
+
+  it('processExpiredPins: unpins expired files in parallel using Promise.all', async () => {
+    const { unpinFileFromIPFS } = await import('../src/storage.js');
+    const pastTime = Date.now() - 31 * 24 * 60 * 60 * 1000 - 365 * 24 * 60 * 60 * 1000;
+
+    const item1 = {
+      id: 'job_exp_1',
+      filename: 'exp1.txt',
+      cid: 'cid_exp_1',
+      filePath: '',
+      status: 'PINNED' as const,
+      retryCount: 0,
+      createdAt: pastTime,
+      gatewayUrl: '',
+      sizeBytes: 100,
+      pinned_at: pastTime,
+      expires_at: pastTime,
+      ttl_days: 365,
+      renewalsCount: 0
+    };
+
+    const item2 = {
+      id: 'job_exp_2',
+      filename: 'exp2.txt',
+      cid: 'cid_exp_2',
+      filePath: '',
+      status: 'PINNED' as const,
+      retryCount: 0,
+      createdAt: pastTime,
+      gatewayUrl: '',
+      sizeBytes: 100,
+      pinned_at: pastTime,
+      expires_at: pastTime,
+      ttl_days: 365,
+      renewalsCount: 0
+    };
+
+    (queue as any).itemsCache = [item1, item2];
+
+    await queue.processExpiredPins();
+
+    expect(unpinFileFromIPFS).toHaveBeenCalledWith('cid_exp_1');
+    expect(unpinFileFromIPFS).toHaveBeenCalledWith('cid_exp_2');
+    expect(item1.status).toBe('EXPIRED');
+    expect(item2.status).toBe('EXPIRED');
+  });
 });
