@@ -1,12 +1,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import WebSocket from 'ws';
 import crypto from 'crypto';
 import { config } from './config.js';
 import { QueueItem } from './queue.js';
 import fs from 'fs';
-
-// Polyfill global WebSocket for Supabase Realtime in Node environments
-(globalThis as any).WebSocket = WebSocket;
 
 export class DbManager {
   private supabase: SupabaseClient | null = null;
