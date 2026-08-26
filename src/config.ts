@@ -22,6 +22,7 @@ export const config = {
   allowLocalFallback: process.env.ALLOW_LOCAL_FALLBACK === 'true',
   enableAutomaticRefunds: process.env.ENABLE_AUTOMATIC_REFUNDS === 'true',
   algorandMnemonic: process.env.ALGORAND_WALLET_MNEMONIC || process.env.ALGORAND_MNEMONIC || '',
+  trustProxy: process.env.TRUST_PROXY === 'true',
 };
 
 export function validateConfig(): void {

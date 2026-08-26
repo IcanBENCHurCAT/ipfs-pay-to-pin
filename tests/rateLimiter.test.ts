@@ -1,15 +1,21 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { rateLimiterMiddleware, rateLimitCleanupInterval } from '../src/middleware/rateLimiter.js';
+import { config } from '../src/config.js';
 import { Context, Next } from 'hono';
 
 describe('rateLimiterMiddleware', () => {
+  const originalTrustProxy = config.trustProxy;
+
   beforeEach(() => {
     vi.useFakeTimers();
+    config.trustProxy = false;
+    delete process.env.TRUST_PROXY;
   });
 
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
+    config.trustProxy = originalTrustProxy;
   });
 
   interface MockContextResult {
@@ -50,10 +56,11 @@ describe('rateLimiterMiddleware', () => {
     };
   }
 
-  it('correctly resolves client IP in security-priority hierarchy', async () => {
+  it('correctly resolves client IP in security-priority hierarchy when proxy headers are not trusted', async () => {
     const nextMock: Next = vi.fn().mockResolvedValue(undefined);
+    config.trustProxy = false;
 
-    // 1. Native IP exists
+    // 1. Native IP exists, ignores spoofed headers
     const { context: ctx1 } = createMockContext({
       ipRaw: '127.0.0.1',
       headers: { 'x-forwarded-for': '192.168.1.1', 'x-real-ip': '10.0.0.1' }
@@ -61,16 +68,36 @@ describe('rateLimiterMiddleware', () => {
     await rateLimiterMiddleware(ctx1, nextMock);
     expect(nextMock).toHaveBeenCalledTimes(1);
 
-    // 2. Native IP missing, fallback to x-forwarded-for (first entry)
+    // 2. Native IP missing and trustProxy is false: ignores x-forwarded-for and x-real-ip, uses unknown-ip
     const { context: ctx2 } = createMockContext({
       headers: { 'x-forwarded-for': ' 1.1.1.1 , 2.2.2.2', 'x-real-ip': '10.0.0.1' }
     });
     await rateLimiterMiddleware(ctx2, nextMock);
     expect(nextMock).toHaveBeenCalledTimes(2);
+  });
 
-    // 3. Native & x-forwarded-for missing, fallback to x-real-ip
-    const { context: ctx3 } = createMockContext({
+  it('correctly uses proxy headers when trustProxy is enabled', async () => {
+    const nextMock: Next = vi.fn().mockResolvedValue(undefined);
+    config.trustProxy = true;
+
+    // 1. Native IP missing, fallback to x-forwarded-for (first entry) when trusted
+    const { context: ctx1 } = createMockContext({
+      headers: { 'x-forwarded-for': ' 1.1.1.1 , 2.2.2.2', 'x-real-ip': '10.0.0.1' }
+    });
+    await rateLimiterMiddleware(ctx1, nextMock);
+    expect(nextMock).toHaveBeenCalledTimes(1);
+
+    // 2. Native & x-forwarded-for missing, fallback to x-real-ip when trusted
+    const { context: ctx2 } = createMockContext({
       headers: { 'x-real-ip': '3.3.3.3' }
+    });
+    await rateLimiterMiddleware(ctx2, nextMock);
+    expect(nextMock).toHaveBeenCalledTimes(2);
+
+    // 3. Native IP takes precedence over proxy headers even when trustProxy is enabled
+    const { context: ctx3 } = createMockContext({
+      ipRaw: '127.0.0.1',
+      headers: { 'x-forwarded-for': '192.168.1.1', 'x-real-ip': '10.0.0.1' }
     });
     await rateLimiterMiddleware(ctx3, nextMock);
     expect(nextMock).toHaveBeenCalledTimes(3);

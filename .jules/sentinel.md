@@ -48,6 +48,11 @@
 **Learning:** When modifying or adding a Content-Security-Policy (CSP) header, avoid overly restrictive policies like `default-src 'none';` as it breaks the built-in `@hono/swagger-ui` documentation interface.
 **Prevention:** Use a more pragmatic policy (e.g., `default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:;`) to maintain API documentation functionality while still mitigating XSS risks.
 
+## 2025-02-26 - Unrestricted IP Spoofing via X-Forwarded-For in Rate Limiter
+**Vulnerability:** IP Spoofing via X-Forwarded-For in Rate Limiter (`src/middleware/rateLimiter.ts`).
+**Learning:** Blindly trusting `X-Forwarded-For` or `X-Real-IP` headers without verifying whether proxying is trusted allows clients to easily bypass rate limits by sending random IP addresses in request headers.
+**Prevention:** Native IP extraction should always take precedence over proxy headers. Proxy headers (`X-Forwarded-For`, `X-Real-IP`) must only be evaluated if the application is configured with explicit proxy trust (e.g., `TRUST_PROXY=true`).
+
 ## 2024-10-27 - Incomplete Fix for Escrow Drain Vulnerability
 **Vulnerability:** The previous fix for the escrow drain vulnerability capped the refund based on `content-length`. However, `content-length` can be spoofed independently of the JSON body's `data.length`. Since the payment middleware evaluates the price using the true JSON size when parsing succeeds, an attacker could upload a small payload (paying a small fee) while sending a massive `content-length` and spoofed `x-payment-amount` header. If the job failed (e.g., rejected by queue validation), the refund fallback used the spoofed `content-length`, draining the escrow.
 **Learning:** When validating and capping values derived from multiple inputs (e.g., payload size fallback vs actual size), downstream logic must mirror the exact decision tree used by the upstream validation layer.
