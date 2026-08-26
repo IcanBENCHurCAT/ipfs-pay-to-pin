@@ -1,4 +1,5 @@
 import { Context, Next } from 'hono';
+import { config } from '../config.js';
 
 interface RateLimitRecord {
   count: number;
@@ -40,12 +41,17 @@ function getNativeIp(c: Context): string | undefined {
 }
 
 export async function rateLimiterMiddleware(c: Context, next: Next) {
-  // Try native IP first (more secure), then fall back to headers (behind proxy)
+  // Priority: 1. Native IP (most secure). 2. Proxy headers (ONLY if proxy trust is explicitly enabled via config).
   const nativeIp = getNativeIp(c);
-  const ip = nativeIp
-    || c.req.header('x-forwarded-for')?.split(',')[0]?.trim()
-    || c.req.header('x-real-ip')
-    || 'unknown-ip';
+  const trustProxy = config.trustProxy || process.env.TRUST_PROXY === 'true';
+
+  let ip = nativeIp;
+  if (!ip && trustProxy) {
+    ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim()
+      || c.req.header('x-real-ip');
+  }
+
+  ip = ip || 'unknown-ip';
 
   const now = Date.now();
 
