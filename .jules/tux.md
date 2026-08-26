@@ -13,3 +13,13 @@
 
 **Learning:** Testing workspace client SDKs that use axios for HTTP requests can be cleanly isolated with `vi.mock('axios')` in Vitest, allowing full coverage of constructor wallet setup, getAddress, error handling, and API endpoints without network calls.
 **Action:** When adding unit tests for SDK workspace packages, isolate external API calls with mocked axios instances and ensure all exported custom Error classes are verified for inheritance and properties.
+
+## 2026-03-30 - Unit Testing renew_pin in Python SDK
+
+**Learning:** When mocking x402 payment flows in Python SDK unit tests using `algosdk.transaction`, `AlgodClient.suggested_params()` must return a valid `SuggestedParams` object containing a base64-encoded genesis hash (`gh`) rather than a default `MagicMock` to prevent `base64.b64decode` type errors during transaction dictification and signing.
+**Action:** When writing Python SDK tests that involve Algorand transaction signing, always provide a complete `SuggestedParams` with `genesis_hash`, `genesis_id`, `fee`, and `first_valid_round`. Use `algosdk.v2client.algod.AlgodClient` to fetch live params if no mock is acceptable, or construct a minimal valid params dict for unit tests.
+
+## 2026-08-26 - SDK Unit Tests: Mock HTTP and Wallet Keys Properly
+
+**Learning:** Python SDK unit tests that interact with IPFS gateway APIs need `responses` or `requests-mock` for HTTP mocking, while wallet key tests should use `unittest.mock.patch` for crypto module imports. Always set `max_price_usdc` ceiling in SDK constructor to cap spending in payment flows, and mock AlgodClient for transaction-related logic.
+**Action:** Use `responses` for HTTP mocking and `unittest.mock.patch` for module imports in Python SDK unit tests. Never leave `AlgodClient` calls unmocked in tests that exercise transaction pathing.
