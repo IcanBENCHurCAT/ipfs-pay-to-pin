@@ -11,6 +11,8 @@ import {
 vi.mock('axios');
 const mockedAxios = vi.mocked(axios, true);
 
+const MOCK_EVM_KEY = '0x1111111111111111111111111111111111111111111111111111111111111111';
+
 describe('IpfsPayToPinClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -26,7 +28,7 @@ describe('IpfsPayToPinClient', () => {
 
     it('instantiates successfully with EVM private key', () => {
       const client = new IpfsPayToPinClient({
-        evmPrivateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        evmPrivateKey: MOCK_EVM_KEY,
       });
       expect(client).toBeInstanceOf(IpfsPayToPinClient);
       expect(client.getAddress()).toBe('multi-chain-wallet');
@@ -74,7 +76,7 @@ describe('IpfsPayToPinClient', () => {
       mockedAxios.get.mockResolvedValueOnce({ data: mockStatusData });
 
       const client = new IpfsPayToPinClient({
-        evmPrivateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        evmPrivateKey: MOCK_EVM_KEY,
       });
       const status = await client.getPinStatus(testCid);
 
@@ -93,7 +95,7 @@ describe('IpfsPayToPinClient', () => {
       });
 
       const client = new IpfsPayToPinClient({
-        evmPrivateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        evmPrivateKey: MOCK_EVM_KEY,
       });
 
       await expect(client.getPinStatus(testCid)).rejects.toThrow(GatewayError);
@@ -103,7 +105,7 @@ describe('IpfsPayToPinClient', () => {
   describe('pinFile', () => {
     it('throws ConfigurationError if options or options.filename or options.data is missing', async () => {
       const client = new IpfsPayToPinClient({
-        evmPrivateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        evmPrivateKey: MOCK_EVM_KEY,
       });
 
       // @ts-expect-error testing invalid argument
@@ -131,7 +133,7 @@ describe('IpfsPayToPinClient', () => {
       mockedAxios.post.mockResolvedValueOnce({ data: mockSuccessRes });
 
       const client = new IpfsPayToPinClient({
-        evmPrivateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        evmPrivateKey: MOCK_EVM_KEY,
       });
 
       const res = await client.pinFile({
@@ -151,7 +153,7 @@ describe('IpfsPayToPinClient', () => {
       });
 
       const client = new IpfsPayToPinClient({
-        evmPrivateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        evmPrivateKey: MOCK_EVM_KEY,
       });
 
       await expect(
@@ -173,7 +175,7 @@ describe('IpfsPayToPinClient', () => {
       mockedAxios.post.mockResolvedValueOnce({ data: mockRenewRes });
 
       const client = new IpfsPayToPinClient({
-        evmPrivateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        evmPrivateKey: MOCK_EVM_KEY,
       });
 
       const res = await client.renewPin('bafybeid...');
@@ -189,7 +191,7 @@ describe('IpfsPayToPinClient', () => {
       });
 
       const client = new IpfsPayToPinClient({
-        evmPrivateKey: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
+        evmPrivateKey: MOCK_EVM_KEY,
       });
 
       await expect(client.renewPin('bafybeid...')).rejects.toThrow(GatewayError);
