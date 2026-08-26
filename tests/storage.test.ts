@@ -147,6 +147,8 @@ describe('sanitizeFilename', () => {
   it('strips path components and directory traversals', () => {
     expect(sanitizeFilename('path/to/file.txt')).toBe('pathtofile.txt');
     expect(sanitizeFilename('..\\..\\etc\\passwd')).toBe('etcpasswd');
+    expect(sanitizeFilename('../../etc/passwd')).toBe('etcpasswd');
+    expect(sanitizeFilename('%2e%2e%2f%2e%2e%2fetc%2fpasswd')).toBe('etcpasswd');
     expect(sanitizeFilename('/etc/hosts')).toBe('etchosts');
   });
 

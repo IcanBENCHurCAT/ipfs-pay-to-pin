@@ -8,6 +8,11 @@
 **Learning:** `Math.random()` is PRNG-based and predictable. Predictable temporary file paths can enable race conditions or symlink/file collision attacks in shared environments or local disk fallback scenarios.
 **Prevention:** Use cryptographically secure random bytes via `crypto.randomBytes(4).toString('hex')` whenever generating unique temporary paths, filenames, or tokens.
 
+## 2026-08-16 - Path Traversal in Filename Sanitization
+**Vulnerability:** Filename sanitization stripped directory separators `/` and `\` but did not strip `..` path traversal sequences prior to leading-dot cleaning.
+**Learning:** Stripping slashes alone may still leave `..` sequences intact, which could cause subtle path traversal or unexpected file paths in downstream local storage or Pinata metadata.
+**Prevention:** Always explicitly strip `..` sequences (`replace(/\.\./g, '')`) alongside path separators and URL-decoding in filename sanitization routines.
+
 ## 2024-10-27 - Incomplete Fix for Escrow Drain Vulnerability
 **Vulnerability:** The previous fix for the escrow drain vulnerability capped the refund based on `content-length`. However, `content-length` can be spoofed independently of the JSON body's `data.length`. Since the payment middleware evaluates the price using the true JSON size when parsing succeeds, an attacker could upload a small payload (paying a small fee) while sending a massive `content-length` and spoofed `x-payment-amount` header. If the job failed (e.g., rejected by queue validation), the refund fallback used the spoofed `content-length`, draining the escrow.
 **Learning:** When validating and capping values derived from multiple inputs (e.g., payload size fallback vs actual size), downstream logic must mirror the exact decision tree used by the upstream validation layer.
