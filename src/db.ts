@@ -87,32 +87,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
       try {
         const { data, error } = await client.from('pin_records').select('*');
         if (!error && data && Array.isArray(data)) {
-          const nowMs = Date.now();
-          const items: QueueItem[] = data.map(r => {
-            const pinnedAtMs = r.pinned_at ? Date.parse(r.pinned_at) : nowMs;
-            const expiresAtMs = r.expires_at ? Date.parse(r.expires_at) : nowMs;
-            return {
-              id: `job_${pinnedAtMs}_${r.cid.slice(-5)}`,
-              filename: r.filename,
-              cid: r.cid,
-              filePath: `queue/recovered_${r.cid}.bin`,
-              status: r.status as any,
-              retryCount: 0,
-              createdAt: pinnedAtMs,
-              gatewayUrl: `https://ipfs.io/ipfs/${r.cid}`,
-              sizeBytes: Number(r.size_bytes || 0),
-              pinned_at: pinnedAtMs,
-              expires_at: expiresAtMs,
-              ttl_days: 365,
-              renewalsCount: Number(r.renewals_count || 0),
-              paymentNetwork: r.payment_network || 'algorand:mainnet',
-              txHash: r.tx_hash || undefined,
-              tokenAddress: r.token_address || undefined,
-              payerAddress: r.payer_address || undefined,
-              amountPaid: r.amount_paid !== null && r.amount_paid !== undefined ? Number(r.amount_paid) : undefined,
-              settlementStatus: (r.settlement_status as any) || 'SETTLED'
-            };
-          });
+          const items: QueueItem[] = data.map(r => ({
+            id: `job_${Date.parse(r.pinned_at || new Date().toISOString())}_${r.cid.slice(-5)}`,
+            filename: r.filename,
+            cid: r.cid,
+            filePath: `queue/recovered_${r.cid}.bin`,
+            status: r.status as any,
+            retryCount: 0,
+            createdAt: Date.parse(r.pinned_at || new Date().toISOString()),
+            gatewayUrl: `https://ipfs.io/ipfs/${r.cid}`,
+            sizeBytes: Number(r.size_bytes || 0),
+            pinned_at: Date.parse(r.pinned_at || new Date().toISOString()),
+            expires_at: Date.parse(r.expires_at || new Date().toISOString()),
+            ttl_days: 365,
+            renewalsCount: Number(r.renewals_count || 0),
+            paymentNetwork: r.payment_network || 'algorand:mainnet',
+            txHash: r.tx_hash || undefined,
+            tokenAddress: r.token_address || undefined,
+            payerAddress: r.payer_address || undefined,
+            amountPaid: r.amount_paid !== null && r.amount_paid !== undefined ? Number(r.amount_paid) : undefined,
+            settlementStatus: (r.settlement_status as any) || 'SETTLED'
+          }));
 
           // ⚡ Bolt: Removed redundant fs.promises.writeFile and JSON.stringify here.
           // Persisting to the local registry on every database read creates massive
@@ -147,21 +142,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
           .maybeSingle();
 
         if (!error && data) {
-          const nowMs = Date.now();
-          const pinnedAtMs = data.pinned_at ? Date.parse(data.pinned_at) : nowMs;
-          const expiresAtMs = data.expires_at ? Date.parse(data.expires_at) : nowMs;
           return {
-            id: `job_${pinnedAtMs}_${data.cid.slice(-5)}`,
+            id: `job_${Date.parse(data.pinned_at || new Date().toISOString())}_${data.cid.slice(-5)}`,
             filename: data.filename,
             cid: data.cid,
             filePath: `queue/recovered_${data.cid}.bin`,
             status: data.status as any,
             retryCount: 0,
-            createdAt: pinnedAtMs,
+            createdAt: Date.parse(data.pinned_at || new Date().toISOString()),
             gatewayUrl: `https://ipfs.io/ipfs/${data.cid}`,
             sizeBytes: Number(data.size_bytes || 0),
-            pinned_at: pinnedAtMs,
-            expires_at: expiresAtMs,
+            pinned_at: Date.parse(data.pinned_at || new Date().toISOString()),
+            expires_at: Date.parse(data.expires_at || new Date().toISOString()),
             ttl_days: 365,
             renewalsCount: Number(data.renewals_count || 0),
             paymentNetwork: data.payment_network || 'algorand:mainnet',
