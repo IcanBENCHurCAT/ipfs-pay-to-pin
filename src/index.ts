@@ -16,12 +16,22 @@ import { rateLimiterMiddleware, rateLimitCleanupInterval } from "./middleware/ra
 import { initiateOnChainRefund } from "./refund.js";
 import { config as appConfig, validateConfig } from "./config.js";
 
-process.on('uncaughtException', (err) => {
-    console.error('[CRITICAL UNCAUGHT EXCEPTION]', err?.stack || err);
+process.on('uncaughtException', (err: any) => {
+    if (process.env.NODE_ENV === 'production') {
+        console.error('[CRITICAL UNCAUGHT EXCEPTION]', err?.message || 'An unexpected error occurred');
+    } else {
+        console.error('[CRITICAL UNCAUGHT EXCEPTION]', err?.stack || err);
+    }
+    process.exit(1);
 });
 
-process.on('unhandledRejection', (reason, promise) => {
-    console.error('[CRITICAL UNHANDLED REJECTION]', reason);
+process.on('unhandledRejection', (reason: any) => {
+    if (process.env.NODE_ENV === 'production') {
+        const message = reason instanceof Error ? reason.message : String(reason);
+        console.error('[CRITICAL UNHANDLED REJECTION]', message || 'An unhandled rejection occurred');
+    } else {
+        console.error('[CRITICAL UNHANDLED REJECTION]', reason);
+    }
 });
 
 config();
@@ -117,6 +127,19 @@ const pinDiscovery = declareDiscoveryExtension({
 });
 
 const app = new Hono();
+
+// Global error handler to sanitize exceptions returned to clients
+app.onError((err, c) => {
+    if (err instanceof HTTPException) {
+        return err.getResponse();
+    }
+    if (process.env.NODE_ENV === 'production') {
+        console.error('[UNHANDLED HTTP ERROR]', err?.message || 'Unexpected server error');
+    } else {
+        console.error('[UNHANDLED HTTP ERROR]', err);
+    }
+    return c.json({ error: "Internal Server Error", message: "An unexpected error occurred." }, 500);
+});
 
 // Global sliding-window rate limiter (60 req/min per IP)
 app.use("*", rateLimiterMiddleware);
