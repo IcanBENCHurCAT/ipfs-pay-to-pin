@@ -56,3 +56,6 @@
 ## 2026-08-26 - [Sequential Storage Unpinning in Background Sweeper]
 **Learning:** Sequential `await unpinFileFromIPFS(item.cid)` inside a `for` loop in `processExpiredPins()` causes head-of-line blocking during garbage collection when unpinning multiple expired IPFS files, significantly extending background sweeper processing time and blocking state updates.
 **Action:** Collected all expired queue items in a single O(N) pass and executed IPFS unpin requests concurrently via `Promise.all()`, improving garbage collection throughput and reducing total sweeper execution time from O(N * T) to O(T).
+## 2026-08-27 - [Redundant Fallback Date Parsing Overhead]
+**Learning:** Generating string timestamps via `new Date().toISOString()` and subsequently re-parsing them using `Date.parse()` inside `Array.prototype.map()` and loops (during batch fallback processing) causes massive, unnecessary V8 Date object allocations and GC pressure.
+**Action:** Replaced repetitive per-item fallback allocations with globally cached `fallbackNowStr` and `fallbackNowNum` computed once outside the loop. Also replaced redundant chained timestamp parsing with single-variable caching during map returns to keep operations strictly O(1) in memory per record.

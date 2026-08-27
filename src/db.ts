@@ -46,6 +46,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
     const client = this.getSupabaseClient();
     if (client) {
       // ⚡ Bolt: Single pass O(N) deduplication and valid check directly into Map, avoiding chained map/filter/reduce allocations
+      // Cached fallback timestamp to avoid allocating new Date objects inside the loop
+      const fallbackNowStr = new Date().toISOString();
       const uniqueByCidMap = new Map();
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
@@ -54,8 +56,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
             cid: item.cid,
             filename: item.filename,
             size_bytes: item.sizeBytes || 0,
-            pinned_at: item.pinned_at ? new Date(item.pinned_at).toISOString() : new Date().toISOString(),
-            expires_at: item.expires_at ? new Date(item.expires_at).toISOString() : new Date().toISOString(),
+            pinned_at: item.pinned_at ? new Date(item.pinned_at).toISOString() : fallbackNowStr,
+            expires_at: item.expires_at ? new Date(item.expires_at).toISOString() : fallbackNowStr,
             renewals_count: item.renewalsCount || 0,
             status: item.status,
             payment_network: item.paymentNetwork || 'algorand:mainnet',
@@ -84,27 +86,32 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
       try {
         const { data, error } = await client.from('pin_records').select('*');
         if (!error && data && Array.isArray(data)) {
-          const items: QueueItem[] = data.map(r => ({
-            id: `job_${Date.parse(r.pinned_at || new Date().toISOString())}_${r.cid.slice(-5)}`,
-            filename: r.filename,
-            cid: r.cid,
-            filePath: `queue/recovered_${r.cid}.bin`,
-            status: r.status as any,
-            retryCount: 0,
-            createdAt: Date.parse(r.pinned_at || new Date().toISOString()),
-            gatewayUrl: `https://ipfs.io/ipfs/${r.cid}`,
-            sizeBytes: Number(r.size_bytes || 0),
-            pinned_at: Date.parse(r.pinned_at || new Date().toISOString()),
-            expires_at: Date.parse(r.expires_at || new Date().toISOString()),
-            ttl_days: 365,
-            renewalsCount: Number(r.renewals_count || 0),
-            paymentNetwork: r.payment_network || 'algorand:mainnet',
-            txHash: r.tx_hash || undefined,
-            tokenAddress: r.token_address || undefined,
-            payerAddress: r.payer_address || undefined,
-            amountPaid: r.amount_paid !== null && r.amount_paid !== undefined ? Number(r.amount_paid) : undefined,
-            settlementStatus: (r.settlement_status as any) || 'SETTLED'
-          }));
+          const fallbackNowNum = Date.now();
+          const items: QueueItem[] = data.map(r => {
+            const pinnedAtNum = r.pinned_at ? Date.parse(r.pinned_at) : fallbackNowNum;
+            const expiresAtNum = r.expires_at ? Date.parse(r.expires_at) : fallbackNowNum;
+            return {
+              id: `job_${pinnedAtNum}_${r.cid.slice(-5)}`,
+              filename: r.filename,
+              cid: r.cid,
+              filePath: `queue/recovered_${r.cid}.bin`,
+              status: r.status as any,
+              retryCount: 0,
+              createdAt: pinnedAtNum,
+              gatewayUrl: `https://ipfs.io/ipfs/${r.cid}`,
+              sizeBytes: Number(r.size_bytes || 0),
+              pinned_at: pinnedAtNum,
+              expires_at: expiresAtNum,
+              ttl_days: 365,
+              renewalsCount: Number(r.renewals_count || 0),
+              paymentNetwork: r.payment_network || 'algorand:mainnet',
+              txHash: r.tx_hash || undefined,
+              tokenAddress: r.token_address || undefined,
+              payerAddress: r.payer_address || undefined,
+              amountPaid: r.amount_paid !== null && r.amount_paid !== undefined ? Number(r.amount_paid) : undefined,
+              settlementStatus: (r.settlement_status as any) || 'SETTLED'
+            };
+          });
 
           // ⚡ Bolt: Removed redundant fs.promises.writeFile and JSON.stringify here.
           // Persisting to the local registry on every database read creates massive
@@ -139,18 +146,21 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
           .maybeSingle();
 
         if (!error && data) {
+          const fallbackNowNum = Date.now();
+          const pinnedAtNum = data.pinned_at ? Date.parse(data.pinned_at) : fallbackNowNum;
+          const expiresAtNum = data.expires_at ? Date.parse(data.expires_at) : fallbackNowNum;
           return {
-            id: `job_${Date.parse(data.pinned_at || new Date().toISOString())}_${data.cid.slice(-5)}`,
+            id: `job_${pinnedAtNum}_${data.cid.slice(-5)}`,
             filename: data.filename,
             cid: data.cid,
             filePath: `queue/recovered_${data.cid}.bin`,
             status: data.status as any,
             retryCount: 0,
-            createdAt: Date.parse(data.pinned_at || new Date().toISOString()),
+            createdAt: pinnedAtNum,
             gatewayUrl: `https://ipfs.io/ipfs/${data.cid}`,
             sizeBytes: Number(data.size_bytes || 0),
-            pinned_at: Date.parse(data.pinned_at || new Date().toISOString()),
-            expires_at: Date.parse(data.expires_at || new Date().toISOString()),
+            pinned_at: pinnedAtNum,
+            expires_at: expiresAtNum,
             ttl_days: 365,
             renewalsCount: Number(data.renewals_count || 0),
             paymentNetwork: data.payment_network || 'algorand:mainnet',
