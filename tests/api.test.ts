@@ -140,4 +140,21 @@ describe('API Integration Tests', () => {
         expect(data.is_active).toBe(true);
         expect(data.days_remaining).toBe(365);
     });
+
+    it('T025: Unhandled server errors are sanitized via app.onError', async () => {
+        vi.spyOn(globalFileQueue, 'getPinStatus').mockImplementationOnce(() => {
+            throw new Error('Database connection failed or sensitive secret key: 0xSECRET123');
+        });
+
+        const res = await app.request('/api/v1/pin/trigger-error-cid');
+
+        expect(res.status).toBe(500);
+        const data = await res.json();
+        expect(data).toEqual({
+            error: 'Internal Server Error',
+            message: 'An unexpected error occurred.'
+        });
+        expect(JSON.stringify(data)).not.toContain('0xSECRET123');
+        expect(JSON.stringify(data)).not.toContain('Database connection failed');
+    });
 });
