@@ -59,3 +59,7 @@
 ## 2026-08-27 - [Redundant Fallback Date Parsing Overhead]
 **Learning:** Generating string timestamps via `new Date().toISOString()` and subsequently re-parsing them using `Date.parse()` inside `Array.prototype.map()` and loops (during batch fallback processing) causes massive, unnecessary V8 Date object allocations and GC pressure.
 **Action:** Replaced repetitive per-item fallback allocations with globally cached `fallbackNowStr` and `fallbackNowNum` computed once outside the loop. Also replaced redundant chained timestamp parsing with single-variable caching during map returns to keep operations strictly O(1) in memory per record.
+
+## 2026-08-28 - [Cache Stampede / Thundering Herd in TTL Validation]
+**Learning:** When an application uses a time-based TTL cache (like `cacheTtlMs`), a high-throughput endpoint receiving multiple concurrent requests exactly when the TTL expires will trigger multiple redundant asynchronous database queries simultaneously (a "cache stampede" or "thundering herd"). This spikes database connections and CPU.
+**Action:** Introduced an asynchronous promise lock (`fetchPromise`) during cache invalidation. If the TTL is expired, the first request initiates the database fetch and stores the pending promise. All subsequent concurrent requests `await` the single active promise instead of triggering their own redundant database calls.
