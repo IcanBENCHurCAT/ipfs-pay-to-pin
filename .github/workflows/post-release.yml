@@ -53,7 +53,7 @@ jobs:
       - name: Publish to npm
         run: |
           cd sdk
-          pnpm publish --access public --provenance
+          pnpm publish --access public --provenance --no-git-checks
 
   publish-pypi:
     name: Publish PyPI Package
