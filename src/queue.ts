@@ -44,6 +44,7 @@ export class FileQueue {
   private itemsCache: QueueItem[] = [];
   private lastCacheTime: number = 0;
   private cacheTtlMs: number = 5000; // ⚡ Bolt: 5s TTL database read cache to sync cleanly with 10s worker loop
+  private fetchPromise: Promise<QueueItem[]> | null = null; // ⚡ Bolt: Cache stampede deduplication lock
 
   // ⚡ Bolt: Cache O(N) metrics to prevent event loop blocking on every HTTP request
   private cachedQueueSize: number = 0;
@@ -95,9 +96,21 @@ export class FileQueue {
     // ⚡ Bolt: Cache queue items in memory with TTL to reduce database query overload
     const now = Date.now();
     if (now - this.lastCacheTime > this.cacheTtlMs) {
-      this.itemsCache = await this.dbManager.getItems();
-      this.recalculateMetrics();
-      this.lastCacheTime = now;
+      // ⚡ Bolt: Prevent cache stampede (thundering herd) by deduplicating concurrent fetches
+      if (!this.fetchPromise) {
+        this.fetchPromise = (async () => {
+          try {
+            const items = await this.dbManager.getItems();
+            this.itemsCache = items;
+            this.recalculateMetrics();
+            this.lastCacheTime = Date.now();
+            return items;
+          } finally {
+            this.fetchPromise = null;
+          }
+        })();
+      }
+      await this.fetchPromise;
     }
     // Note: recalculateMetrics is also called on initialization and save, ensuring itemsByCid is populated
     if (this.itemsByCid.size === 0 && this.itemsCache.length > 0) {
