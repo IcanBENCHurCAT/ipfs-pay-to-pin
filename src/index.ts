@@ -660,8 +660,13 @@ app.post("/api/v1/pin", async (c) => {
             if (parsedBinaryBytes !== null) {
                 binaryBytes = parsedBinaryBytes;
             } else {
-                const contentLength = Number(c.req.header("content-length")) || 0;
-                binaryBytes = Math.max(1000, Math.floor(contentLength * 0.75));
+                // Determine raw payload size if JSON parsing fails to prevent content-length spoofing
+                try {
+                    const bodyRaw = await c.req.raw.clone().arrayBuffer();
+                    binaryBytes = Math.max(1000, Math.floor(bodyRaw.byteLength * 0.75));
+                } catch {
+                    binaryBytes = 1000;
+                }
             }
             const maxExpectedPrice = 10000 + Math.floor(binaryBytes * 0.02);
             let paidAmount = paidAmountHeader ? Number(paidAmountHeader) : 10000;
