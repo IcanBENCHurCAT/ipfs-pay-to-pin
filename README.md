@@ -46,13 +46,17 @@ console.log(`Expires At: ${pin.expires_at}`); // 365 days retention
 - **Multi-Chain Facilitator**: GoPlausible Facilitator (`https://facilitator.goplausible.xyz`)
 - **Pinning Provider**: Pinata API (`https://api.pinata.cloud`)
 
-## Local Setup
+## Local Setup & Development
 ```bash
 # Install dependencies
 pnpm install
 
 # Run dev server
 pnpm run dev
+
+# Run unit and integration tests
+pnpm test
+pnpm run -r test
 ```
 
 ## Production Docker & VPS Deployment (DuckDNS + Automated SSL)

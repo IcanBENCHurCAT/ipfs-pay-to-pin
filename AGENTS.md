@@ -24,43 +24,42 @@ The IPFS "Pay-to-Pin" Gateway is a service that implements a standard HTTP `402 
 
 ```text
 ipfs-pay-to-pin/
-├── .specify/               # SpecKit Specifications & Memory
-│   ├── memory/             # Project status, specs, constitution.md
-│   │   └── constitution.md
-│   ├── templates/          # Templates for specs, plans, tasks
-│   ├── extensions.yml      # Optional skill hooks
-│   └── feature.json        # Current active feature reference
-├── .agents/                # Custom subagents or rules
-├── src/                    # TypeScript Hono Application
+├── src/                    # TypeScript Hono Application Gateway
 │   ├── index.ts            # Entrypoint & multi-chain x402 configuration
-│   ├── queue.ts            # Local Buffer Queue
+│   ├── queue.ts            # Local Buffer Queue & worker logic
 │   ├── cid.ts              # Deterministic CID calculation
 │   ├── db.ts               # Supabase persistence layer with local fallback
-│   └── storage.ts          # Pinata interaction & buffering logic
-├── tests/                  # Test suite (including tests/multichain.test.ts)
-├── scripts/                # Helper scripts for interaction and 1-command deployment
-├── terraform/              # 1-Click OCI Always-Free Infrastructure & Monitoring
-├── README.md               # Overview and user instructions
-└── AGENTS.md               # This guide
+│   ├── storage.ts          # Pinata interaction & buffering logic
+│   ├── refund.ts           # On-chain payment refund module
+│   └── config.ts           # Environment & runtime configuration
+├── sdk/                    # TypeScript Client SDK (`ipfs-pay-to-pin-client`)
+├── python-sdk/             # Python Client SDK (`ipfs-pay-to-pin-client`)
+├── tests/                  # Gateway root unit & integration tests
+├── scripts/                # Helper deployment, verification, and sweeper scripts
+├── terraform/              # OCI Infrastructure & Monitoring
+├── specs/                  # Specification documents
+├── README.md               # Repository overview and quickstart
+└── AGENTS.md               # Agent guide and guidelines
 ```
 
 ---
 
 ## 3. Technology Stack & Key Libraries
 
-- **Backend**: Node.js, TypeScript, Hono (`@hono/node-server`).
+- **Backend Gateway**: Node.js, TypeScript, Hono (`@hono/node-server`).
 - **x402 Integration**: `@x402/hono`, `@x402/core`, `@x402/evm`, `@x402/svm`, `@x402/avm`, `@x402/extensions`.
 - **Facilitator**: GoPlausible Facilitator (`https://facilitator.goplausible.xyz`).
 - **Database**: Supabase PostgreSQL (`@supabase/supabase-js`) with local `queue/registry.json` fallback.
-- **Smart Contract compiler**: Algorand Python (`algopy` via Puya).
-- **IPFS Clients**: Raw HTTP requests to Pinata REST API.
+- **IPFS Pinning**: Pinata REST API.
+- **Client SDKs**: TypeScript (`sdk/`) and Python (`python-sdk/`).
 
 ---
 
 ## 4. Coding Conventions & Guardrails
 
-- **Algorand Python Rules**: Implement contracts using pure `algopy` syntax. Ensure all application methods return valid types and manage state variables strictly inside Boxes or Global State.
-- **No Hardcoded Secrets**: Access credentials (e.g., `PINATA_JWT`, `SUPABASE_KEY`, `ALGORAND_WALLET_PRIVATE_KEY`) strictly from `.env`.
+- **Package Manager**: Use `pnpm` exclusively for Node workspace tasks (`pnpm install`, `pnpm test`, `pnpm run -r test`, `pnpm run -r build`).
+- **Python Testing**: Use `python3 -m pytest python-sdk/tests` for Python SDK testing.
+- **No Hardcoded Secrets**: Access credentials (e.g., `PINATA_JWT`, `SUPABASE_KEY`, `ALGORAND_WALLET_PRIVATE_KEY`) strictly from `.env` or environment variables.
 - **x402 Compliance**: Always use standard `@x402/hono` middleware for generating `402 Payment Required` responses (`PAYMENT-REQUIRED` and `PAYMENT-SIGNATURE` headers).
 - **Pricing & Retention**: Micropayments are calculated in **microUSDC**. Pins are timeboxed for **up to 365 days** per payment, with a `/renew` endpoint for annual recurring retention payments (50% early renewal discount prior to expiration).
 - **Fault Tolerance**: The API MUST decouple the synchronous Pinata upload from the client response. It MUST use a Circuit Breaker to reject traffic with `503 Service Unavailable` if the local buffer queue is full, preventing agents from paying for dropped storage.
