@@ -19,7 +19,7 @@ With an EVM private key (Base L2), Solana Keypair, or Algorand wallet containing
 ## Installation
 
 ```bash
-npm install ipfs-pay-to-pin-client @x402/core @x402/evm @x402/svm @x402/avm
+pnpm add ipfs-pay-to-pin-client @x402/core @x402/evm @x402/svm @x402/avm
 ```
 
 ---
