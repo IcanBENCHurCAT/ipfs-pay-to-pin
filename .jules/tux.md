@@ -23,3 +23,7 @@
 
 **Learning:** Python SDK unit tests that interact with IPFS gateway APIs need `responses` or `requests-mock` for HTTP mocking, while wallet key tests should use `unittest.mock.patch` for crypto module imports. Always set `max_price_usdc` ceiling in SDK constructor to cap spending in payment flows, and mock AlgodClient for transaction-related logic.
 **Action:** Use `responses` for HTTP mocking and `unittest.mock.patch` for module imports in Python SDK unit tests. Never leave `AlgodClient` calls unmocked in tests that exercise transaction pathing.
+
+## 2024-08-25 - Enforce package manager exclusivity in CI/CD
+**Learning:** When configuring GitHub Actions to publish packages, default boilerplates often use `npm publish`. In a strictly `pnpm` managed repository, this violates package manager exclusivity and can cause unexpected behavior.
+**Action:** When updating or creating publish workflows, always replace `npm publish` with `pnpm publish --no-git-checks` (to bypass CI headless state errors) and remove any stray `npm install -g npm` upgrades that are no longer necessary.
