@@ -42,10 +42,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
-          node-version: '22'
-
-      - name: Upgrade npm to 11.5.1 for OIDC Trusted Publishing
-        run: npm install -g npm@11.5.1
+          node-version-file: '.node-version'
 
       - name: Install SDK Dependencies
         run: pnpm install --frozen-lockfile
@@ -56,7 +53,7 @@ jobs:
       - name: Publish to npm
         run: |
           cd sdk
-          npm publish --provenance --access public
+          pnpm publish --provenance --access public --no-git-checks
 
   publish-pypi:
     name: Publish PyPI Package
