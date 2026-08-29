@@ -87,10 +87,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
         const { data, error } = await client.from('pin_records').select('*');
         if (!error && data && Array.isArray(data)) {
           const fallbackNowNum = Date.now();
-          const items: QueueItem[] = data.map(r => {
+          // ⚡ Bolt: Replaced data.map() with pre-allocated Array and single-pass for-loop
+          // to prevent intermediate closure allocations and reduce GC pressure for large datasets.
+          // Impact: Reduces O(N) allocation latency during frequent polling operations.
+          const items: QueueItem[] = new Array(data.length);
+          for (let i = 0; i < data.length; i++) {
+            const r = data[i];
             const pinnedAtNum = r.pinned_at ? Date.parse(r.pinned_at) : fallbackNowNum;
             const expiresAtNum = r.expires_at ? Date.parse(r.expires_at) : fallbackNowNum;
-            return {
+            items[i] = {
               id: `job_${pinnedAtNum}_${r.cid.slice(-5)}`,
               filename: r.filename,
               cid: r.cid,
@@ -111,7 +116,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
               amountPaid: r.amount_paid !== null && r.amount_paid !== undefined ? Number(r.amount_paid) : undefined,
               settlementStatus: (r.settlement_status as any) || 'SETTLED'
             };
-          });
+          }
 
           // ⚡ Bolt: Removed redundant fs.promises.writeFile and JSON.stringify here.
           // Persisting to the local registry on every database read creates massive

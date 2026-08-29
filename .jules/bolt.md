@@ -63,3 +63,7 @@
 ## 2026-08-28 - [Cache Stampede / Thundering Herd in TTL Validation]
 **Learning:** When an application uses a time-based TTL cache (like `cacheTtlMs`), a high-throughput endpoint receiving multiple concurrent requests exactly when the TTL expires will trigger multiple redundant asynchronous database queries simultaneously (a "cache stampede" or "thundering herd"). This spikes database connections and CPU.
 **Action:** Introduced an asynchronous promise lock (`fetchPromise`) during cache invalidation. If the TTL is expired, the first request initiates the database fetch and stores the pending promise. All subsequent concurrent requests `await` the single active promise instead of triggering their own redundant database calls.
+
+## 2026-08-29 - [Avoid Intermediate Array Allocations in Map]
+**Learning:** Using `Array.prototype.map()` in `DbManager.getItems()` creates hidden performance bottlenecks on large database result sets by dynamically allocating intermediate structures. In high-throughput queue operations, iterating over thousands of records inside `.map` blocks the event loop and increases garbage collection pressure.
+**Action:** Replaced `.map()` with a pre-allocated single-pass `for` loop `new Array(data.length)` to minimize GC pressure and eliminate latency spikes during state recovery or frequent polling operations.
