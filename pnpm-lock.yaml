@@ -10,10 +10,10 @@ importers:
     dependencies:
       '@hono/node-server':
         specifier: ^2.1.1
-        version: 2.1.1(hono@4.13.3)
+        version: 2.1.1(hono@4.13.5)
       '@hono/swagger-ui':
         specifier: ^0.6.1
-        version: 0.6.1(hono@4.13.3)
+        version: 0.6.1(hono@4.13.5)
       '@supabase/supabase-js':
         specifier: ^2.112.1
         version: 2.112.1
@@ -34,7 +34,7 @@ importers:
         version: 2.23.0(typescript@7.0.2)
       '@x402/hono':
         specifier: ^2.23.0
-        version: 2.23.0(hono@4.13.3)(typescript@7.0.2)
+        version: 2.23.0(hono@4.13.5)(typescript@7.0.2)
       '@x402/svm':
         specifier: ^2.23.0
         version: 2.23.0(@solana/kit@5.5.1(typescript@7.0.2))(@solana/sysvars@5.5.1(typescript@7.0.2))
@@ -51,8 +51,8 @@ importers:
         specifier: ^4.0.1
         version: 4.0.6
       hono:
-        specifier: ^4.13.3
-        version: 4.13.3
+        specifier: ^4.13.5
+        version: 4.13.5
       tsx:
         specifier: ^4.19.2
         version: 4.23.5
@@ -1631,8 +1631,8 @@ packages:
   hi-base32@0.5.1:
     resolution: {integrity: sha512-EmBBpvdYh/4XxsnUybsPag6VikPYnN30td+vQk+GI3qpahVEG9+gTkG0aXVxTjBqQ5T6ijbWIu77O+C5WFWsnA==}
 
-  hono@4.13.3:
-    resolution: {integrity: sha512-r8AO2mYHoLxSHkgafNeC/BXyb2vWRxD3jem4Ts+ptav8oTG5FIRifAjuJEmZI4bSvvc2ns0GxmIYiZnHqN3mMw==}
+  hono@4.13.5:
+    resolution: {integrity: sha512-O6+/eCYRkzzzy0rPWwKLiGBR1nFuUPZynnwjxN1MBA62NNqbT0wQEzQyK2gSO5yDIDB336sXQleAhOHrzlYyKw==}
     engines: {node: '>=16.9.0'}
 
   https-proxy-agent@5.0.1:
@@ -2381,13 +2381,13 @@ snapshots:
   '@esbuild/win32-x64@0.28.1':
     optional: true
 
-  '@hono/node-server@2.1.1(hono@4.13.3)':
+  '@hono/node-server@2.1.1(hono@4.13.5)':
     dependencies:
-      hono: 4.13.3
+      hono: 4.13.5
 
-  '@hono/swagger-ui@0.6.1(hono@4.13.3)':
+  '@hono/swagger-ui@0.6.1(hono@4.13.5)':
     dependencies:
-      hono: 4.13.3
+      hono: 4.13.5
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -3227,11 +3227,11 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@x402/hono@2.23.0(hono@4.13.3)(typescript@7.0.2)':
+  '@x402/hono@2.23.0(hono@4.13.5)(typescript@7.0.2)':
     dependencies:
       '@x402/core': 2.23.0
       '@x402/extensions': 2.23.0(typescript@7.0.2)
-      hono: 4.13.3
+      hono: 4.13.5
     transitivePeerDependencies:
       - bufferutil
       - ethers
@@ -3536,7 +3536,7 @@ snapshots:
 
   hi-base32@0.5.1: {}
 
-  hono@4.13.3: {}
+  hono@4.13.5: {}
 
   https-proxy-agent@5.0.1:
     dependencies:
