@@ -51,6 +51,8 @@ export class FileQueue {
   private cachedQueueBytes: number = 0;
   // ⚡ Bolt: Cache O(1) map lookup for high-frequency CID status checks
   private itemsByCid: Map<string, QueueItem> = new Map();
+  // ⚡ Bolt: Cache O(1) map lookup for transaction hash checks to prevent O(N) array iteration and disk read in fallback
+  private itemsByTxHash: Map<string, QueueItem> = new Map();
 
   constructor(queueDir = 'queue') {
     this.queueDir = path.resolve(queueDir);
@@ -80,6 +82,7 @@ export class FileQueue {
     let size = 0;
     let bytes = 0;
     this.itemsByCid.clear();
+    this.itemsByTxHash.clear();
     for (let i = 0; i < this.itemsCache.length; i++) {
       const item = this.itemsCache[i];
       if (item.status === 'PENDING') {
@@ -87,6 +90,9 @@ export class FileQueue {
         bytes += (item.sizeBytes || 0);
       }
       this.itemsByCid.set(item.cid, item);
+      if (item.paymentNetwork && item.txHash) {
+        this.itemsByTxHash.set(`${item.paymentNetwork}:${item.txHash}`, item);
+      }
     }
     this.cachedQueueSize = size;
     this.cachedQueueBytes = bytes;
@@ -171,7 +177,13 @@ export class FileQueue {
   }
 
   public async findByTxHash(paymentNetwork: string, txHash: string): Promise<QueueItem | undefined> {
-    return this.dbManager.findByTxHash(paymentNetwork, txHash);
+    const dbItem = await this.dbManager.findByTxHash(paymentNetwork, txHash);
+    if (dbItem) {
+      return dbItem;
+    }
+
+    await this.getItems();
+    return this.itemsByTxHash.get(`${paymentNetwork}:${txHash}`);
   }
 
   public async addJob(
