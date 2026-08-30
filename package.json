@@ -21,7 +21,7 @@
     "@hono/node-server": "^2.1.1",
     "@hono/swagger-ui": "^0.6.1",
     "@supabase/supabase-js": "^2.112.1",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@x402/avm": "^2.23.0",
     "@x402/core": "^2.23.0",
     "@x402/evm": "^2.23.0",
