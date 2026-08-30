@@ -181,7 +181,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
       }
     }
 
-    const items = await this.getItems();
-    return items.find(item => item.paymentNetwork === paymentNetwork && item.txHash === txHash);
+    // Removed O(N) array find and synchronous-like disk read on fallback cache here.
+    // The FileQueue handles memory cache lookups instead to prevent I/O and CPU blocking.
+    return undefined;
   }
 }
