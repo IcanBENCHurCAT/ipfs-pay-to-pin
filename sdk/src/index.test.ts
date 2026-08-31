@@ -116,6 +116,22 @@ describe('IpfsPayToPinClient', () => {
       await expect(client.pinFile({ filename: 'file.txt' })).rejects.toThrow(ConfigurationError);
     });
 
+    it('throws ConfigurationError if options.data is not a string or Buffer', async () => {
+      const client = new IpfsPayToPinClient({
+        evmPrivateKey: MOCK_EVM_KEY,
+      });
+
+      // @ts-expect-error testing invalid data type
+      await expect(client.pinFile({ filename: 'test.txt', data: 123 })).rejects.toThrowError(
+        new ConfigurationError('[IpfsClient] Expected options.data to be a Buffer or string, got number')
+      );
+
+      // @ts-expect-error testing invalid data type
+      await expect(client.pinFile({ filename: 'test.txt', data: {} })).rejects.toThrowError(
+        new ConfigurationError('[IpfsClient] Expected options.data to be a Buffer or string, got object')
+      );
+    });
+
     it('pins file without payment if server responds 200 directly', async () => {
       const mockSuccessRes = {
         status: 'pinned',

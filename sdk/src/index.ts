@@ -258,6 +258,10 @@ export class IpfsPayToPinClient {
       throw new ConfigurationError('[IpfsClient] Missing required pinFile options (filename or data).');
     }
 
+    if (typeof options.data !== 'string' && !Buffer.isBuffer(options.data)) {
+      throw new ConfigurationError(`[IpfsClient] Expected options.data to be a Buffer or string, got ${typeof options.data}`);
+    }
+
     const base64Data = typeof options.data === 'string'
       ? options.data
       : options.data.toString('base64');
