@@ -3,6 +3,7 @@ import { Hono, type Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
+import { secureHeaders } from "hono/secure-headers";
 import { swaggerUI } from "@hono/swagger-ui";
 import { serve } from "@hono/node-server";
 import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
@@ -131,6 +132,16 @@ const app = new Hono();
 
 // Global CORS middleware to allow cross-origin requests for web API consumers
 app.use("*", cors());
+
+// Global secure headers middleware
+app.use("*", secureHeaders({
+    contentSecurityPolicy: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "'unsafe-inline'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", "data:"]
+    }
+}));
 
 // Global error handler to sanitize exceptions returned to clients
 app.onError((err, c) => {

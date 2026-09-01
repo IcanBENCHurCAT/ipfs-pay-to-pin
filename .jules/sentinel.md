@@ -31,3 +31,7 @@
 **Vulnerability:** Missing global CORS middleware stack in index.ts for public web API endpoints.
 **Learning:** Public web APIs servicing browser clients or multi-origin integrations require standard CORS middleware enabled on the global middleware stack to avoid cross-origin access blocks.
 **Prevention:** Register `app.use("*", cors())` globally near top of middleware pipeline in Hono app.
+## 2026-08-31 - Missing Secure Headers Configuration
+**Vulnerability:** The gateway application was missing standard HTTP security headers (e.g., Content-Security-Policy, X-Frame-Options, Strict-Transport-Security), exposing the API and Swagger documentation interface to potential cross-site scripting (XSS), clickjacking, and content-sniffing vulnerabilities.
+**Learning:** Frameworks like Hono provide built-in middleware for security headers (`hono/secure-headers`), which is bundled directly in the core package and does not require an external npm install. However, the `Content-Security-Policy` must be configured pragmatically to ensure built-in features like `@hono/swagger-ui` are not broken by overly restrictive policies like `default-src none`.
+**Prevention:** Always enable global `secureHeaders` middleware near the top of the HTTP pipeline (e.g., in `src/index.ts` alongside CORS) and verify the CSP configuration maintains expected application functionality while restricting unsafe origins.
