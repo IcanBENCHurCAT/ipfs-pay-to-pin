@@ -1,5 +1,5 @@
 import { config } from "dotenv";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
@@ -159,7 +159,7 @@ app.use("*", bodyLimit({
 const logoUrl = "https://gateway.pinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy";
 
 // Health check and Merchant metadata endpoint
-const x402MetadataHandler = (c: any) => {
+const x402MetadataHandler = (c: Context) => {
     c.header("Cache-Control", "public, max-age=3600, s-maxage=86400");
     // Trigger retention sweeper asynchronously on crawler/indexer discovery checks
     globalFileQueue.processExpiredPins().catch((err) => {
@@ -759,7 +759,7 @@ app.get("/api/v1/pin/:cid", async (c) => {
     return c.json(status, 200);
 });
 
-const healthHandler = async (c: any) => {
+const healthHandler = async (c: Context) => {
     const isHealthy = globalFileQueue.isHealthy();
     const status = isHealthy ? "ok" : "degraded";
     const statusCode = isHealthy ? 200 : 503;
