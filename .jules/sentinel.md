@@ -26,3 +26,8 @@
 **Vulnerability:** The application used the `content-length` header as a fallback to calculate the payload size when JSON parsing failed. An attacker could spoof this header, causing the system to calculate an artificially high refund cap and drain the escrow.
 **Learning:** Client-provided headers like `content-length` or `x-payment-amount` must never be trusted for security-sensitive calculations such as refunds, fees, or escrow caps.
 **Prevention:** Always compute and use the actual payload size from the raw request body (e.g., `(await c.req.raw.clone().arrayBuffer()).byteLength`) to prevent spoofed header attacks.
+
+## 2026-08-30 - Missing CORS Middleware in Gateway Application
+**Vulnerability:** Missing global CORS middleware stack in index.ts for public web API endpoints.
+**Learning:** Public web APIs servicing browser clients or multi-origin integrations require standard CORS middleware enabled on the global middleware stack to avoid cross-origin access blocks.
+**Prevention:** Register `app.use("*", cors())` globally near top of middleware pipeline in Hono app.

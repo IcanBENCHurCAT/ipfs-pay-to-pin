@@ -157,4 +157,23 @@ describe('API Integration Tests', () => {
         expect(JSON.stringify(data)).not.toContain('0xSECRET123');
         expect(JSON.stringify(data)).not.toContain('Database connection failed');
     });
+
+    it('T026: OPTIONS and GET requests include CORS headers', async () => {
+        const optionsRes = await app.request('/health', {
+            method: 'OPTIONS',
+            headers: {
+                'Origin': 'https://example.com',
+                'Access-Control-Request-Method': 'GET'
+            }
+        });
+        expect(optionsRes.headers.get('access-control-allow-origin')).toBe('*');
+
+        const getRes = await app.request('/health', {
+            method: 'GET',
+            headers: {
+                'Origin': 'https://example.com'
+            }
+        });
+        expect(getRes.headers.get('access-control-allow-origin')).toBe('*');
+    });
 });
