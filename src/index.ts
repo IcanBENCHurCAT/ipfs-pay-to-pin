@@ -2,6 +2,7 @@ import { config } from "dotenv";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { bodyLimit } from "hono/body-limit";
+import { cors } from "hono/cors";
 import { swaggerUI } from "@hono/swagger-ui";
 import { serve } from "@hono/node-server";
 import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
@@ -127,6 +128,9 @@ const pinDiscovery = declareDiscoveryExtension({
 });
 
 const app = new Hono();
+
+// Global CORS middleware to allow cross-origin requests for web API consumers
+app.use("*", cors());
 
 // Global error handler to sanitize exceptions returned to clients
 app.onError((err, c) => {
