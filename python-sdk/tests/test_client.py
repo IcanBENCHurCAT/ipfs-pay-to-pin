@@ -215,6 +215,7 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         with self.assertRaises(requests.exceptions.HTTPError):
             client.renew_pin("QmNotFound")
 
+<<<<<<< HEAD
     def test_select_best_option_no_matching_network(self):
         client = IpfsPayToPinClient(gateway_url=self.gateway_url, evm_private_key="0x1111111111111111111111111111111111111111111111111111111111111111")
         accepts = [{"network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", "amount": 1000}]
@@ -278,6 +279,42 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         ]
         res_diff = client._select_best_option(accepts_diff_amount)
         self.assertEqual(res_diff["network"], "eip155:1")
+=======
+    @patch.object(IpfsPayToPinClient, "pin_bytes")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_file_success(self, mock_to_priv, mock_algod, mock_pin_bytes):
+        mock_to_priv.return_value = self.private_key
+        mock_response = PinResponse(
+            cid="QmFile123",
+            status="pinned",
+            pin_expires_at="2026-12-31T23:59:59Z",
+            size_bytes=11,
+            tx_id="tx_file_123",
+        )
+        mock_pin_bytes.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        with patch("builtins.open", unittest.mock.mock_open(read_data=b"hello world")):
+            res = client.pin_file("/path/to/test_document.pdf", max_price_usdc=0.5)
+
+        self.assertEqual(res, mock_response)
+        mock_pin_bytes.assert_called_once_with(
+            b"hello world",
+            filename="test_document.pdf",
+            max_price_usdc=0.5,
+        )
+
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_file_not_found(self, mock_to_priv, mock_algod):
+        mock_to_priv.return_value = self.private_key
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        with self.assertRaises(FileNotFoundError):
+            client.pin_file("/nonexistent/file/path/missing.txt")
+>>>>>>> c841ebd (🐧 Tux: Add unit tests for pin_file in Python SDK)
 
 
 if __name__ == "__main__":
