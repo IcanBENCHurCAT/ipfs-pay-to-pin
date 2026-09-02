@@ -215,6 +215,70 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         with self.assertRaises(requests.exceptions.HTTPError):
             client.renew_pin("QmNotFound")
 
+    def test_select_best_option_no_matching_network(self):
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, evm_private_key="0x1111111111111111111111111111111111111111111111111111111111111111")
+        accepts = [{"network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", "amount": 1000}]
+        with self.assertRaises(PaymentRequiredError) as ctx:
+            client._select_best_option(accepts)
+        self.assertIn("Client has signers for", str(ctx.exception))
+
+    def test_select_best_option_available_networks_filtering(self):
+        # Client with EVM key only
+        client_evm = IpfsPayToPinClient(gateway_url=self.gateway_url, evm_private_key="0x1111111111111111111111111111111111111111111111111111111111111111")
+        accepts = [
+            {"network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", "amount": 100},
+            {"network": "eip155:8453", "amount": 200},
+        ]
+        res = client_evm._select_best_option(accepts)
+        self.assertEqual(res["network"], "eip155:8453")
+
+        # Client with Solana key only
+        client_sol = IpfsPayToPinClient(gateway_url=self.gateway_url, solana_private_key="fake_sol_key")
+        res_sol = client_sol._select_best_option(accepts)
+        self.assertEqual(res_sol["network"], "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp")
+
+    def test_select_best_option_preferred_network(self):
+        client = IpfsPayToPinClient(
+            gateway_url=self.gateway_url,
+            evm_private_key="0x1111111111111111111111111111111111111111111111111111111111111111",
+            preferred_network="eip155:1",
+        )
+        accepts = [
+            {"network": "eip155:8453", "amount": 100}, # lower amount and higher priority normally
+            {"network": "eip155:1", "amount": 500},
+        ]
+        res = client._select_best_option(accepts)
+        self.assertEqual(res["network"], "eip155:1")
+
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_select_best_option_sorting_by_amount_and_priority(self, mock_to_priv):
+        mock_to_priv.return_value = self.private_key
+        # When amounts are equal, sort by priority rank:
+        # eip155:8453 (1) < solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp (2) < algorand:mainnet (3) < eip155:42161 (4) < eip155:1 (5)
+        client = IpfsPayToPinClient(
+            gateway_url=self.gateway_url,
+            evm_private_key="0x1111111111111111111111111111111111111111111111111111111111111111",
+            solana_private_key="fake_sol_key",
+            sender_mnemonic="fake mnemonic",
+        )
+        accepts_same_amount = [
+            {"network": "eip155:1", "amount": 1000},
+            {"network": "eip155:42161", "amount": 1000},
+            {"network": "algorand:mainnet", "amount": 1000},
+            {"network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", "amount": 1000},
+            {"network": "eip155:8453", "amount": 1000},
+        ]
+        res = client._select_best_option(accepts_same_amount)
+        self.assertEqual(res["network"], "eip155:8453")
+
+        # Lower amount wins regardless of priority
+        accepts_diff_amount = [
+            {"network": "eip155:8453", "amount": 5000},
+            {"network": "eip155:1", "amount": 500}, # lowest amount
+        ]
+        res_diff = client._select_best_option(accepts_diff_amount)
+        self.assertEqual(res_diff["network"], "eip155:1")
+
 
 if __name__ == "__main__":
     unittest.main()
