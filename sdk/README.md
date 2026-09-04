@@ -99,10 +99,12 @@ The SDK provides specific error classes to help autonomous agents and applicatio
 
 - `InsufficientBudgetError`: Thrown when the gateway requests a price that exceeds your configured `maxPriceUsdc` cap.
 - `PaymentDeclinedError`: Thrown when a custom `confirmPrice` callback function returns `false`, rejecting the payment.
+- `ConfigurationError`: Thrown when the SDK is misconfigured (e.g. missing required private keys or mnemonics, or invalid inputs to client methods).
+- `GatewayError`: Thrown when the IPFS Pay-to-Pin gateway returns an HTTP error (e.g. 503 Service Unavailable if the queue is full, 404 if the pin is not found, or 400 Bad Request). Contains an optional `status` property for the HTTP status code.
 
 Example:
 ```typescript
-import { InsufficientBudgetError, PaymentDeclinedError } from 'ipfs-pay-to-pin-client';
+import { InsufficientBudgetError, PaymentDeclinedError, ConfigurationError, GatewayError } from 'ipfs-pay-to-pin-client';
 
 try {
   await client.pinFile({ filename: 'test.png', data: myData });
@@ -111,6 +113,10 @@ try {
     console.error('File too large or price cap too low:', error.message);
   } else if (error instanceof PaymentDeclinedError) {
     console.error('Payment manually declined:', error.message);
+  } else if (error instanceof ConfigurationError) {
+    console.error('Client misconfigured:', error.message);
+  } else if (error instanceof GatewayError) {
+    console.error(`Gateway error (${error.status || 'Network'}):`, error.message);
   } else {
     console.error('Unexpected error:', error);
   }
