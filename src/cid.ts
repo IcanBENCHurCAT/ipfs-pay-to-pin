@@ -4,27 +4,33 @@ import crypto from 'crypto';
  * Base32 RFC4648 lowercase encoding (RFC 4648 alphabet: a-z, 2-7)
  */
 const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567';
+const BASE32_ALPHABET_BUF = Buffer.from(BASE32_ALPHABET, 'utf8');
 
 function base32Encode(buffer: Buffer): string {
   let bits = 0;
   let value = 0;
-  let output = '';
+
+  // Calculate exact output length: ceil(len * 8 / 5)
+  const length = Math.ceil((buffer.length * 8) / 5);
+  // ⚡ Bolt: Pre-allocate a Buffer to prevent hidden intermediate string allocations during loop
+  const output = Buffer.allocUnsafe(length);
+  let offset = 0;
 
   for (let i = 0; i < buffer.length; i++) {
     value = (value << 8) | buffer[i];
     bits += 8;
 
     while (bits >= 5) {
-      output += BASE32_ALPHABET[(value >>> (bits - 5)) & 31];
+      output[offset++] = BASE32_ALPHABET_BUF[(value >>> (bits - 5)) & 31];
       bits -= 5;
     }
   }
 
   if (bits > 0) {
-    output += BASE32_ALPHABET[(value << (5 - bits)) & 31];
+    output[offset++] = BASE32_ALPHABET_BUF[(value << (5 - bits)) & 31];
   }
 
-  return output;
+  return output.toString('utf8');
 }
 
 function encodeVarint(val: number): number[] {
