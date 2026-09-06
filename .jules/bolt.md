@@ -78,3 +78,7 @@
 ## 2026-09-01 - [Avoid Hidden String Allocations in Base32 Encoding Loop]
 **Learning:** The application was using string concatenation (`output += ...`) in a loop to perform base32 encoding for calculating IPFS CIDs in `src/cid.ts`. This created massive hidden intermediate string allocations, slowing down performance especially for large payload sizes.
 **Action:** Replaced the string concatenation loop with a pre-allocated `Buffer` approach. Calculated the exact required size (`Math.ceil((buffer.length * 8) / 5)`), allocated it safely with `Buffer.allocUnsafe`, filled the buffer byte-by-byte in the loop, and called `.toString('utf8')` once at the end. This drastically reduces hidden string allocations and CPU overhead on large inputs.
+
+## 2026-09-02 - [Avoid JSON.parse Event Loop Blocking on Disk Fallback Polling]
+**Learning:** When Supabase is disabled and the system relies on the local disk fallback registry, `DbManager.getItems()` is polled every 5 seconds by the background worker. Parsing a potentially massive `registry.json` string synchronously using `JSON.parse()` on every single poll blocks the Node.js event loop, increasing CPU idle usage and garbage collection pressure significantly even when the queue state hasn't changed.
+**Action:** Implemented caching based on the file's `mtimeMs` using `fs.promises.stat()`. Before reading and parsing the file, it now checks if the modification time has changed. If unchanged, it returns the in-memory array reference directly, entirely bypassing `readFile` and `JSON.parse` overhead.

@@ -7,6 +7,8 @@ import fs from 'fs';
 export class DbManager {
   private supabase: SupabaseClient | null = null;
   private registryPath: string;
+  private lastMtimeMs: number = 0;
+  private cachedRegistryItems: QueueItem[] | null = null;
 
   public static readonly MIGRATION_SQL = `
 ALTER TABLE public.pin_records
@@ -42,6 +44,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
     const jsonString = JSON.stringify(items);
     await fs.promises.writeFile(tempPath, jsonString);
     await fs.promises.rename(tempPath, this.registryPath);
+
+    // ⚡ Bolt: Update local cache immediately to prevent redundant disk read/parsing on subsequent polls
+    this.cachedRegistryItems = items;
+    try {
+      const stats = await fs.promises.stat(this.registryPath);
+      this.lastMtimeMs = stats.mtimeMs;
+    } catch {}
 
     const client = this.getSupabaseClient();
     if (client) {
@@ -131,8 +140,27 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_pin_records_chain_tx
 
     try {
       // ⚡ Bolt: Replace synchronous file read with async to avoid blocking event loop
+      // ⚡ Bolt: Cache local registry read using file mtime to prevent JSON.parse from blocking the event loop every 5s when unchanged
+      let stats;
+      try {
+        stats = await fs.promises.stat(this.registryPath);
+      } catch {
+        // If file doesn't exist, stat throws. We will fall through to read/parse (which might also throw and return [])
+      }
+
+      if (stats && this.cachedRegistryItems && stats.mtimeMs === this.lastMtimeMs) {
+        return this.cachedRegistryItems;
+      }
+
       const data = await fs.promises.readFile(this.registryPath, 'utf-8');
-      return JSON.parse(data);
+      const parsedItems = JSON.parse(data);
+
+      if (stats) {
+        this.lastMtimeMs = stats.mtimeMs;
+        this.cachedRegistryItems = parsedItems;
+      }
+
+      return parsedItems;
     } catch {
       return [];
     }
