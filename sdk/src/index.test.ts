@@ -42,6 +42,20 @@ describe('IpfsPayToPinClient', () => {
       expect(client.getAddress()).toBe('multi-chain-wallet');
     });
 
+    it('throws ConfigurationError if mnemonic length is not 25 words', () => {
+      expect(() => new IpfsPayToPinClient({ mnemonic: 'abandon abandon abandon' })).toThrowError(
+        new ConfigurationError('[IpfsClient] Invalid mnemonic: Expected 25 words, got 3')
+      );
+    });
+
+    it('throws ConfigurationError if mnemonic checksum or format is invalid', () => {
+      const badMnemonic =
+        'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon WRONG';
+      expect(() => new IpfsPayToPinClient({ mnemonic: badMnemonic })).toThrowError(
+        new ConfigurationError('[IpfsClient] Failed to parse Algorand mnemonic: failed to decode mnemonic')
+      );
+    });
+
     it('instantiates successfully with Algorand mnemonic and returns address/sender', () => {
       const testMnemonic =
         'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon invest';
