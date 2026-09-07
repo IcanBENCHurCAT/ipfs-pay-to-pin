@@ -9,3 +9,7 @@
 ## 2025-08-19 - Strict Runtime Payload Validation
 **Learning:** Implicit type assumptions on function parameters (like expecting a `Buffer` or `string` but never explicitly checking it before interacting with it) can lead to obscure internal errors when agents provide unsupported payloads (like raw objects).
 **Action:** Always validate explicit types (e.g., `typeof options.data !== 'string' && !Buffer.isBuffer(options.data)`) on API boundaries and fail fast with specific `ConfigurationError` to aid debugging for consumers.
+
+## 2025-02-18 - Input Boundary Validation for ConfigurationError
+**Learning:** Checking inputs early prevents vague runtime errors downstream for consuming agents. Strong input boundary validation on `config.mnemonic` length improves the dev experience. Explicit runtime type checking allows throwing specialized errors like `ConfigurationError` providing actionable messages.
+**Action:** Validate parameters, especially mnemonic strings, and ensure specific errors with actionable text are raised to the caller.

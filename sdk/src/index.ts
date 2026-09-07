@@ -127,8 +127,16 @@ export class IpfsPayToPinClient {
     if (config.mnemonic) {
       let secretKeyB64 = config.mnemonic;
       if (config.mnemonic.includes(' ')) {
-        this.algorandAccount = algosdk.mnemonicToSecretKey(config.mnemonic);
-        secretKeyB64 = Buffer.from(this.algorandAccount.sk).toString('base64');
+        const words = config.mnemonic.trim().split(/\s+/);
+        if (words.length !== 25) {
+          throw new ConfigurationError(`[IpfsClient] Invalid mnemonic: Expected 25 words, got ${words.length}`);
+        }
+        try {
+          this.algorandAccount = algosdk.mnemonicToSecretKey(config.mnemonic);
+          secretKeyB64 = Buffer.from(this.algorandAccount.sk).toString('base64');
+        } catch (err: any) {
+          throw new ConfigurationError(`[IpfsClient] Failed to parse Algorand mnemonic: ${err?.message || 'Invalid checksum or format'}`);
+        }
       } else {
         const skBytes = Buffer.from(config.mnemonic, 'base64');
         this.algorandAccount = typeof algosdk.secretKeyToMnemonic === 'function' ? { addr: algosdk.encodeAddress(skBytes.subarray(32)), sk: skBytes } as any : { addr: '', sk: skBytes } as any;
