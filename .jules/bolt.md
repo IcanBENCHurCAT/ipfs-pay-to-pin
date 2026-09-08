@@ -82,3 +82,7 @@
 ## 2026-09-02 - [Avoid JSON.parse Event Loop Blocking on Disk Fallback Polling]
 **Learning:** When Supabase is disabled and the system relies on the local disk fallback registry, `DbManager.getItems()` is polled every 5 seconds by the background worker. Parsing a potentially massive `registry.json` string synchronously using `JSON.parse()` on every single poll blocks the Node.js event loop, increasing CPU idle usage and garbage collection pressure significantly even when the queue state hasn't changed.
 **Action:** Implemented caching based on the file's `mtimeMs` using `fs.promises.stat()`. Before reading and parsing the file, it now checks if the modification time has changed. If unchanged, it returns the in-memory array reference directly, entirely bypassing `readFile` and `JSON.parse` overhead.
+
+## 2026-09-08 - [Hono middleware redundant parsing]
+**Learning:** Hono's `c.req.json()` method is NOT memoized by default. When handling large payloads (like file uploads), if multiple middleware layers or handlers (like @x402/hono) attempt to read `c.req.json()` or `ctx.adapter.getBody()`, it executes `JSON.parse` redundantly. This causes massive garbage collection allocations and event loop blocking (e.g. 100ms per parse on 20MB files, which is amplified to 400ms when called 4 times).
+**Action:** Always inject a global memoization middleware for `c.req.json` in Hono apps that rely on heavily-stacked middleware inspecting large payload bodies.
