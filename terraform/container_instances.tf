@@ -18,6 +18,16 @@ resource "oci_container_instances_container_instance" "pay_to_pin_container" {
     is_public_ip_assigned = true
   }
 
+  dynamic "image_pull_secrets" {
+    for_each = var.ghcr_pat != "" ? [1] : []
+    content {
+      registry_endpoint = "ghcr.io"
+      secret_type       = "BASIC"
+      username          = var.ghcr_username
+      password          = var.ghcr_pat
+    }
+  }
+
   containers {
     display_name = "gateway-app"
     image_url    = var.container_image_url

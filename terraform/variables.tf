@@ -8,8 +8,21 @@ variable "oci_compartment_ocid" {
 
 variable "container_image_url" {
   type        = string
-  description = "The OCIR URL of the gateway docker image."
-  default     = "iad.ocir.io/id1fbfmorrpo/pay-to-pin-gateway:latest"
+  description = "The container image URL of the gateway."
+  default     = "ghcr.io/icanbenchurcat/pay-to-pin-gateway:latest"
+}
+
+variable "ghcr_username" {
+  type        = string
+  description = "GitHub username or organization for GHCR image pulls"
+  default     = "IcanBENCHurCAT"
+}
+
+variable "ghcr_pat" {
+  type        = string
+  description = "GitHub Personal Access Token for pulling GHCR container images"
+  sensitive   = true
+  default     = ""
 }
 
 variable "min_instances" {

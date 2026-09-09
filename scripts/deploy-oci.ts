@@ -114,6 +114,9 @@ escrow_address        = "${env.ESCROW_ADDRESS || 'W5IRXJWPSXNUJVSN2MOEJGTDGKUGFK
 evm_escrow_address    = "${env.EVM_ESCROW_ADDRESS || '0x0000000000000000000000000000000000000000'}"
 solana_escrow_address = "${env.SOLANA_ESCROW_ADDRESS || '11111111111111111111111111111111'}"
 notification_email    = "${env.NOTIFICATION_EMAIL || 'garretparker@gmail.com'}"
+ghcr_username         = "${env.GHCR_USERNAME || 'IcanBENCHurCAT'}"
+ghcr_pat              = "${env.GHCR_PAT || ''}"
+container_image_url   = "${env.CONTAINER_IMAGE_URL || 'ghcr.io/icanbenchurcat/pay-to-pin-gateway:latest'}"
 `;
 
 fs.writeFileSync(tfVarsPath, tfVarsContent);
