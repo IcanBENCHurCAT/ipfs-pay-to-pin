@@ -520,8 +520,11 @@ const calculateUsdcPrice = async (ctx: any, isEthereumL1 = false) => {
         if (body && typeof body.data === 'string') {
             const dataLen = body.data.length;
             let padding = 0;
-            if (body.data.endsWith('==')) padding = 2;
-            else if (body.data.endsWith('=')) padding = 1;
+            if (dataLen > 1) {
+                if (body.data[dataLen - 1] === '=') {
+                    padding = body.data[dataLen - 2] === '=' ? 2 : 1;
+                }
+            }
             binaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
         }
     } catch {
@@ -655,9 +658,13 @@ app.post("/api/v1/pin", async (c) => {
         }
 
         let padding = 0;
-        if (data.endsWith('==')) padding = 2;
-        else if (data.endsWith('=')) padding = 1;
-        parsedBinaryBytes = Math.floor(((data.length - padding) * 3) / 4);
+        const dataLen = data.length;
+        if (dataLen > 1) {
+            if (data[dataLen - 1] === '=') {
+                padding = data[dataLen - 2] === '=' ? 2 : 1;
+            }
+        }
+        parsedBinaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
 
         const buffer = Buffer.from(data, 'base64');
 
