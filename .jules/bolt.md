@@ -86,3 +86,7 @@
 ## 2026-09-08 - [Hono middleware redundant parsing]
 **Learning:** Hono's `c.req.json()` method is NOT memoized by default. When handling large payloads (like file uploads), if multiple middleware layers or handlers (like @x402/hono) attempt to read `c.req.json()` or `ctx.adapter.getBody()`, it executes `JSON.parse` redundantly. This causes massive garbage collection allocations and event loop blocking (e.g. 100ms per parse on 20MB files, which is amplified to 400ms when called 4 times).
 **Action:** Always inject a global memoization middleware for `c.req.json` in Hono apps that rely on heavily-stacked middleware inspecting large payload bodies.
+
+## 2026-09-10 - [Avoid String Padding Methods on Large Payloads]
+**Learning:** Using `String.prototype.endsWith()` to check for base64 padding characters (`=` or `==`) on extremely large strings (like 20MB file payloads) forces the V8 engine to execute string method overhead, scanning or potentially creating temporary substring references on the event loop, causing CPU spikes.
+**Action:** Replaced `.endsWith()` on large JSON body `data` strings with an O(1) direct character index lookup `data[dataLen - 1]` inside `calculateUsdcPrice` and the `/api/v1/pin` route. This skips the string method entirely, eliminating memory scanning/allocation overhead for base64 size calculations.
