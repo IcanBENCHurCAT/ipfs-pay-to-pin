@@ -12,7 +12,12 @@ HEROKU_MAINNET_URL = "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com
 GOPLAUSIBLE_FACILITATOR_URL = "https://facilitator.goplausible.xyz"
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
 
-MNEMONIC_STR = ""
+import os, sys
+MNEMONIC_STR = os.environ.get("DEPLOYER_MNEMONIC") or os.environ.get("ALGORAND_WALLET_MNEMONIC") or ""
+if not MNEMONIC_STR:
+    print("Error: ALGORAND_WALLET_MNEMONIC is not set")
+    sys.exit(1)
+
 
 def main():
     # 1. Create tiny 10x10 test image

@@ -12,7 +12,12 @@ HEROKU_MAINNET_URL = "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com
 GOPLAUSIBLE_URL = "https://facilitator.goplausible.xyz"
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
 
-MNEMONIC_STR = ""
+import os, sys
+MNEMONIC_STR = os.environ.get("DEPLOYER_MNEMONIC") or os.environ.get("ALGORAND_WALLET_MNEMONIC") or ""
+if not MNEMONIC_STR:
+    print("Error: ALGORAND_WALLET_MNEMONIC is not set")
+    sys.exit(1)
+
 USDC_ID = 31566704
 CAIP2_NETWORK = "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8="
 
