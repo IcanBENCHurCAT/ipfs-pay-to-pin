@@ -12,7 +12,12 @@ MAINNET_HEROKU_URL = "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
 
 IMAGE_PATH = r"C:\Users\Garret\.gemini\antigravity\brain\d4a572dd-cd12-4d2c-be9d-e572a6f4a696\ipfs_pay_to_pin_logo_1785003427236.jpg"
-MNEMONIC_STR = ""
+import os, sys
+MNEMONIC_STR = os.environ.get("DEPLOYER_MNEMONIC") or os.environ.get("ALGORAND_WALLET_MNEMONIC") or ""
+if not MNEMONIC_STR:
+    print("Error: ALGORAND_WALLET_MNEMONIC is not set")
+    sys.exit(1)
+
 
 def main():
     if not os.path.exists(IMAGE_PATH):

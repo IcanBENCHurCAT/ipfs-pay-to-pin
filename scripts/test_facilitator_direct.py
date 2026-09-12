@@ -9,7 +9,12 @@ ALGOD_ADDRESS = "https://mainnet-api.algonode.cloud"
 algod_client = algod.AlgodClient("", ALGOD_ADDRESS)
 
 # Use the sender address and mnemonic from test_white_square.py
-SENDER_MNEMONIC = ""
+import os, sys
+SENDER_MNEMONIC = os.environ.get("DEPLOYER_MNEMONIC") or os.environ.get("ALGORAND_WALLET_MNEMONIC") or ""
+if not SENDER_MNEMONIC:
+    print("Error: ALGORAND_WALLET_MNEMONIC is not set")
+    sys.exit(1)
+
 from algosdk import mnemonic
 sender_private_key = mnemonic.to_private_key(SENDER_MNEMONIC)
 sender_address = account.address_from_private_key(sender_private_key)
