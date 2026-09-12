@@ -11,7 +11,12 @@ from algosdk.v2client import algod
 PROD_URL = "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com"
 MAINNET_ALGOD = "https://mainnet-api.algonode.cloud"
 
-MNEMONIC_STR = ""
+import os, sys
+MNEMONIC_STR = os.environ.get("DEPLOYER_MNEMONIC") or os.environ.get("ALGORAND_WALLET_MNEMONIC") or ""
+if not MNEMONIC_STR:
+    print("Error: ALGORAND_WALLET_MNEMONIC is not set")
+    sys.exit(1)
+
 USDC_ID = 31566704
 
 def main():
