@@ -24,3 +24,7 @@ Thumbs.db
 *.tfstate.*
 .terraform/
 queue/
+
+# Prevent conflicting package manager lockfiles
+package-lock.json
+yarn.lock
