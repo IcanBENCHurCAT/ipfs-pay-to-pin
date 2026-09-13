@@ -203,8 +203,8 @@ describe('FileQueue Retention & Renewal Logic', () => {
 
     await queue.processExpiredPins();
 
-    expect(unpinFileFromIPFS).toHaveBeenCalledWith('cid_exp_1');
-    expect(unpinFileFromIPFS).toHaveBeenCalledWith('cid_exp_2');
+    expect(unpinFileFromIPFS).toHaveBeenCalledWith('cid_exp_1', 'exp1.txt');
+    expect(unpinFileFromIPFS).toHaveBeenCalledWith('cid_exp_2', 'exp2.txt');
     expect(item1.status).toBe('EXPIRED');
     expect(item2.status).toBe('EXPIRED');
   });
