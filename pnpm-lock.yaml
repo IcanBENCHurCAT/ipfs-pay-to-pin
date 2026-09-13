@@ -27,8 +27,8 @@ importers:
         specifier: ^2.24.0
         version: 2.24.0
       '@x402/evm':
-        specifier: ^2.24.0
-        version: 2.24.0(typescript@7.0.2)
+        specifier: ^2.25.0
+        version: 2.25.0(typescript@7.0.2)
       '@x402/extensions':
         specifier: ^2.24.0
         version: 2.24.0(typescript@7.0.2)
@@ -98,8 +98,8 @@ importers:
         specifier: ^2.24.0
         version: 2.24.0
       '@x402/evm':
-        specifier: ^2.24.0
-        version: 2.24.0(typescript@7.0.2)
+        specifier: ^2.25.0
+        version: 2.25.0(typescript@7.0.2)
       '@x402/svm':
         specifier: ^2.23.0
         version: 2.23.0(@solana/kit@5.5.1(typescript@7.0.2))(@solana/sysvars@5.5.1(typescript@7.0.2))
@@ -1342,8 +1342,8 @@ packages:
   '@x402/core@2.25.0':
     resolution: {integrity: sha512-5Ys0XYz3FKutxVKoXC46R/XPT/oaAbuj7ahzrlVHwQxZJPH9u6u91IOh0ztz+7G/zYGsaXR8l3ety205QtEnUw==}
 
-  '@x402/evm@2.24.0':
-    resolution: {integrity: sha512-npH4A8P/HurcMOjIsri0VrHCb/TNbiIZgCrUrL2c+rbuwpyOtIT+6KT/yfwD53ckOttEE44yJqeK32MCvJ1Tug==}
+  '@x402/evm@2.25.0':
+    resolution: {integrity: sha512-EmnL4MyGW8weEUlq0qC1uJUeoBmtp9GWGwyPl+qkC0CYItRHn748puhYAxK8GsrofscQrt63HsFCB0Gp3iEROA==}
 
   '@x402/extensions@2.24.0':
     resolution: {integrity: sha512-OSPywa8o46a2xIrh+nJqpvXQrppIPNimuPwf5zGRhRZEdjXfBAoSydB+rFj15rKR6Fd0iVjjqsrwUE1FnOuMvg==}
@@ -3231,10 +3231,10 @@ snapshots:
     dependencies:
       zod: 3.25.76
 
-  '@x402/evm@2.24.0(typescript@7.0.2)':
+  '@x402/evm@2.25.0(typescript@7.0.2)':
     dependencies:
-      '@x402/core': 2.24.0
-      viem: 2.56.3(typescript@7.0.2)(zod@3.25.76)
+      '@x402/core': 2.25.0
+      viem: 2.56.5(typescript@7.0.2)(zod@3.25.76)
       zod: 3.25.76
     transitivePeerDependencies:
       - bufferutil
