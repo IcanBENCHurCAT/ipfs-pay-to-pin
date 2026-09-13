@@ -155,7 +155,7 @@ export async function pinFileToStorage(fileInput: Buffer | fs.ReadStream, filena
   };
 }
 
-export async function unpinFileFromIPFS(cid: string): Promise<void> {
+export async function unpinFileFromIPFS(cid: string, filename?: string): Promise<void> {
   const pinataJwt = process.env.PINATA_JWT;
   
   if (pinataJwt && pinataJwt.trim().length > 0) {
@@ -178,19 +178,30 @@ export async function unpinFileFromIPFS(cid: string): Promise<void> {
 
   // Local fallback storage cleanup
   const storageDir = process.env.LOCAL_STORAGE_DIR || 'tmp/mock_storage';
-  try {
-    const files = await fs.promises.readdir(storageDir);
-    for (const file of files) {
-      if (file.startsWith(`${cid}_`)) {
-        try {
-          await fs.promises.unlink(path.join(storageDir, file));
-          console.log(`[Storage] Successfully deleted local fallback for CID ${cid}`);
-        } catch (e: any) {
-          console.warn(`[Storage] Failed to delete local fallback for CID ${cid}:`, e?.message);
+  if (filename) {
+    const safeFilename = sanitizeFilename(filename);
+    const exactPath = path.join(storageDir, `${cid}_${safeFilename}`);
+    try {
+      await fs.promises.unlink(exactPath);
+      console.log(`[Storage] Successfully deleted local fallback for CID ${cid}`);
+    } catch (e: any) {
+      console.warn(`[Storage] Failed to delete local fallback for CID ${cid}:`, e?.message);
+    }
+  } else {
+    try {
+      const files = await fs.promises.readdir(storageDir);
+      for (const file of files) {
+        if (file.startsWith(`${cid}_`)) {
+          try {
+            await fs.promises.unlink(path.join(storageDir, file));
+            console.log(`[Storage] Successfully deleted local fallback for CID ${cid}`);
+          } catch (e: any) {
+            console.warn(`[Storage] Failed to delete local fallback for CID ${cid}:`, e?.message);
+          }
         }
       }
+    } catch {
+      // Directory might not exist, ignore
     }
-  } catch {
-    // Directory might not exist, ignore
   }
 }

@@ -90,3 +90,7 @@
 ## 2026-09-10 - [Avoid String Padding Methods on Large Payloads]
 **Learning:** Using `String.prototype.endsWith()` to check for base64 padding characters (`=` or `==`) on extremely large strings (like 20MB file payloads) forces the V8 engine to execute string method overhead, scanning or potentially creating temporary substring references on the event loop, causing CPU spikes.
 **Action:** Replaced `.endsWith()` on large JSON body `data` strings with an O(1) direct character index lookup `data[dataLen - 1]` inside `calculateUsdcPrice` and the `/api/v1/pin` route. This skips the string method entirely, eliminating memory scanning/allocation overhead for base64 size calculations.
+
+## 2026-09-13 - [Avoid O(N) readdir Scans in Local Storage Cleanup]
+**Learning:** The application was using `fs.promises.readdir` to sequentially scan the entire local storage directory to find a fallback file matching a `cid_` prefix during IPFS unpinning. In environments with many fallback files or during batch background sweeps, this O(N) I/O operation blocked execution and degraded throughput.
+**Action:** Updated the `unpinFileFromIPFS` function to accept the known `filename` from the `QueueItem` state. If provided, the exact O(1) file path is reconstructed and unlinked directly, bypassing the expensive directory scan entirely.
