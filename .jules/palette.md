@@ -13,3 +13,6 @@
 ## 2025-02-18 - Input Boundary Validation for ConfigurationError
 **Learning:** Checking inputs early prevents vague runtime errors downstream for consuming agents. Strong input boundary validation on `config.mnemonic` length improves the dev experience. Explicit runtime type checking allows throwing specialized errors like `ConfigurationError` providing actionable messages.
 **Action:** Validate parameters, especially mnemonic strings, and ensure specific errors with actionable text are raised to the caller.
+## 2024-09-14 - Pre-encoding Payload Limits
+**Learning:** Checking a large buffer's payload size only after encoding it to Base64 wastes substantial memory and blocks the Node event loop, just for the gateway to return a 413 Payload Too Large error.
+**Action:** Always estimate the Base64-encoded size of a `Buffer` (`Math.ceil(buffer.byteLength * 4 / 3)`) and assert it against max upload boundary limits BEFORE allocating new strings or sending network requests. This ensures immediate failure recovery for consumers without heavy computational overhead.
