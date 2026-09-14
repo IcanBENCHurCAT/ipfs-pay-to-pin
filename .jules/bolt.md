@@ -94,3 +94,7 @@
 ## 2026-09-12 - [Avoid O(N) readdir Scans in Local Storage Cleanup]
 **Learning:** The application was using `fs.promises.readdir` to sequentially scan the entire local storage directory to find a fallback file matching a `cid_` prefix during IPFS unpinning. In environments with many fallback files or during batch background sweeps, this O(N) I/O operation blocked execution and degraded throughput.
 **Action:** Updated the `unpinFileFromIPFS` function to accept the known `filename` from the `QueueItem` state. If provided, the exact O(1) file path is reconstructed and unlinked directly, bypassing the expensive directory scan entirely.
+
+## 2026-09-15 - [Avoid Intermediate Array Allocations from Spreads]
+**Learning:** Using the array spread operator (`...arr`) inside `Buffer.from([0xXX, ...arr])` to construct binary headers creates an intermediate Array object on the V8 event loop for every calculation. When computing CIDs frequently or in hot paths, this causes unnecessary garbage collection overhead. Additionally, using `Buffer.concat` creates array iterators internally.
+**Action:** Replaced array spreads with `Buffer.allocUnsafe()` combined with direct index assignment (`buf[0] = 0xXX`) and `buf.set(arr, 1)`. Extracted static constant prefixes to global scope. Replaced `Buffer.concat([prefixBuf, hashBuf])` with a pre-allocated 36-byte buffer and `prefix.copy()` + `hash.copy()`.
