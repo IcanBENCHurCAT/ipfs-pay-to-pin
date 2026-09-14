@@ -6,6 +6,11 @@ import algosdk from 'algosdk';
 import axios from 'axios';
 
 /**
+ * The maximum permitted request payload size (20MB) supported by the gateway.
+ */
+export const MAX_PAYLOAD_SIZE_BYTES = 20 * 1024 * 1024;
+
+/**
  * Configuration options for initializing the IPFS Pay-to-Pin client.
  * Requires at least one valid signing method (mnemonic, evmPrivateKey, or solanaPrivateKey).
  */
@@ -318,6 +323,15 @@ export class IpfsPayToPinClient {
 
     if (typeof options.data !== 'string' && !Buffer.isBuffer(options.data)) {
       throw new ConfigurationError(`[IpfsClient] Expected options.data to be a Buffer or string, got ${typeof options.data}`);
+    }
+
+    const estimatedSize = typeof options.data === 'string'
+      ? options.data.length
+      : Math.ceil(options.data.byteLength * 4 / 3);
+
+    // We leave a small 10KB buffer for JSON structure (filename, etc)
+    if (estimatedSize > MAX_PAYLOAD_SIZE_BYTES - 10240) {
+      throw new ConfigurationError(`[IpfsClient] File payload size (${estimatedSize} bytes) exceeds the 20MB gateway limit.`);
     }
 
     const base64Data = typeof options.data === 'string'
