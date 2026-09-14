@@ -44,6 +44,9 @@ function encodeVarint(val: number): number[] {
   return res;
 }
 
+const TYPE_BYTES = Buffer.from([0x08, 0x02]);
+const CID_PREFIX = Buffer.from([0x01, 0x70, 0x12, 0x20]);
+
 /**
  * Calculates the exact deterministic IPFS UnixFS v1 CID (dag-pb / SHA-256)
  * for a given file binary buffer.
@@ -54,21 +57,29 @@ export function calculateLocalCid(buffer: Buffer): string {
   //    Type = File (2) [0x08, 0x02]
   //    Data = buffer   [0x12, varint(len), ...buffer]
   //    filesize = len  [0x18, varint(len)]
-  const typeBytes = Buffer.from([0x08, 0x02]);
-  const dataHeader = Buffer.from([0x12, ...encodeVarint(buffer.length)]);
-  const filesizeBytes = Buffer.from([0x18, ...encodeVarint(buffer.length)]);
+  const lenVarint = encodeVarint(buffer.length);
+  const dataHeader = Buffer.allocUnsafe(1 + lenVarint.length);
+  dataHeader[0] = 0x12;
+  dataHeader.set(lenVarint, 1);
 
-  const unixFsDataLen = typeBytes.length + dataHeader.length + buffer.length + filesizeBytes.length;
+  const filesizeBytes = Buffer.allocUnsafe(1 + lenVarint.length);
+  filesizeBytes[0] = 0x18;
+  filesizeBytes.set(lenVarint, 1);
+
+  const unixFsDataLen = TYPE_BYTES.length + dataHeader.length + buffer.length + filesizeBytes.length;
 
   // 2. Wrap UnixFS Data inside PBNode protobuf message:
   //    Data = unixFsData [0x0a, varint(len), ...unixFsData]
-  const pbNodeHeader = Buffer.from([0x0a, ...encodeVarint(unixFsDataLen)]);
+  const pbVarint = encodeVarint(unixFsDataLen);
+  const pbNodeHeader = Buffer.allocUnsafe(1 + pbVarint.length);
+  pbNodeHeader[0] = 0x0a;
+  pbNodeHeader.set(pbVarint, 1);
 
   // 3. Compute SHA-256 digest of PBNode
   // ⚡ Bolt: Sequentially stream buffer parts into crypto hash to avoid O(N) memory allocations via Buffer.concat
   const sha256Hash = crypto.createHash('sha256')
     .update(pbNodeHeader)
-    .update(typeBytes)
+    .update(TYPE_BYTES)
     .update(dataHeader)
     .update(buffer)
     .update(filesizeBytes)
@@ -80,7 +91,10 @@ export function calculateLocalCid(buffer: Buffer): string {
   //    codec: 0x70 (dag-pb)
   //    multihash algorithm: 0x12 (sha2-256)
   //    multihash length: 0x20 (32 bytes)
-  const cidRawBytes = Buffer.concat([Buffer.from([0x01, 0x70, 0x12, 0x20]), sha256Hash]);
+  // ⚡ Bolt: Allocate exact buffer and copy to prevent array allocation in Buffer.concat
+  const cidRawBytes = Buffer.allocUnsafe(36);
+  CID_PREFIX.copy(cidRawBytes, 0);
+  sha256Hash.copy(cidRawBytes, 4);
 
   // 5. Encode with multibase prefix 'b'
   return 'b' + base32Encode(cidRawBytes);
