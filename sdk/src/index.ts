@@ -5,52 +5,102 @@ import { ExactSvmScheme } from '@x402/svm/exact/client';
 import algosdk from 'algosdk';
 import axios from 'axios';
 
+/**
+ * Configuration options for initializing the IPFS Pay-to-Pin client.
+ * Requires at least one valid signing method (mnemonic, evmPrivateKey, or solanaPrivateKey).
+ */
 export interface IpfsPayToPinConfig {
+  /** The URL of the IPFS Pay-to-Pin Gateway. Defaults to https://pay-to-pin.duckdns.org */
   gatewayUrl?: string;
-  mnemonic?: string; // Algorand 25-word mnemonic or base64 secret key
-  evmPrivateKey?: string; // EVM private key (0x...) for Base / L2 / L1
-  solanaPrivateKey?: string; // Solana base58 private key or raw secret key
-  sender?: string; // Original asset holding account address (if using a rekeyed Algorand signer)
+  /** Algorand 25-word mnemonic or base64 secret key for Algorand payments. */
+  mnemonic?: string;
+  /** EVM private key (0x...) for Base, Arbitrum, or Ethereum L1 gasless or native USDC payments. */
+  evmPrivateKey?: string;
+  /** Solana base58 private key or raw secret key for Solana mainnet USDC payments. */
+  solanaPrivateKey?: string;
+  /** Original asset holding account address (required if using a rekeyed Algorand signer). */
+  sender?: string;
+  /** Custom Algorand algod node URL. Defaults to Algonode public API. */
   algodServer?: string;
+  /** Network environment for Algorand operations. Defaults to 'mainnet'. */
   network?: 'mainnet' | 'testnet';
-  preferredNetwork?: string; // e.g. "eip155:8453" (Base), "solana:5ey...", "algorand:mainnet"
-  maxPriceUsdc?: number; // Optional price safety cap (default $1.00 USDC)
+  /** Preferred network CAIP-2 identifier to prioritize during 402 payment resolution (e.g. "eip155:8453" for Base). */
+  preferredNetwork?: string;
+  /** Maximum price budget cap in USDC (default: $1.00 USDC) to prevent unexpected overcharging. */
+  maxPriceUsdc?: number;
+  /** Optional callback to manually approve or decline payments dynamically before execution. */
   confirmPrice?: (priceUsdc: number, description: string, network: string) => Promise<boolean>;
 }
 
+/**
+ * Payload configuration for uploading and pinning a file.
+ */
 export interface PinOptions {
+  /** The name of the file to store (e.g., 'document.pdf'). */
   filename: string;
+  /** The file contents as a raw Buffer or a Base64 encoded string. */
   data: Buffer | string;
 }
 
+/**
+ * The standard response returned by the gateway after a successful file pin payment.
+ */
 export interface PinResponse {
+  /** HTTP status descriptor (e.g., 'success'). */
   status: string;
+  /** Detailed result message. */
   message: string;
+  /** The original filename supplied during upload. */
   filename: string;
+  /** The IPFS CID for the pinned file. */
   ipfs_cid: string;
+  /** Alias for ipfs_cid. */
   cid: string;
+  /** The public gateway URL to immediately access the pinned file. */
   gateway_url: string;
+  /** ISO timestamp denoting when the file was pinned. */
   pinned_at: string;
+  /** ISO timestamp denoting when the 365-day retention period expires. */
   expires_at: string;
+  /** Time-to-live length in days (e.g., 365). */
   ttl_days: number;
+  /** The API URL to renew this pin for an additional year. */
   renewal_url: string;
 }
 
+/**
+ * Free-tier retention status information for an existing pinned CID.
+ */
 export interface PinStatusResponse {
+  /** ISO timestamp denoting when the file was initially pinned. */
   pinned_at: string;
+  /** ISO timestamp denoting when the retention period expires. */
   expires_at: string;
+  /** The calculated number of days remaining until the file is unpinned. */
   days_remaining: number;
+  /** Boolean indicating whether the pin is currently active or expired. */
   is_active: boolean;
+  /** Total Time-to-live length in days initially purchased. */
   ttl_days: number;
+  /** The number of times this pin has been renewed. */
   renewals_count: number;
+  /** The API URL to renew this pin for an additional year. */
   renewal_url: string;
 }
 
+/**
+ * The response returned after successfully renewing an existing pin.
+ */
 export interface RenewResponse {
+  /** HTTP status descriptor. */
   status: string;
+  /** Detailed result message confirming renewal. */
   message: string;
+  /** The IPFS CID that was renewed. */
   cid: string;
+  /** The new ISO timestamp denoting the extended expiration date. */
   expires_at: string;
+  /** The updated total number of renewals applied to this CID. */
   renewals_count: number;
 }
 
