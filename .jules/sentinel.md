@@ -39,3 +39,7 @@
 **Vulnerability:** Adding `sys.exit(1)` at the module level in Python test files (e.g., `test_*.py`) to enforce environment variable requirements (like secrets or mnemonics) breaks `pytest` test collection and discovery. If the variable is missing, `pytest` aborts entirely instead of skipping the specific tests or failing them gracefully.
 **Learning:** Security fail-fast logic for credentials must be implemented carefully in testing environments to avoid disrupting the CI pipeline's ability to discover and run unrelated tests.
 **Prevention:** In test files, handle missing credentials by placing the check inside test functions, test fixtures, or using testing framework tools (e.g., `pytest.skip("Missing ALGORAND_WALLET_MNEMONIC")`) rather than generic root-level `sys.exit(1)`.
+## 2026-09-15 - Fix escrow drain via spoofed content-length in pricing calculation
+**Vulnerability:** Spoofed content-length header allowed bypassing the correct calculated JSON payload fee in payment calculation.
+**Learning:** Client-provided headers like content-length must never be trusted for security-sensitive calculations such as pricing. The pricing fallback allowed for invalid JSON bodies to be priced via a spoofed content-length header.
+**Prevention:** If JSON parsing or `data` payload extraction fails during pricing, fail securely by throwing an HTTP 400 error rather than falling back to an unverified header.

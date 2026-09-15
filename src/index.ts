@@ -527,9 +527,8 @@ const calculateUsdcPrice = async (ctx: any, isEthereumL1 = false) => {
             }
             binaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
         }
-    } catch {
-        const contentLength = Number(ctx.adapter.getHeader("content-length")) || 0;
-        binaryBytes = Math.max(1000, Math.floor(contentLength * 0.75));
+    } catch (e: any) {
+        throw new HTTPException(400, { message: "Invalid JSON body" });
     }
     const baseMicroUsdc = 10000; // $0.01 base price
     const bytePriceMicroUsdc = 0.02; // $0.02 per MB (0.02 microUSDC per byte)
