@@ -109,6 +109,9 @@ export interface RenewResponse {
   renewals_count: number;
 }
 
+/**
+ * Error thrown when a requested payment amount exceeds the maximum configured price budget cap (maxPriceUsdc).
+ */
 export class InsufficientBudgetError extends Error {
   constructor(message: string) {
     super(message);
@@ -117,6 +120,9 @@ export class InsufficientBudgetError extends Error {
   }
 }
 
+/**
+ * Error thrown when a custom `confirmPrice` callback rejects a payment by returning `false`.
+ */
 export class PaymentDeclinedError extends Error {
   constructor(message: string) {
     super(message);
@@ -125,6 +131,9 @@ export class PaymentDeclinedError extends Error {
   }
 }
 
+/**
+ * Error thrown when the SDK is misconfigured or when invalid inputs are provided to client methods.
+ */
 export class ConfigurationError extends Error {
   constructor(message: string) {
     super(message);
@@ -133,7 +142,12 @@ export class ConfigurationError extends Error {
   }
 }
 
+/**
+ * Error thrown when the IPFS Pay-to-Pin gateway returns an HTTP error or when network issues occur.
+ * Includes an optional HTTP status code.
+ */
 export class GatewayError extends Error {
+  /** The optional HTTP status code returned by the gateway. */
   public status?: number;
   constructor(message: string, status?: number) {
     super(message);
@@ -160,6 +174,13 @@ export class IpfsPayToPinClient {
   private x402ClientInstance: x402Client;
   private registeredNetworks: Set<string> = new Set();
 
+  /**
+   * Initializes a new instance of the IpfsPayToPinClient.
+   * Requires at least one valid signing method (mnemonic, evmPrivateKey, or solanaPrivateKey) to be provided in the configuration.
+   *
+   * @param config - The configuration options for the client.
+   * @throws {ConfigurationError} If the client is initialized without at least one valid wallet key.
+   */
   constructor(config: IpfsPayToPinConfig) {
     if (!config.mnemonic && !config.evmPrivateKey && !config.solanaPrivateKey) {
       throw new ConfigurationError('IpfsPayToPinClient requires at least one wallet key (mnemonic, evmPrivateKey, or solanaPrivateKey).');
@@ -247,6 +268,13 @@ export class IpfsPayToPinClient {
     this.x402HttpClient = new x402HTTPClient(this.x402ClientInstance);
   }
 
+  /**
+   * Returns the primary wallet address used by the client for payments.
+   * Returns the explicit `sender` if configured, the derived Algorand account address if initialized with a mnemonic,
+   * or a generic 'multi-chain-wallet' string for purely EVM/Solana configured clients.
+   *
+   * @returns {string} The public address or a generic identifier.
+   */
   public getAddress(): string {
     if (this.sender || this.algorandAccount) {
       return this.sender || this.algorandAccount!.addr.toString();
