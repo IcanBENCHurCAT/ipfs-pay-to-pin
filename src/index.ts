@@ -241,20 +241,20 @@ app.get("/.well-known/agent-card.json", (c) => {
         "iconUrl": logoUrl,
         "avatarUrl": logoUrl,
         "version": "1.0.0",
-        "url": "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com",
+        "url": "https://pay-to-pin.duckdns.org",
         "supportedInterfaces": [
             {
-                "url": "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin",
+                "url": "https://pay-to-pin.duckdns.org/api/v1/pin",
                 "protocolBinding": "HTTP",
                 "protocolVersion": "1.1"
             },
             {
-                "url": "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/renew",
+                "url": "https://pay-to-pin.duckdns.org/api/v1/renew",
                 "protocolBinding": "HTTP",
                 "protocolVersion": "1.1"
             },
             {
-                "url": "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com/api/v1/pin/{cid}",
+                "url": "https://pay-to-pin.duckdns.org/api/v1/pin/{cid}",
                 "protocolBinding": "HTTP",
                 "protocolVersion": "1.1"
             }
@@ -336,7 +336,7 @@ app.get("/openapi.json", (c) => {
             description: "Pay-per-request API that pins files to IPFS for 365 days via Algorand microUSDC x402 payments."
         },
         servers: [
-            { url: "https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com" },
+            { url: "https://pay-to-pin.duckdns.org" },
             { url: "http://localhost:4021" }
         ],
         paths: {
