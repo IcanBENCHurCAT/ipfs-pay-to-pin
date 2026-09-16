@@ -292,9 +292,11 @@ export class IpfsPayToPinClient {
     }
 
     // Filter to options where we have a registered signer
+    // ⚡ Bolt: Pre-allocate array representation of the Set to avoid O(N) array allocations on every filter iteration
+    const registeredNetworksArr = Array.from(this.registeredNetworks);
     const validOptions = accepts.filter(opt => {
       const net = opt.network || '';
-      return this.registeredNetworks.has(net) || Array.from(this.registeredNetworks).some(rn => net.startsWith(rn));
+      return this.registeredNetworks.has(net) || registeredNetworksArr.some(rn => net.startsWith(rn));
     });
 
     if (!validOptions.length) {
