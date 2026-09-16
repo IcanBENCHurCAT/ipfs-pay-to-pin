@@ -98,3 +98,7 @@
 ## 2026-09-15 - [Avoid Intermediate Array Allocations from Spreads]
 **Learning:** Using the array spread operator (`...arr`) inside `Buffer.from([0xXX, ...arr])` to construct binary headers creates an intermediate Array object on the V8 event loop for every calculation. When computing CIDs frequently or in hot paths, this causes unnecessary garbage collection overhead. Additionally, using `Buffer.concat` creates array iterators internally.
 **Action:** Replaced array spreads with `Buffer.allocUnsafe()` combined with direct index assignment (`buf[0] = 0xXX`) and `buf.set(arr, 1)`. Extracted static constant prefixes to global scope. Replaced `Buffer.concat([prefixBuf, hashBuf])` with a pre-allocated 36-byte buffer and `prefix.copy()` + `hash.copy()`.
+
+## 2026-09-16 - [Avoid Repeated Array Allocation in Set Validation Loop]
+**Learning:** The application was calling `Array.from(this.registeredNetworks)` inside an `accepts.filter` iteration in `selectBestAcceptOption`. Because `Array.from` allocates a new array in memory, doing this inside a filter loop creates an O(N) memory allocation pattern (where N is the number of `accepts` network challenges), blocking the event loop and generating unnecessary GC pressure on every pin/renew client request.
+**Action:** Pre-allocated the Array representation of the `registeredNetworks` Set into a variable before the loop and referenced it inside the `.some()` check. This ensures only one array is created per request, preventing hidden O(N) loop allocations.
