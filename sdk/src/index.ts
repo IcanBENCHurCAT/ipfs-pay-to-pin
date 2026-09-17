@@ -173,6 +173,7 @@ export class IpfsPayToPinClient {
   private x402HttpClient: x402HTTPClient;
   private x402ClientInstance: x402Client;
   private registeredNetworks: Set<string> = new Set();
+  private registeredNetworksArr: string[] = [];
 
   /**
    * Initializes a new instance of the IpfsPayToPinClient.
@@ -266,6 +267,7 @@ export class IpfsPayToPinClient {
     }
 
     this.x402HttpClient = new x402HTTPClient(this.x402ClientInstance);
+    this.registeredNetworksArr = Array.from(this.registeredNetworks);
   }
 
   /**
@@ -292,11 +294,11 @@ export class IpfsPayToPinClient {
     }
 
     // Filter to options where we have a registered signer
-    // ⚡ Bolt: Pre-allocate array representation of the Set to avoid O(N) array allocations on every filter iteration
-    const registeredNetworksArr = Array.from(this.registeredNetworks);
+    // ⚡ Bolt: Use globally pre-allocated array of registered networks (created once in constructor)
+    // instead of calling Array.from() on the Set on every client request to prevent O(N) memory allocations
     const validOptions = accepts.filter(opt => {
       const net = opt.network || '';
-      return this.registeredNetworks.has(net) || registeredNetworksArr.some(rn => net.startsWith(rn));
+      return this.registeredNetworks.has(net) || this.registeredNetworksArr.some(rn => net.startsWith(rn));
     });
 
     if (!validOptions.length) {
