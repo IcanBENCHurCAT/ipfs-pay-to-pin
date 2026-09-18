@@ -517,17 +517,19 @@ const calculateUsdcPrice = async (ctx: any, isEthereumL1 = false) => {
     let binaryBytes = 1000;
     try {
         const body = await ctx.adapter.getBody();
-        if (body && typeof body.data === 'string') {
-            const dataLen = body.data.length;
-            let padding = 0;
-            if (dataLen > 1) {
-                if (body.data[dataLen - 1] === '=') {
-                    padding = body.data[dataLen - 2] === '=' ? 2 : 1;
-                }
-            }
-            binaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
+        if (!body || !body.data || typeof body.data !== 'string') {
+            throw new HTTPException(400, { message: "Missing or invalid data parameter in JSON payload" });
         }
+        const dataLen = body.data.length;
+        let padding = 0;
+        if (dataLen > 1) {
+            if (body.data[dataLen - 1] === '=') {
+                padding = body.data[dataLen - 2] === '=' ? 2 : 1;
+            }
+        }
+        binaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
     } catch (e: any) {
+        if (e instanceof HTTPException) throw e;
         throw new HTTPException(400, { message: "Invalid JSON body" });
     }
     const baseMicroUsdc = 10000; // $0.01 base price

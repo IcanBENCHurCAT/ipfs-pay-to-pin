@@ -43,3 +43,7 @@
 **Vulnerability:** Spoofed content-length header allowed bypassing the correct calculated JSON payload fee in payment calculation.
 **Learning:** Client-provided headers like content-length must never be trusted for security-sensitive calculations such as pricing. The pricing fallback allowed for invalid JSON bodies to be priced via a spoofed content-length header.
 **Prevention:** If JSON parsing or `data` payload extraction fails during pricing, fail securely by throwing an HTTP 400 error rather than falling back to an unverified header.
+## 2023-10-25 - [Missing Data Payload Leads to Financial Exploit]
+**Vulnerability:** The `calculateUsdcPrice` logic silently defaulted payload size calculation to 1000 bytes when `body.data` was missing or malformed, enabling an attacker to pay for the cheapest challenge before submitting requests that fail later in the pipeline but still drain their own funds, or bypass checks.
+**Learning:** Never assume inputs will be validated *after* billing or that falling back to a default value is safe in financial logic. If a required field is missing, fail fast with a 400 error rather than continuing with defaults.
+**Prevention:** Always validate all mandatory payload fields *before* running pricing, billing, or access control logic.
