@@ -31,6 +31,10 @@
     "test": "vitest run --passWithNoTests",
     "lint": "tsc --noEmit"
   },
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
   "keywords": [
     "ipfs",
     "x402",
