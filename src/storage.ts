@@ -69,8 +69,20 @@ export function validateContentType(buffer: Buffer): boolean {
   }
   // ⚡ Bolt: Replaced synchronous buffer.toString('utf8') with native C++ O(1) memory isUtf8 check
   // avoiding allocation of up to 20MB strings on the event loop for large payloads.
-  const hasNullByte = buffer.subarray(0, 512).includes(0);
-  if (buffer.length > 0 && !hasNullByte && isUtf8(buffer)) {
+  // ⚡ Bolt: Also slice buffer to at most 512 bytes before checking isUtf8 to prevent O(N) memory scanning
+  // on large 20MB files which blocks the Node.js event loop
+  let textChunk = buffer;
+  if (buffer.length > 512) {
+    let end = 512;
+    // Prevent slicing in the middle of a multi-byte UTF-8 character
+    // UTF-8 continuation bytes have the format 10xxxxxx (0x80 to 0xBF)
+    while (end > 0 && (buffer[end] & 0xC0) === 0x80) {
+      end--;
+    }
+    textChunk = buffer.subarray(0, end);
+  }
+  const hasNullByte = textChunk.includes(0);
+  if (buffer.length > 0 && !hasNullByte && isUtf8(textChunk)) {
     return true;
   }
   return false;
