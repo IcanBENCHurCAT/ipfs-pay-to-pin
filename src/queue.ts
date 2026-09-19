@@ -291,10 +291,14 @@ export class FileQueue {
       console.log(`[Queue Worker] Processing ${pendingItems.length} pending pinning jobs (concurrency limit: ${this.maxConcurrent})...`);
 
       for (let i = 0; i < pendingItems.length; i += this.maxConcurrent) {
-        const chunk = pendingItems.slice(i, i + this.maxConcurrent);
-        // ⚡ Bolt: Stream file directly from disk via fs.createReadStream to pinFileToStorage to eliminate in-memory buffer allocation
-        const results = await Promise.allSettled(
-          chunk.map(async (item) => {
+        // ⚡ Bolt: Use a pre-allocated array and a for-loop to avoid dynamic array allocations from .slice() and .map()
+        const chunkLen = Math.min(this.maxConcurrent, pendingItems.length - i);
+        const chunk = new Array(chunkLen);
+        const promises = new Array(chunkLen);
+        for (let j = 0; j < chunkLen; j++) {
+          const item = pendingItems[i + j];
+          chunk[j] = item;
+          promises[j] = (async () => {
             try {
               await fs.promises.access(item.filePath);
             } catch {
@@ -314,11 +318,16 @@ export class FileQueue {
             } catch {}
 
             console.log(`[Queue Worker] Successfully pinned job ${item.id} -> CID ${result.ipfs_cid}`);
-          })
-        );
+          })();
+        }
+
+        // ⚡ Bolt: Stream file directly from disk via fs.createReadStream to pinFileToStorage to eliminate in-memory buffer allocation
+        const results = await Promise.allSettled(promises);
 
         let batchFailures = 0;
-        results.forEach((res, idx) => {
+        // ⚡ Bolt: Avoid forEach and use single-pass for-loop
+        for (let idx = 0; idx < results.length; idx++) {
+          const res = results[idx];
           if (res.status === 'rejected') {
             batchFailures++;
             const item = chunk[idx];
@@ -332,7 +341,7 @@ export class FileQueue {
               fs.promises.unlink(item.filePath).catch(() => {});
             }
           }
-        });
+        }
 
         if (batchFailures > 0) {
           this.consecutiveFailures += batchFailures;
@@ -418,8 +427,11 @@ export class FileQueue {
       if (expiredItems.length === 0) return;
 
       // ⚡ Bolt: Parallelize IPFS storage unpin calls with Promise.all to prevent sequential loop blocking
-      await Promise.all(
-        expiredItems.map(async (item) => {
+      // ⚡ Bolt: Avoid .map() and use pre-allocated array for unpin promises
+      const unpinPromises = new Array(expiredItems.length);
+      for (let i = 0; i < expiredItems.length; i++) {
+        const item = expiredItems[i];
+        unpinPromises[i] = (async () => {
           console.log(`[Queue Worker] CID ${item.cid} has exceeded grace period. Unpinning...`);
           try {
             await unpinFileFromIPFS(item.cid, item.filename);
@@ -427,8 +439,9 @@ export class FileQueue {
           } catch (e) {
             console.warn(`[Queue Worker] Warning during unpin attempt for ${item.cid}:`, e);
           }
-        })
-      );
+        })();
+      }
+      await Promise.all(unpinPromises);
 
       await this.saveItems(items);
     } finally {
