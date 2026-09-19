@@ -113,6 +113,10 @@ export interface RenewResponse {
  * Error thrown when a requested payment amount exceeds the maximum configured price budget cap (maxPriceUsdc).
  */
 export class InsufficientBudgetError extends Error {
+  /**
+   * Constructs an InsufficientBudgetError.
+   * @param {string} message - The error message detailing the budget failure.
+   */
   constructor(message: string) {
     super(message);
     this.name = 'InsufficientBudgetError';
@@ -124,6 +128,10 @@ export class InsufficientBudgetError extends Error {
  * Error thrown when a custom `confirmPrice` callback rejects a payment by returning `false`.
  */
 export class PaymentDeclinedError extends Error {
+  /**
+   * Constructs a PaymentDeclinedError.
+   * @param {string} message - The error message detailing the declined payment.
+   */
   constructor(message: string) {
     super(message);
     this.name = 'PaymentDeclinedError';
@@ -135,6 +143,10 @@ export class PaymentDeclinedError extends Error {
  * Error thrown when the SDK is misconfigured or when invalid inputs are provided to client methods.
  */
 export class ConfigurationError extends Error {
+  /**
+   * Constructs a ConfigurationError.
+   * @param {string} message - The error message detailing the configuration or input failure.
+   */
   constructor(message: string) {
     super(message);
     this.name = 'ConfigurationError';
@@ -149,6 +161,12 @@ export class ConfigurationError extends Error {
 export class GatewayError extends Error {
   /** The optional HTTP status code returned by the gateway. */
   public status?: number;
+
+  /**
+   * Constructs a GatewayError.
+   * @param {string} message - The error message detailing the gateway failure.
+   * @param {number} [status] - Optional HTTP status code associated with the error.
+   */
   constructor(message: string, status?: number) {
     super(message);
     this.name = 'GatewayError';
