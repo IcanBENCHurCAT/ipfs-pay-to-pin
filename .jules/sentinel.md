@@ -47,3 +47,8 @@
 **Vulnerability:** The `calculateUsdcPrice` logic silently defaulted payload size calculation to 1000 bytes when `body.data` was missing or malformed, enabling an attacker to pay for the cheapest challenge before submitting requests that fail later in the pipeline but still drain their own funds, or bypass checks.
 **Learning:** Never assume inputs will be validated *after* billing or that falling back to a default value is safe in financial logic. If a required field is missing, fail fast with a 400 error rather than continuing with defaults.
 **Prevention:** Always validate all mandatory payload fields *before* running pricing, billing, or access control logic.
+
+## 2026-09-16 - Missing Input Validation on Renew Endpoint Leads to Financial Exploit
+**Vulnerability:** The `price` function for `POST /api/v1/renew` caught missing or invalid `cid` payload, but only within the `try` block for parsing the JSON body. If `cid` was missing (i.e. `body.cid` was undefined), it silently passed `undefined` to `globalFileQueue.findAnyByCid(cid)` instead of throwing an HTTP 400 error.
+**Learning:** If a required field is missing, fail fast with a 400 error rather than continuing with defaults or attempting to use `undefined` values for lookups which lead to unintended outcomes.
+**Prevention:** Always validate all mandatory payload fields *before* running pricing, billing, or access control logic.

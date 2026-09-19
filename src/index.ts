@@ -598,8 +598,12 @@ try {
                                 let cid;
                                 try {
                                     const body = await ctx.adapter.getBody();
+                                    if (!body || !body.cid || typeof body.cid !== 'string') {
+                                        throw new HTTPException(400, { message: "Missing or invalid cid parameter in JSON payload" });
+                                    }
                                     cid = body.cid;
-                                } catch (e) {
+                                } catch (e: any) {
+                                    if (e instanceof HTTPException) throw e;
                                     throw new HTTPException(400, { message: "Invalid JSON body" });
                                 }
                                 
