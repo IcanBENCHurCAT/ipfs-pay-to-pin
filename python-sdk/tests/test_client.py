@@ -12,7 +12,7 @@ from ipfs_pay_to_pin_client.exceptions import (
     PaymentRequiredError,
     RekeyDetectedError,
 )
-from ipfs_pay_to_pin_client.models import PinResponse
+from ipfs_pay_to_pin_client.models import PinResponse, BatchPinResult, BatchPinResponse
 
 
 class TestIpfsPayToPinClient(unittest.TestCase):
@@ -215,6 +215,8 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         with self.assertRaises(requests.exceptions.HTTPError):
             client.renew_pin("QmNotFound")
 
+    # === Network Selection Tests ===
+
     def test_select_best_option_no_matching_network(self):
         client = IpfsPayToPinClient(gateway_url=self.gateway_url, evm_private_key="0x1111111111111111111111111111111111111111111111111111111111111111")
         accepts = [{"network": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", "amount": 1000}]
@@ -278,6 +280,282 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         ]
         res_diff = client._select_best_option(accepts_diff_amount)
         self.assertEqual(res_diff["network"], "eip155:1")
+    # === Pin File Tests ===
+
+    @patch.object(IpfsPayToPinClient, "pin_bytes")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_file_success(self, mock_to_priv, mock_algod, mock_pin_bytes):
+        mock_to_priv.return_value = self.private_key
+        mock_response = PinResponse(
+            cid="QmFile123",
+            status="pinned",
+            pin_expires_at="2026-12-31T23:59:59Z",
+            size_bytes=11,
+            tx_id="tx_file_123",
+        )
+        mock_pin_bytes.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        with patch("builtins.open", unittest.mock.mock_open(read_data=b"hello world")):
+            res = client.pin_file("/path/to/test_document.pdf", max_price_usdc=0.5)
+
+        self.assertEqual(res, mock_response)
+        mock_pin_bytes.assert_called_once_with(
+            b"hello world",
+            filename="test_document.pdf",
+            max_price_usdc=0.5,
+        )
+
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_file_not_found(self, mock_to_priv, mock_algod):
+        mock_to_priv.return_value = self.private_key
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        with self.assertRaises(FileNotFoundError):
+            client.pin_file("/nonexistent/file/path/missing.txt")
+
+    # === Batch Pin Tests ===
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_files_success(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = {
+            "pins": [
+                {"cid": "QmFile1", "gateway_url": "https://ipfs.io/ipfs/QmFile1", "expires_at": "2027-09-01T00:00:00Z"},
+                {"cid": "QmFile2", "gateway_url": "https://ipfs.io/ipfs/QmFile2", "expires_at": "2027-09-01T00:00:00Z"},
+            ],
+            "total": 2,
+            "succeeded": 2,
+            "failed": 0,
+        }
+        mock_post.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        with patch("builtins.open", unittest.mock.mock_open(read_data=b"hello world")):
+            res = client.pin_files(["/path/to/file1.txt", "/path/to/file2.txt"])
+
+        self.assertIsInstance(res, BatchPinResponse)
+        self.assertEqual(res.total, 2)
+        self.assertEqual(res.succeeded, 2)
+        self.assertEqual(res.failed, 0)
+        self.assertEqual(len(res.pins), 2)
+        self.assertEqual(res.pins[0].cid, "QmFile1")
+        self.assertEqual(res.pins[1].cid, "QmFile2")
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_files_with_tuples(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = {
+            "pins": [
+                {"cid": "QmTuple1", "gateway_url": "https://ipfs.io/ipfs/QmTuple1", "expires_at": "2027-09-01T00:00:00Z"},
+            ],
+            "total": 1,
+            "succeeded": 1,
+            "failed": 0,
+        }
+        mock_post.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+        res = client.pin_files([("my_file.bin", b"binary data")])
+
+        self.assertIsInstance(res, BatchPinResponse)
+        self.assertEqual(res.succeeded, 1)
+        # Verify the payload was encoded correctly
+        call_args = mock_post.call_args
+        payload = call_args[1]["json"]
+        self.assertEqual(len(payload), 1)
+        self.assertEqual(payload[0]["filename"], "my_file.bin")
+        self.assertEqual(base64.b64decode(payload[0]["data"]), b"binary data")
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_files_partial_success(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.status_code = 207  # 207 = partial success
+        mock_response.json.return_value = {
+            "pins": [
+                {"cid": "QmGood", "gateway_url": "https://ipfs.io/ipfs/QmGood", "expires_at": "2027-09-01T00:00:00Z"},
+                {"filename": "bad.txt", "error": "Invalid base64 data"},
+                {"cid": "QmGood2", "gateway_url": "https://ipfs.io/ipfs/QmGood2", "expires_at": "2027-09-01T00:00:00Z"},
+            ],
+            "total": 3,
+            "succeeded": 2,
+            "failed": 1,
+        }
+        mock_post.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        with patch("builtins.open", unittest.mock.mock_open(read_data=b"data")):
+            res = client.pin_files(["/good1.txt", ("bad.txt", b"!!!"), "/good2.txt"])
+
+        self.assertEqual(res.total, 3)
+        self.assertEqual(res.succeeded, 2)
+        self.assertEqual(res.failed, 1)
+        self.assertEqual(res.pins[0].success, True)
+        self.assertEqual(res.pins[1].success, False)
+        self.assertEqual(res.pins[1].error, "Invalid base64 data")
+        self.assertEqual(res.pins[2].success, True)
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_files_with_webhook_url(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = {
+            "pins": [
+                {"cid": "QmWebhook", "gateway_url": "https://ipfs.io/ipfs/QmWebhook", "expires_at": "2027-09-01T00:00:00Z"},
+            ],
+            "total": 1,
+            "succeeded": 1,
+            "failed": 0,
+        }
+        mock_post.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        with patch("builtins.open", unittest.mock.mock_open(read_data=b"webhook test")):
+            res = client.pin_files(["/path/to/file.txt"], webhook_url="https://example.com/webhook")
+
+        self.assertEqual(res.succeeded, 1)
+        # Verify webhook_url was included in the payload
+        call_args = mock_post.call_args
+        payload = call_args[1]["json"]
+        self.assertIn("webhook_url", payload)
+        self.assertEqual(payload["webhook_url"], "https://example.com/webhook")
+        self.assertIn("files", payload)
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_files_invalid_input(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        with self.assertRaises(ValueError) as ctx:
+            client.pin_files([{"not": "a tuple"}])
+        self.assertIn("must be a string path or", str(ctx.exception))
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_files_402_payment_required(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_algod_inst = MagicMock()
+        mock_algod_inst.suggested_params.return_value = SuggestedParams(
+            fee=1000,
+            first=1,
+            last=1000,
+            gh=base64.b64encode(b"a" * 32).decode(),
+            gen="mainnet-v1.0",
+        )
+        mock_algod.return_value = mock_algod_inst
+
+        # First call returns 402 with challenge
+        mock_402 = MagicMock()
+        mock_402.status_code = 402
+        challenge_data = {
+            "accepts": [
+                {
+                    "scheme": "exact",
+                    "network": "algorand:mainnet",
+                    "assetId": 31566704,
+                    "amount": 500000,
+                    "payTo": self.sender_address,
+                }
+            ]
+        }
+        mock_402.headers = {"PAYMENT-REQUIRED": base64.b64encode(json.dumps(challenge_data).encode()).decode()}
+
+        # Second call (after payment) succeeds
+        mock_201 = MagicMock()
+        mock_201.status_code = 201
+        mock_201.json.return_value = {
+            "pins": [
+                {"cid": "QmPaid", "gateway_url": "https://ipfs.io/ipfs/QmPaid", "expires_at": "2027-09-01T00:00:00Z"},
+            ],
+            "total": 1,
+            "succeeded": 1,
+            "failed": 0,
+        }
+
+        mock_post.side_effect = [mock_402, mock_201]
+
+        client = IpfsPayToPinClient(
+            gateway_url=self.gateway_url,
+            sender_mnemonic="fake mnemonic",
+            algod_server="http://localhost:4001",
+        )
+
+        with patch("builtins.open", unittest.mock.mock_open(read_data=b"paid file")):
+            res = client.pin_files(["/path/to/file.txt"])
+
+        self.assertIsInstance(res, BatchPinResponse)
+        self.assertEqual(res.succeeded, 1)
+        self.assertEqual(res.pins[0].cid, "QmPaid")
+        self.assertEqual(mock_post.call_count, 2)
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_files_batch_max_price_exceeded(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_algod_inst = MagicMock()
+        mock_algod.return_value = mock_algod_inst
+
+        mock_402 = MagicMock()
+        mock_402.status_code = 402
+        challenge_data = {
+            "accepts": [
+                {
+                    "scheme": "exact",
+                    "network": "algorand:mainnet",
+                    "assetId": 31566704,
+                    "amount": 5000000,  # 5.0 USDC > max 1.0 USDC
+                    "payTo": self.sender_address,
+                }
+            ]
+        }
+        mock_402.headers = {"PAYMENT-REQUIRED": base64.b64encode(json.dumps(challenge_data).encode()).decode()}
+        mock_post.return_value = mock_402
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        with self.assertRaises(ExceedsMaxPriceError):
+            client.pin_files([("file.bin", b"data")], max_price_usdc=1.0)
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_files_http_error(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+        mock_post.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        with patch("builtins.open", unittest.mock.mock_open(read_data=b"data")):
+            with self.assertRaises(Exception) as ctx:
+                client.pin_files(["/path/to/file.txt"])
+        self.assertIn("500", str(ctx.exception))
 
 
 if __name__ == "__main__":
