@@ -1,0 +1,852 @@
+openapi: 3.0.2
+info:
+  title: IPFS Pay-to-Pin Gateway API
+  description: >
+    Pay-per-request infrastructure API that solves one of the biggest bottlenecks
+    in the AI industry: giving autonomous agents reliable access to decentralized
+    IPFS storage. Each payment provides 365 days of pinning retention via Algorand,
+    Base, Solana, or Ethereum L1 microUSDC x402 micropayments.
+  version: 2.0.2
+  contact:
+    name: IPFS Pay-to-Pin Gateway
+    email: garretparker@gmail.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://pay-to-pin.duckdns.org
+    description: Production (DuckDNS)
+  - url: https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com
+    description: Production (Heroku)
+  - url: http://localhost:4021
+    description: Local development
+
+x-x402:
+  resourceServer: true
+  schemes:
+    - name: exact
+      description: Exact payment scheme — sender must pay exact amount on specified network
+  supportedNetworks:
+    - algorand:mainnet (algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=)
+    - algorand:testnet
+    - base:8453 (eip155:8453) — gasless EIP-3009 USDC
+    - arbitrum:42161 (eip155:42161) — gasless EIP-3009 USDC
+    - ethereum:1 (eip155:1) — gasless EIP-3009 USDC
+    - solana:mainnet (solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp)
+  paymentHeader:
+    request: PAYMENT-SIGNATURE
+    response: PAYMENT-REQUIRED
+
+paths:
+  /api/v1/pin:
+    post:
+      operationId: pinFile
+      summary: Upload and pin a file to IPFS for 365 days
+      description: >
+        Upload a Base64-encoded file via JSON payload. Returns a 402 Payment Required
+        challenge with an x402 payment header. Upon payment verification, pins the file
+        to IPFS and returns the CID, gateway URL, and expiration data. Supports automatic
+        refunds via x402 on processing failure.
+
+        **Pricing:** $0.01 base (10,000 microUSDC) + $0.02/byte ($20/MB). A $2.50 Ethereum L1
+        gas floor surcharge applies if paying on Ethereum L1.
+      tags:
+        - Pins
+      security:
+        - x402Challenge: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PinRequest'
+            example:
+              filename: "document.pdf"
+              data: "base64_encoded_file_data_here"
+        description: >
+          JSON object with filename (string) and data (Base64-encoded string).
+          Maximum payload: 20 MB.
+      responses:
+        '201':
+          description: File successfully pinned to IPFS.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PinResponse'
+              example:
+                status: "success"
+                message: "Payment verified. File successfully pinned to IPFS for 365 days."
+                filename: "document.pdf"
+                ipfs_cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+                cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+                gateway_url: "https://gateway.pinata.cloud/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+                pinned_at: "2026-09-20T05:00:00.000Z"
+                expires_at: "2027-09-20T05:00:00.000Z"
+                ttl_days: 365
+                renewal_url: "/api/v1/renew?cid=bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        '400':
+          description: Missing or invalid filename or data parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Missing or invalid filename or data parameter in JSON payload"
+        '402':
+          description: >
+            Payment Required. The response body is still 201 on success, but the first
+            attempt returns 402 with a PAYMENT-REQUIRED header. The client must re-submit
+            the same POST request with the PAYMENT-SIGNATURE header.
+          headers:
+            PAYMENT-REQUIRED:
+              description: >
+                Base64-encoded x402 challenge containing `accepts` array with payment
+                options (network, price, payTo, asset) and validity period.
+              schema:
+                type: string
+              example: "eyJhY2NlcHRzIjpbeyJzY2hlbWUiOiJleGFjdCIsIm5ldHdvcmsiOiJhbGdvcmFuZDptYWluIiwiYW1vdW50IjoiMTAwMDAiLCJwYXlUbyI6IkpFQ0..." 
+            Retry-After:
+              schema:
+                type: integer
+                description: Seconds to wait before re-submitting the payment challenge.
+                example: 300
+              description: Max timeout for the x402 challenge window (5 minutes).
+        '413':
+          description: >
+            Payload Too Large. File payload exceeds 20 MB maximum limit.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Payload Too Large"
+                message: "File payload exceeds 20MB maximum limit."
+        '500':
+          description: >
+            Pinning failed after payment verification. Includes refund transaction ID
+            if automatic refunds are enabled.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorPinResponse'
+              example:
+                error: "Pinning failed"
+                message: "Failed to process file upload. Please try again later."
+                refund_initiated: true
+                refund_tx_id: "TXID1234567890abcdef"
+      x-payment:
+        description: Upload one file as a Base64-encoded JSON payload
+        mimeType: application/json
+        extensions:
+          bodyType: json
+          input:
+            filename: "example.png"
+            data: "base64_encoded_string_here..."
+          inputSchema:
+            type: object
+            properties:
+              filename: { type: string, description: "Name of the file" }
+              data: { type: string, description: "Base64 encoded file data" }
+            required: [filename, data]
+
+  /api/v1/renew:
+    post:
+      operationId: renewPin
+      summary: Renew an IPFS pin for another 365 days
+      description: >
+        Renew an existing IPFS pin for another 365 days. Returns a 402 Payment Required
+        challenge. A 50% early renewal discount applies if renewed before expiration.
+        After 30 days grace period post-expiration, the pin is permanently removed and
+        re-renewal is not possible (410 Gone).
+      tags:
+        - Pins
+      security:
+        - x402Challenge: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenewRequest'
+            example:
+              cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        description: JSON object with the CID to renew.
+      responses:
+        '200':
+          description: Pin successfully renewed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RenewResponse'
+              example:
+                status: "success"
+                message: "Payment verified. Pin extended for 365 days."
+                cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+                expires_at: "2028-09-20T05:00:00.000Z"
+                renewals_count: 2
+        '400':
+          description: Missing or invalid cid parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Missing cid parameter in JSON payload"
+        '402':
+          description: >
+            Payment Required. Re-submit with the PAYMENT-SIGNATURE header.
+            Early renewal discount: 50% off base price.
+          headers:
+            PAYMENT-REQUIRED:
+              description: Base64-encoded x402 challenge with renewal pricing.
+              schema:
+                type: string
+            Retry-After:
+              schema:
+                type: integer
+                example: 300
+        '404':
+          description: CID not found — the pin has no record.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "CID not found"
+        '410':
+          description: >
+            Pin expired and permanently removed. Grace period was 30 days post-expiry;
+            beyond that, the pin cannot be renewed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Pin expired and permanently removed"
+        '500':
+          description: Failed to process pin renewal.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Failed to process pin renewal. Please try again later."
+
+  /api/v1/pin/{cid}:
+    get:
+      operationId: getPinStatus
+      summary: Check pin status (free, no payment required)
+      description: >
+        Free status lookup for a pinned CID. Returns retention dates, days remaining,
+        and active state. No x402 payment is required for this endpoint.
+      tags:
+        - Pins
+      security: []
+      parameters:
+        - name: cid
+          in: path
+          required: true
+          description: The IPFS CID to check (e.g., bafybeig...)
+          schema:
+            type: string
+            format: ipfs-cid
+            example: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+      responses:
+        '200':
+          description: Pin status returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PinStatusResponse'
+              example:
+                pinned_at: "2026-09-20T05:00:00.000Z"
+                expires_at: "2027-09-20T05:00:00.000Z"
+                days_remaining: 365
+                is_active: true
+                ttl_days: 365
+                renewals_count: 0
+                renewal_url: "/api/v1/renew?cid=bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        '404':
+          description: Pin not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: "Pin not found"
+
+  /health:
+    get:
+      operationId: healthCheck
+      summary: "Health check (alias: /healthz, /ready)"
+      description: >
+        Returns the gateway health status. 200 OK if healthy, 503 Service Unavailable
+        if degraded. Includes queue metrics.
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: Gateway is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: "ok"
+                ready: true
+                uptime: 3600
+                queue:
+                  size: 12
+                  max_size: 1000
+                  is_healthy: true
+                timestamp: "2026-09-20T05:00:00.000Z"
+        '503':
+          description: >
+            Service degraded. The gateway is responding but pin processing is impaired.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: "degraded"
+                ready: false
+                uptime: 3600
+                queue:
+                  size: 1001
+                  max_size: 1000
+                  is_healthy: false
+                timestamp: "2026-09-20T05:00:00.000Z"
+
+  /healthz:
+    get:
+      operationId: healthCheckZ
+      summary: Health check (alias of /health)
+      description: Same as /health. Kubernetes-style healthz endpoint.
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: Gateway is healthy.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /ready:
+    get:
+      operationId: healthCheckReady
+      summary: Readiness check (alias of /health)
+      description: Same as /health. Kubernetes-style readiness probe endpoint.
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: Gateway is ready.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /.well-known/x402.json:
+    get:
+      operationId: getX402Metadata
+      summary: x402 merchant metadata
+      description: >
+        Returns the x402 merchant metadata required by x402 resource server
+        implementations to discover supported payment schemes, networks, and prices.
+        Cached for 1 hour client-side and 24 hours at CDN edge.
+      tags:
+        - x402
+      security: []
+      responses:
+        '200':
+          description: x402 merchant metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/X402MetadataResponse'
+              example:
+                merchant:
+                  name: "IPFS Pay-to-Pin Gateway"
+                  description: "Pay-per-request API that pins files to IPFS for 365 days via Algorand microUSDC x402 payments."
+                  contact: "garretparker@gmail.com"
+                resources:
+                  - path: /api/v1/pin
+                    price: "dynamic (base $0.01 + $0.02/byte)"
+                    description: "Upload one file"
+                  - path: /api/v1/renew
+                    price: "dynamic (base $0.01 + $0.02/byte, 50% early renewal discount)"
+                    description: "Renew IPFS pin"
+                  - path: /api/v1/pin/{cid}
+                    price: "free"
+                    description: "Check pin status"
+        '404':
+          description: x402 metadata not found.
+
+  /.well-known/x402:
+    get:
+      operationId: getX402MetadataAlt
+      summary: x402 merchant metadata (alias)
+      description: Same as /.well-known/x402.json.
+      tags:
+        - x402
+      security: []
+      responses:
+        '200':
+          description: x402 merchant metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/X402MetadataResponse'
+
+  /.well-known/agent-card.json:
+    get:
+      operationId: getAgentCard
+      summary: Agent Card specification (W3C Agent-Cards)
+      description: >
+        Returns the W3C Agent Card specification for this gateway. Includes supported
+        interfaces, skills, capabilities, and input/output modes. Cached for 1 hour.
+      tags:
+        - x402
+      security: []
+      responses:
+        '200':
+          description: W3C Agent Card.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentCardResponse'
+              example:
+                name: "IPFS Pay-to-Pin Gateway"
+                description: "Upload a file as Base64 JSON. On x402 microUSDC payment, the server pins it to IPFS for 365 days with optional /renew extension."
+                version: "1.0.0"
+                capabilities:
+                  streaming: false
+                  pushNotifications: false
+                defaultInputModes: ["application/json"]
+                defaultOutputModes: ["application/json"]
+                skills:
+                  - id: ipfs_pay_to_pin
+                    name: "Pin File to IPFS"
+                    description: "Upload a base64-encoded file and pin it to IPFS for 365 days via an x402 microUSDC payment."
+                    tags: ["ipfs", "storage", "ai-agents", "pinning", "x402-global-challenge"]
+                  - id: ipfs_renew_pin
+                    name: "Renew IPFS Pin"
+                    description: "Renew an existing IPFS pin for another 365 days via an x402 microUSDC payment. 50% early renewal discount applies if renewed before expiration."
+                    tags: ["ipfs", "storage", "renew", "x402-global-challenge"]
+                  - id: ipfs_pin_status
+                    name: "Check IPFS Pin Status"
+                    description: "Check the status, expiration date, and active state of an IPFS pin."
+                    tags: ["ipfs", "status"]
+                supportedInterfaces:
+                  - url: "/api/v1/pin"
+                    protocolBinding: "HTTP"
+                    protocolVersion: "1.1"
+                  - url: "/api/v1/renew"
+                    protocolBinding: "HTTP"
+                    protocolVersion: "1.1"
+                  - url: "/api/v1/pin/{cid}"
+                    protocolBinding: "HTTP"
+                    protocolVersion: "1.1"
+
+  /openapi.json:
+    get:
+      operationId: getOpenApiSpec
+      summary: OpenAPI specification document (self-describing)
+      description: Returns this OpenAPI specification in JSON format. Cached for 1 hour.
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: OpenAPI 3.0.2 specification document.
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Full OpenAPI specification document
+
+  /docs:
+    get:
+      operationId: getSwaggerUI
+      summary: Swagger UI interactive documentation
+      description: >
+        Renders Swagger UI for interactive API testing. Uses /openapi.json as source.
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: Swagger UI HTML page.
+          content:
+            text/html:
+              schema:
+                type: string
+
+components:
+  schemas:
+    PinRequest:
+      type: object
+      required: [filename, data]
+      properties:
+        filename:
+          type: string
+          description: The name of the file to pin (e.g., "document.pdf").
+          minLength: 1
+          maxLength: 255
+        data:
+          type: string
+          description: >
+            Base64-encoded file data. Maximum payload size: 20 MB before encoding.
+            The Base64-encoded length must not exceed 20 * 1024 * 1024 characters.
+          maxLength: 20971520
+      example:
+        filename: "document.pdf"
+        data: "base64_encoded_file_data_here"
+
+    PinResponse:
+      type: object
+      properties:
+        cid:
+          type: string
+          description: The IPFS CID for the pinned file (e.g., bafybeig...).
+        ipfs_cid:
+          type: string
+          description: Alias for cid.
+        gateway_url:
+          type: string
+          format: uri
+          description: Public gateway URL to immediately access the pinned file.
+        pinned_at:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the file was pinned.
+        expires_at:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp when the 365-day retention expires.
+        ttl_days:
+          type: integer
+          description: Time-to-live in days. Always 365 for initial pin.
+          example: 365
+        status:
+          type: string
+          description: Status descriptor (e.g., "success").
+        message:
+          type: string
+          description: Detailed result message.
+        filename:
+          type: string
+          description: The original filename.
+        renewal_url:
+          type: string
+          description: API path to renew this pin.
+      example:
+        status: "success"
+        message: "Payment verified. File successfully pinned to IPFS for 365 days."
+        filename: "document.pdf"
+        ipfs_cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        gateway_url: "https://gateway.pinata.cloud/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        pinned_at: "2026-09-20T05:00:00.000Z"
+        expires_at: "2027-09-20T05:00:00.000Z"
+        ttl_days: 365
+        renewal_url: "/api/v1/renew?cid=bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+
+    RenewRequest:
+      type: object
+      required: [cid]
+      properties:
+        cid:
+          type: string
+          description: The IPFS CID of the pin to renew.
+          minLength: 1
+      example:
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+
+    RenewResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          description: Status descriptor.
+        message:
+          type: string
+          description: Result message confirming renewal.
+        cid:
+          type: string
+          description: The IPFS CID that was renewed.
+        expires_at:
+          type: string
+          format: date-time
+          description: New expiration timestamp (365 days from renewal).
+        renewals_count:
+          type: integer
+          description: Total number of renewals applied.
+      example:
+        status: "success"
+        message: "Payment verified. Pin extended for 365 days."
+        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+        expires_at: "2028-09-20T05:00:00.000Z"
+        renewals_count: 2
+
+    PinStatusResponse:
+      type: object
+      properties:
+        pinned_at:
+          type: string
+          format: date-time
+          description: When the file was initially pinned.
+        expires_at:
+          type: string
+          format: date-time
+          description: When the retention period expires.
+        days_remaining:
+          type: integer
+          description: Calculated days remaining until pin expires.
+          example: 365
+        is_active:
+          type: boolean
+          description: Whether the pin is currently active.
+        ttl_days:
+          type: integer
+          description: Original TTL days purchased.
+          example: 365
+        renewals_count:
+          type: integer
+          description: Number of renewals applied.
+        renewal_url:
+          type: string
+          description: API path to renew this pin.
+      example:
+        pinned_at: "2026-09-20T05:00:00.000Z"
+        expires_at: "2027-09-20T05:00:00.000Z"
+        days_remaining: 365
+        is_active: true
+        ttl_days: 365
+        renewals_count: 0
+        renewal_url: "/api/v1/renew?cid=bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ok, degraded]
+          description: Overall gateway status.
+        ready:
+          type: boolean
+          description: Whether the gateway is ready to process requests.
+        uptime:
+          type: integer
+          description: Server uptime in seconds.
+        queue:
+          $ref: '#/components/schemas/QueueMetrics'
+        timestamp:
+          type: string
+          format: date-time
+          description: ISO 8601 timestamp of this health check.
+      example:
+        status: "ok"
+        ready: true
+        uptime: 3600
+        queue:
+          size: 12
+          max_size: 1000
+          is_healthy: true
+        timestamp: "2026-09-20T05:00:00.000Z"
+
+    QueueMetrics:
+      type: object
+      properties:
+        size:
+          type: integer
+          description: Current queue depth (pending pins).
+        max_size:
+          type: integer
+          description: Maximum allowed queue depth.
+        is_healthy:
+          type: boolean
+          description: Whether the queue is within healthy limits.
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code or summary.
+        message:
+          type: string
+          description: Human-readable error description.
+      example:
+        error: "CID not found"
+        message: "No pin record exists for the provided CID."
+
+    ErrorPinResponse:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            refund_initiated:
+              type: boolean
+              description: Whether a refund was automatically initiated.
+            refund_tx_id:
+              type: string
+              description: The on-chain refund transaction ID (if applicable).
+      example:
+        error: "Pinning failed"
+        message: "Failed to process file upload. Please try again later."
+        refund_initiated: true
+        refund_tx_id: "TXID1234567890abcdef"
+
+    X402MetadataResponse:
+      type: object
+      properties:
+        merchant:
+          $ref: '#/components/schemas/MerchantInfo'
+        image:
+          type: string
+          format: uri
+          description: Logo URL.
+        icon:
+          type: string
+          format: uri
+          description: Icon URL (alias of image).
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/MerchantResource'
+      example:
+        merchant:
+          name: "IPFS Pay-to-Pin Gateway"
+          description: "Pay-per-request API that pins files to IPFS for 365 days via Algorand microUSDC x402 payments."
+          icon: "https://gateway.pinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy"
+          contact: "garretparker@gmail.com"
+        resources:
+          - path: /api/v1/pin
+            price: "dynamic (base $0.01 + $0.02/byte)"
+            description: "Upload one file"
+          - path: /api/v1/renew
+            price: "dynamic (50% early renewal discount)"
+            description: "Renew IPFS pin"
+          - path: /api/v1/pin/{cid}
+            price: "free"
+            description: "Check pin status"
+
+    MerchantInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        icon:
+          type: string
+          format: uri
+        image:
+          type: string
+          format: uri
+        contact:
+          type: string
+          format: email
+
+    MerchantResource:
+      type: object
+      properties:
+        path:
+          type: string
+        price:
+          type: string
+          description: Price description (dynamic or free).
+        description:
+          type: string
+
+    AgentCardResponse:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        version:
+          type: string
+        capabilities:
+          type: object
+          properties:
+            streaming:
+              type: boolean
+            pushNotifications:
+              type: boolean
+        defaultInputModes:
+          type: array
+          items:
+            type: string
+        defaultOutputModes:
+          type: array
+          items:
+            type: string
+        skills:
+          type: array
+          items:
+            $ref: '#/components/schemas/Skill'
+        supportedInterfaces:
+          type: array
+          items:
+            type: object
+            properties:
+              url:
+                type: string
+              protocolBinding:
+                type: string
+              protocolVersion:
+                type: string
+        icon:
+          type: string
+          format: uri
+        image:
+          type: string
+          format: uri
+
+    Skill:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        tags:
+          type: array
+          items:
+            type: string
+        examples:
+          type: array
+          items:
+            type: string
+
+  securitySchemes:
+    x402Challenge:
+      type: apiKey
+      in: header
+      name: PAYMENT-SIGNATURE
+      description: >
+        x402 payment signature header. The first request to a protected endpoint returns
+        a 402 with a PAYMENT-REQUIRED header containing a Base64-encoded challenge.
+        The client must re-submit the same request with this signature header.
+        Signature format is network-specific:
+        - Algorand: msgpack-encoded signed transaction
+        - EVM: JSON with network, signer, authorization (nonce, validAfter, validBefore)
+        - Solana: JSON with signature payload and payTo
+
+tags:
+  - name: Pins
+    description: Pin, unpin, renew, and check file pin status on IPFS.
+  - name: System
+    description: Health, documentation, and OpenAPI endpoints.
+  - name: x402
+    description: x402 payment protocol metadata and merchant discovery.
