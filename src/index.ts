@@ -757,8 +757,8 @@ app.post("/api/v1/renew", async (c) => {
         const body = await c.req.json();
         const cid = body['cid'];
         
-        if (!cid) {
-            return c.json({ error: "Missing cid parameter in JSON payload" }, 400);
+        if (!cid || typeof cid !== 'string') {
+            return c.json({ error: "Missing or invalid cid parameter in JSON payload" }, 400);
         }
         
         const now = Date.now();

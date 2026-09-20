@@ -52,3 +52,7 @@
 **Vulnerability:** The `price` function for `POST /api/v1/renew` caught missing or invalid `cid` payload, but only within the `try` block for parsing the JSON body. If `cid` was missing (i.e. `body.cid` was undefined), it silently passed `undefined` to `globalFileQueue.findAnyByCid(cid)` instead of throwing an HTTP 400 error.
 **Learning:** If a required field is missing, fail fast with a 400 error rather than continuing with defaults or attempting to use `undefined` values for lookups which lead to unintended outcomes.
 **Prevention:** Always validate all mandatory payload fields *before* running pricing, billing, or access control logic.
+## 2025-10-25 - Missing Input Type Validation on Renew Endpoint Leads to Potential Type Confusion
+**Vulnerability:** The `POST /api/v1/renew` endpoint parsed the `cid` parameter from the JSON body and performed a truthiness check (`if (!cid)`), but failed to enforce that it was a string. If an attacker provided an array or object in the JSON payload, it bypassed this validation and flowed down into subsequent lookup functions, risking downstream type confusion, TypeErrors, or injection vulnerabilities.
+**Learning:** Checking for the presence of a variable in parsed JSON bodies is insufficient if the runtime type is not strictly enforced. Autonomous clients can easily supply non-string types.
+**Prevention:** Always enforce strict runtime type checking (`typeof variable !== 'string'`) in conjunction with truthiness checks before processing data from untrusted JSON payloads.
