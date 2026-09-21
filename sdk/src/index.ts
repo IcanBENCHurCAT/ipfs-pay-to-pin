@@ -456,6 +456,10 @@ export class IpfsPayToPinClient {
    * console.log(status.is_active ? 'Pin is active' : 'Pin is expired');
    */
   public async getPinStatus(cid: string): Promise<PinStatusResponse> {
+    if (!cid || typeof cid !== 'string' || cid.trim() === '') {
+      throw new ConfigurationError(`[IpfsClient] Invalid CID provided: Expected a non-empty string, got ${typeof cid}`);
+    }
+
     try {
       const res = await axios.get(`${this.gatewayUrl}/api/v1/pin/${encodeURIComponent(cid)}`);
       return res.data;
@@ -479,6 +483,10 @@ export class IpfsPayToPinClient {
    * console.log('Renewed until:', result.expires_at);
    */
   public async renewPin(cid: string): Promise<RenewResponse> {
+    if (!cid || typeof cid !== 'string' || cid.trim() === '') {
+      throw new ConfigurationError(`[IpfsClient] Invalid CID provided: Expected a non-empty string, got ${typeof cid}`);
+    }
+
     const renewUrl = `${this.gatewayUrl}/api/v1/renew`;
     const payload = { cid };
 
