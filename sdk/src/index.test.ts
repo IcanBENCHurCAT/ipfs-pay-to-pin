@@ -76,6 +76,16 @@ describe('IpfsPayToPinClient', () => {
   describe('getPinStatus', () => {
     const testCid = 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi';
 
+    it('throws ConfigurationError if cid is invalid or empty', async () => {
+      const client = new IpfsPayToPinClient({ evmPrivateKey: MOCK_EVM_KEY });
+
+      // @ts-expect-error testing invalid argument
+      await expect(client.getPinStatus(null)).rejects.toThrow(ConfigurationError);
+
+      await expect(client.getPinStatus('')).rejects.toThrow(ConfigurationError);
+      await expect(client.getPinStatus('   ')).rejects.toThrow(ConfigurationError);
+    });
+
     it('returns status data on successful API response', async () => {
       const mockStatusData = {
         pinned_at: '2025-01-01T00:00:00Z',
@@ -193,6 +203,16 @@ describe('IpfsPayToPinClient', () => {
   });
 
   describe('renewPin', () => {
+    it('throws ConfigurationError if cid is invalid or empty', async () => {
+      const client = new IpfsPayToPinClient({ evmPrivateKey: MOCK_EVM_KEY });
+
+      // @ts-expect-error testing invalid argument
+      await expect(client.renewPin(null)).rejects.toThrow(ConfigurationError);
+
+      await expect(client.renewPin('')).rejects.toThrow(ConfigurationError);
+      await expect(client.renewPin('   ')).rejects.toThrow(ConfigurationError);
+    });
+
     it('renews pin directly if server responds 200', async () => {
       const mockRenewRes = {
         status: 'renewed',

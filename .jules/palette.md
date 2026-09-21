@@ -16,3 +16,7 @@
 ## 2024-09-14 - Pre-encoding Payload Limits
 **Learning:** Checking a large buffer's payload size only after encoding it to Base64 wastes substantial memory and blocks the Node event loop, just for the gateway to return a 413 Payload Too Large error.
 **Action:** Always estimate the Base64-encoded size of a `Buffer` (`Math.ceil(buffer.byteLength * 4 / 3)`) and assert it against max upload boundary limits BEFORE allocating new strings or sending network requests. This ensures immediate failure recovery for consumers without heavy computational overhead.
+
+## 2025-08-20 - Explicit CID Boundary Validation
+**Learning:** Passing unvalidated identifiers (like empty or whitespace-only CIDs) directly into `encodeURIComponent` and API paths can cause obscure 404 or 500 network errors that lack actionable feedback for the consuming agent.
+**Action:** Always strictly validate required route parameters (e.g. `cid.trim() !== ''`) within the SDK before initiating any network requests, and throw an explicit `ConfigurationError` explaining exactly what input is missing or malformed to facilitate quick consumer self-correction.
