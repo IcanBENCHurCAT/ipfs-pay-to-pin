@@ -658,7 +658,8 @@ app.post("/api/v1/pin", async (c) => {
         const filename = body['filename'];
         const data = body['data'];
 
-        if (!filename || !data || typeof data !== 'string') {
+        // 🛡️ Sentinel: Validate filename is a string to prevent type confusion or injection bypasses.
+        if (!filename || typeof filename !== 'string' || !data || typeof data !== 'string') {
             return c.json({ error: "Missing or invalid filename or data parameter in JSON payload" }, 400);
         }
 
