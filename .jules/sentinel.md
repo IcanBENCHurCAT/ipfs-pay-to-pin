@@ -56,3 +56,7 @@
 **Vulnerability:** The `POST /api/v1/renew` endpoint parsed the `cid` parameter from the JSON body and performed a truthiness check (`if (!cid)`), but failed to enforce that it was a string. If an attacker provided an array or object in the JSON payload, it bypassed this validation and flowed down into subsequent lookup functions, risking downstream type confusion, TypeErrors, or injection vulnerabilities.
 **Learning:** Checking for the presence of a variable in parsed JSON bodies is insufficient if the runtime type is not strictly enforced. Autonomous clients can easily supply non-string types.
 **Prevention:** Always enforce strict runtime type checking (`typeof variable !== 'string'`) in conjunction with truthiness checks before processing data from untrusted JSON payloads.
+## 2025-02-14 - Missing runtime type validation for JSON payloads
+**Vulnerability:** The `/api/v1/pin` endpoint extracted `filename` from a parsed JSON payload without explicit runtime type validation.
+**Learning:** Type confusion or injection attacks can occur if attackers pass objects or arrays to bypass simple truthiness checks.
+**Prevention:** Explicitly validate expected runtime type using `typeof param === "string"`.
