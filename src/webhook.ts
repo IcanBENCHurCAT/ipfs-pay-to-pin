@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { randomBytes } from 'node:crypto';
 import { logger } from './observability.js';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -79,7 +80,7 @@ CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_url_event
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function generateDeliveryId(): string {
-  return `wh_${Date.now()}_${crypto.randomBytes(4).toString('hex').substring(0, 5)}`;
+  return `wh_${Date.now()}_${randomBytes(4).toString('hex').substring(0, 5)}`;
 }
 
 function isTerminalStatus(status: WebhookDeliveryStatus): boolean {
