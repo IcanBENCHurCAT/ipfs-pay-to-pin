@@ -60,3 +60,8 @@
 **Vulnerability:** The `/api/v1/pin` endpoint extracted `filename` from a parsed JSON payload without explicit runtime type validation.
 **Learning:** Type confusion or injection attacks can occur if attackers pass objects or arrays to bypass simple truthiness checks.
 **Prevention:** Explicitly validate expected runtime type using `typeof param === "string"`.
+
+## 2026-09-24 - Remove Hardcoded Supabase Project URL from OCI Runbook
+**Vulnerability:** A hardcoded Supabase project URL (`https://gtcguonqciokigxlvfyq.supabase.co`) was present in the `.agents/skills/oci-alert-runbook/SKILL.md` runbook.
+**Learning:** Including specific infrastructure identifiers (like a real Supabase project URL) in documentation, runbooks, or markdown files exposes the project's internal architecture to anyone with read access to the repository, providing unnecessary reconnaissance information to potential attackers.
+**Prevention:** Use environment variables (e.g., `${SUPABASE_URL}`) or generic placeholders (e.g., `https://your-project.supabase.co`) in documentation and runbooks instead of hardcoded infrastructure URLs.
