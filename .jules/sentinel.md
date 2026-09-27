@@ -70,3 +70,8 @@
 **Vulnerability:** Global wildcard CORS configuration (`app.use("*", cors())`) in `src/index.ts` allowed any cross-origin website to perform requests against API endpoints and read HTTP responses.
 **Learning:** Defaulting to wildcard (`*`) CORS in APIs handling financial micropayments or file storage exposes browser clients to unauthorized cross-origin requests and data reading from malicious websites.
 **Prevention:** Explicitly configure allowed origins (`cors({ origin: [...] })`) via environment variables (`CORS_ORIGIN` or `ALLOWED_ORIGINS`) with secure fallback domains instead of using wildcard origins.
+
+## 2026-09-27 - Denial of Service via Unrestricted Payload Allocation
+**Vulnerability:** In `POST /api/v1/pin`, the server calculated the binary size from Base64 `data` but invoked `Buffer.from(data, 'base64')` without validating that the size was within the 20MB payload limit, leaving the node server vulnerable to heap exhaustion / OOM crashes if a large string was passed.
+**Learning:** Always validate payload boundary metrics (like calculated binary buffer size) before executing memory-allocating functions like `Buffer.from()` or `Buffer.alloc()` on client-controlled input.
+**Prevention:** Assert that calculated binary byte sizes do not exceed maximum threshold limits (`parsedBinaryBytes > MAX_PAYLOAD_SIZE`) before buffer allocation and fail fast with an HTTP 413 error.

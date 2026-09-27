@@ -691,6 +691,13 @@ app.post("/api/v1/pin", async (c) => {
         }
         parsedBinaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
 
+        // 🛡️ Sentinel: DoS Protection via Unrestricted Payload Allocation Guard.
+        // Validate payload binary size against 20MB limit before Buffer.from allocation to prevent heap exhaustion / OOM crashes.
+        const MAX_PAYLOAD_SIZE = 20 * 1024 * 1024;
+        if (parsedBinaryBytes > MAX_PAYLOAD_SIZE) {
+            return c.json({ error: "Payload Too Large", message: "File payload exceeds 20MB maximum limit." }, 413);
+        }
+
         const buffer = Buffer.from(data, 'base64');
 
         // Add job to local buffer queue and calculate deterministic CID
