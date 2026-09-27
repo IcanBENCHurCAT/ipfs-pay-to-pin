@@ -181,7 +181,7 @@ describe('sanitizeFilename', () => {
 import { beforeEach, afterEach, vi } from 'vitest';
 import axios from 'axios';
 import fs from 'fs';
-import { pinFileToStorage } from '../src/storage.js';
+import { pinFileToStorage, unpinFileFromIPFS } from '../src/storage.js';
 
 vi.mock('axios');
 
@@ -284,5 +284,127 @@ describe('pinFileToStorage Error Paths & Fallbacks', () => {
 
     expect(mkdirSpy).toHaveBeenCalledWith('tmp/mock_test_storage_direct', { recursive: true });
     expect(writeFileSpy).toHaveBeenCalled();
+  });
+});
+
+describe('unpinFileFromIPFS', () => {
+  const originalEnv = { ...process.env };
+  let unlinkSpy: any;
+  let readdirSpy: any;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    process.env = { ...originalEnv };
+
+    unlinkSpy = vi.spyOn(fs.promises, 'unlink').mockResolvedValue(undefined as any);
+    readdirSpy = vi.spyOn(fs.promises, 'readdir').mockResolvedValue([] as any);
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+    unlinkSpy.mockRestore();
+    readdirSpy.mockRestore();
+  });
+
+  describe('Pinata Unpinning', () => {
+    it('successfully unpins file from Pinata when PINATA_JWT is present', async () => {
+      process.env.PINATA_JWT = 'test-jwt-token';
+      const cid = 'bafybeig123456789';
+      vi.mocked(axios.delete).mockResolvedValueOnce({ status: 200, data: {} });
+
+      await unpinFileFromIPFS(cid);
+
+      expect(axios.delete).toHaveBeenCalledWith(
+        `https://api.pinata.cloud/pinning/unpin/${cid}`,
+        {
+          headers: {
+            Authorization: 'Bearer test-jwt-token',
+          },
+        }
+      );
+    });
+
+    it('handles 404 response gracefully when CID is missing or already unpinned', async () => {
+      process.env.PINATA_JWT = 'test-jwt-token';
+      const cid = 'bafybeig404';
+      const error404: any = new Error('Request failed with status code 404');
+      error404.response = { status: 404 };
+
+      vi.mocked(axios.delete).mockRejectedValueOnce(error404);
+
+      await expect(unpinFileFromIPFS(cid)).resolves.not.toThrow();
+      expect(axios.delete).toHaveBeenCalledTimes(1);
+    });
+
+    it('rethrows error when Pinata API fails with non-404 status', async () => {
+      process.env.PINATA_JWT = 'test-jwt-token';
+      const cid = 'bafybeig500';
+      const error500: any = new Error('Internal Server Error');
+      error500.response = { status: 500 };
+
+      vi.mocked(axios.delete).mockRejectedValueOnce(error500);
+
+      await expect(unpinFileFromIPFS(cid)).rejects.toThrow('Internal Server Error');
+    });
+  });
+
+  describe('Local Fallback Storage Cleanup', () => {
+    it('deletes specific local fallback file when filename is provided', async () => {
+      delete process.env.PINATA_JWT;
+      process.env.LOCAL_STORAGE_DIR = 'tmp/test_storage';
+      const cid = 'bafybeiglocal123';
+      const filename = 'document.pdf';
+
+      await unpinFileFromIPFS(cid, filename);
+
+      expect(unlinkSpy).toHaveBeenCalledWith('tmp/test_storage/bafybeiglocal123_document.pdf');
+    });
+
+    it('handles unlink error gracefully when specified local file does not exist', async () => {
+      delete process.env.PINATA_JWT;
+      process.env.LOCAL_STORAGE_DIR = 'tmp/test_storage';
+      unlinkSpy.mockRejectedValueOnce(new Error('ENOENT: no such file or directory'));
+
+      await expect(unpinFileFromIPFS('bafybeigmissing', 'nofile.txt')).resolves.not.toThrow();
+    });
+
+    it('scans directory and unpins matching CID files when no filename is provided', async () => {
+      delete process.env.PINATA_JWT;
+      process.env.LOCAL_STORAGE_DIR = 'tmp/test_storage';
+      const cid = 'bafybeigscan';
+
+      readdirSpy.mockResolvedValueOnce([
+        'bafybeigscan_file1.txt',
+        'othercid_file2.txt',
+        'bafybeigscan_file3.png',
+      ] as any);
+
+      await unpinFileFromIPFS(cid);
+
+      expect(readdirSpy).toHaveBeenCalledWith('tmp/test_storage');
+      expect(unlinkSpy).toHaveBeenCalledTimes(2);
+      expect(unlinkSpy).toHaveBeenNthCalledWith(1, 'tmp/test_storage/bafybeigscan_file1.txt');
+      expect(unlinkSpy).toHaveBeenNthCalledWith(2, 'tmp/test_storage/bafybeigscan_file3.png');
+    });
+
+    it('handles error during directory scanning gracefully', async () => {
+      delete process.env.PINATA_JWT;
+      process.env.LOCAL_STORAGE_DIR = 'tmp/nonexistent_dir';
+      readdirSpy.mockRejectedValueOnce(new Error('ENOENT: no such file or directory'));
+
+      await expect(unpinFileFromIPFS('bafybeigscan')).resolves.not.toThrow();
+    });
+
+    it('handles individual unlink failure gracefully when scanning directory', async () => {
+      delete process.env.PINATA_JWT;
+      process.env.LOCAL_STORAGE_DIR = 'tmp/test_storage';
+      const cid = 'bafybeigscan';
+
+      readdirSpy.mockResolvedValueOnce(['bafybeigscan_file1.txt', 'bafybeigscan_file2.txt'] as any);
+      unlinkSpy.mockRejectedValueOnce(new Error('EPERM: operation not permitted'));
+
+      await expect(unpinFileFromIPFS(cid)).resolves.not.toThrow();
+      expect(unlinkSpy).toHaveBeenCalledTimes(2);
+    });
   });
 });
