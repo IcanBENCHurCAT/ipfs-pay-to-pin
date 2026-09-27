@@ -20,7 +20,7 @@
  */
 
 import type { Context, Next } from 'hono';
-import { incrementCounter, setGauge } from '../observability.js';
+import { incrementCounter } from '../observability.js';
 import { getTraceId, getContextLogger } from './traceId.js';
 
 /**
