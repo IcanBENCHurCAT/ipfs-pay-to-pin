@@ -281,6 +281,25 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         with self.assertRaises(FileNotFoundError):
             client.pin_file("/nonexistent/file/path/missing.txt")
 
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_select_best_option_no_matches(self, mock_to_priv, mock_algod):
+        mock_to_priv.return_value = self.private_key
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        accepts = [
+            {"network": "eip155:1337", "amount": 1000},
+            {"network": "unsupported:chain", "amount": 2000},
+        ]
+
+        with self.assertRaises(PaymentRequiredError) as ctx:
+            client._select_best_option(accepts)
+
+        err_msg = str(ctx.exception)
+        self.assertIn("Client has signers for", err_msg)
+        self.assertIn("algorand:mainnet", err_msg)
+        self.assertIn("eip155:1337", err_msg)
+
 
 if __name__ == "__main__":
     unittest.main()
