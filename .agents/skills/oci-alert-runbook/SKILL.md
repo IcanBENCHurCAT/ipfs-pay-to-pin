@@ -212,7 +212,7 @@ Verify if heavy Base64 payload buffers are accumulating in memory:
 
 ```bash
 # Query Supabase pin status count
-curl -s "https://gtcguonqciokigxlvfyq.supabase.co/rest/v1/pins?select=status&status=eq.pending" \
+curl -s "https://your-project.supabase.co/rest/v1/pins?select=status&status=eq.pending" \
   -H "apikey: ${SUPABASE_KEY}"
 ```
 

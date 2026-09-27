@@ -246,11 +246,18 @@ export class IpfsPayToPinClient {
         avmSigner = {
           address: config.sender,
           signTransactions: async (transactions: Uint8Array[], indexesToSign?: number[]) => {
-            return transactions.map((txnBytes, i) => {
-              if (indexesToSign && !indexesToSign.includes(i)) return null;
-              const txn = algosdk.decodeUnsignedTransaction(txnBytes);
-              return txn.signTxn(authAccount.sk);
-            });
+            // ⚡ Bolt: Replaced transactions.map() with pre-allocated array and single-pass for-loop
+            // to eliminate hidden intermediate array allocation and closure overhead on the event loop
+            const results = new Array(transactions.length);
+            for (let i = 0; i < transactions.length; i++) {
+              if (indexesToSign && !indexesToSign.includes(i)) {
+                results[i] = null;
+              } else {
+                const txn = algosdk.decodeUnsignedTransaction(transactions[i]);
+                results[i] = txn.signTxn(authAccount.sk);
+              }
+            }
+            return results;
           }
         };
       } else {
@@ -449,6 +456,10 @@ export class IpfsPayToPinClient {
    * console.log(status.is_active ? 'Pin is active' : 'Pin is expired');
    */
   public async getPinStatus(cid: string): Promise<PinStatusResponse> {
+    if (!cid || typeof cid !== 'string' || cid.trim() === '') {
+      throw new ConfigurationError(`[IpfsClient] Invalid CID provided: Expected a non-empty string, got ${typeof cid}`);
+    }
+
     try {
       const res = await axios.get(`${this.gatewayUrl}/api/v1/pin/${encodeURIComponent(cid)}`);
       return res.data;
@@ -472,6 +483,10 @@ export class IpfsPayToPinClient {
    * console.log('Renewed until:', result.expires_at);
    */
   public async renewPin(cid: string): Promise<RenewResponse> {
+    if (!cid || typeof cid !== 'string' || cid.trim() === '') {
+      throw new ConfigurationError(`[IpfsClient] Invalid CID provided: Expected a non-empty string, got ${typeof cid}`);
+    }
+
     const renewUrl = `${this.gatewayUrl}/api/v1/renew`;
     const payload = { cid };
 
