@@ -65,3 +65,8 @@
 **Vulnerability:** A hardcoded Supabase project URL (`https://gtcguonqciokigxlvfyq.supabase.co`) was present in the `.agents/skills/oci-alert-runbook/SKILL.md` runbook.
 **Learning:** Including specific infrastructure identifiers (like a real Supabase project URL) in documentation, runbooks, or markdown files exposes the project's internal architecture to anyone with read access to the repository, providing unnecessary reconnaissance information to potential attackers.
 **Prevention:** Use environment variables (e.g., `${SUPABASE_URL}`) or generic placeholders (e.g., `https://your-project.supabase.co`) in documentation and runbooks instead of hardcoded infrastructure URLs.
+
+## 2026-09-27 - Overly Permissive Wildcard CORS Policy
+**Vulnerability:** Global wildcard CORS configuration (`app.use("*", cors())`) in `src/index.ts` allowed any cross-origin website to perform requests against API endpoints and read HTTP responses.
+**Learning:** Defaulting to wildcard (`*`) CORS in APIs handling financial micropayments or file storage exposes browser clients to unauthorized cross-origin requests and data reading from malicious websites.
+**Prevention:** Explicitly configure allowed origins (`cors({ origin: [...] })`) via environment variables (`CORS_ORIGIN` or `ALLOWED_ORIGINS`) with secure fallback domains instead of using wildcard origins.

@@ -130,8 +130,27 @@ const pinDiscovery = declareDiscoveryExtension({
 
 const app = new Hono();
 
-// Global CORS middleware to allow cross-origin requests for web API consumers
-app.use("*", cors());
+// 🛡️ Sentinel: Restrict CORS origin to trusted domains instead of defaulting to wildcard ('*')
+// to prevent unauthorized web applications from making cross-origin requests or reading responses.
+const getCorsOrigin = (): string | string[] | ((origin: string) => string | null) => {
+    const rawOrigin = appConfig.corsOrigin;
+    if (!rawOrigin) {
+        // Fallback default origins when CORS_ORIGIN is not specified
+        return [
+            "https://pay-to-pin.duckdns.org",
+            "http://localhost:3000",
+            "http://localhost:4021"
+        ];
+    }
+    if (rawOrigin.includes(',')) {
+        return rawOrigin.split(',').map(o => o.trim()).filter(Boolean);
+    }
+    return rawOrigin.trim();
+};
+
+app.use("*", cors({
+    origin: getCorsOrigin()
+}));
 
 // Global secure headers middleware
 app.use("*", secureHeaders({

@@ -23,6 +23,7 @@ export const config = {
   enableAutomaticRefunds: process.env.ENABLE_AUTOMATIC_REFUNDS === 'true',
   algorandMnemonic: process.env.ALGORAND_WALLET_MNEMONIC || process.env.ALGORAND_MNEMONIC || '',
   trustProxy: process.env.TRUST_PROXY === 'true',
+  corsOrigin: process.env.CORS_ORIGIN || process.env.ALLOWED_ORIGINS || '',
 };
 
 export function validateConfig(): void {

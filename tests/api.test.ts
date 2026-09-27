@@ -158,22 +158,22 @@ describe('API Integration Tests', () => {
         expect(JSON.stringify(data)).not.toContain('Database connection failed');
     });
 
-    it('T026: OPTIONS and GET requests include CORS headers', async () => {
+    it('T026: OPTIONS and GET requests include CORS headers for allowed origin', async () => {
         const optionsRes = await app.request('/health', {
             method: 'OPTIONS',
             headers: {
-                'Origin': 'https://example.com',
+                'Origin': 'https://pay-to-pin.duckdns.org',
                 'Access-Control-Request-Method': 'GET'
             }
         });
-        expect(optionsRes.headers.get('access-control-allow-origin')).toBe('*');
+        expect(optionsRes.headers.get('access-control-allow-origin')).toBe('https://pay-to-pin.duckdns.org');
 
         const getRes = await app.request('/health', {
             method: 'GET',
             headers: {
-                'Origin': 'https://example.com'
+                'Origin': 'https://pay-to-pin.duckdns.org'
             }
         });
-        expect(getRes.headers.get('access-control-allow-origin')).toBe('*');
+        expect(getRes.headers.get('access-control-allow-origin')).toBe('https://pay-to-pin.duckdns.org');
     });
 });
