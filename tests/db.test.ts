@@ -253,5 +253,96 @@ describe('DbManager', () => {
       expect(mockReadFile).toHaveBeenCalledWith('test_registry.json', 'utf-8');
       consoleWarnSpy.mockRestore();
     });
+
+    describe('findByTxHash', () => {
+      it('should return undefined if txHash is falsy without calling Supabase', async () => {
+        const db = new DbManager('test_registry.json');
+
+        const result = await db.findByTxHash('algorand:mainnet', '');
+
+        expect(result).toBeUndefined();
+        expect(mockFrom).not.toHaveBeenCalled();
+      });
+
+      it('should return mapped QueueItem when Supabase query returns matching record', async () => {
+        const db = new DbManager('test_registry.json');
+        const mockRecord = {
+          cid: 'Qm12345',
+          filename: 'test.txt',
+          size_bytes: 500,
+          pinned_at: '2026-08-01T00:00:00.000Z',
+          expires_at: '2027-08-01T00:00:00.000Z',
+          renewals_count: 1,
+          status: 'PINNED',
+          payment_network: 'algorand:mainnet',
+          tx_hash: '0x123abc',
+          token_address: '0xtoken',
+          payer_address: '0xpayer',
+          amount_paid: '1000',
+          settlement_status: 'SETTLED'
+        };
+
+        const mockMaybeSingle = vi.fn().mockResolvedValue({ data: mockRecord, error: null });
+        const mockEq2 = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
+        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
+        mockSelect.mockReturnValueOnce({ eq: mockEq1 });
+
+        const result = await db.findByTxHash('algorand:mainnet', '0x123abc');
+
+        expect(mockFrom).toHaveBeenCalledWith('pin_records');
+        expect(mockSelect).toHaveBeenCalledWith('*');
+        expect(mockEq1).toHaveBeenCalledWith('payment_network', 'algorand:mainnet');
+        expect(mockEq2).toHaveBeenCalledWith('tx_hash', '0x123abc');
+        expect(mockMaybeSingle).toHaveBeenCalled();
+
+        expect(result).toBeDefined();
+        expect(result?.cid).toBe('Qm12345');
+        expect(result?.filename).toBe('test.txt');
+        expect(result?.sizeBytes).toBe(500);
+        expect(result?.renewalsCount).toBe(1);
+        expect(result?.status).toBe('PINNED');
+        expect(result?.paymentNetwork).toBe('algorand:mainnet');
+        expect(result?.txHash).toBe('0x123abc');
+        expect(result?.tokenAddress).toBe('0xtoken');
+        expect(result?.payerAddress).toBe('0xpayer');
+        expect(result?.amountPaid).toBe(1000);
+        expect(result?.settlementStatus).toBe('SETTLED');
+      });
+
+      it('should log a warning and return undefined when Supabase lookup fails/throws an error', async () => {
+        const db = new DbManager('test_registry.json');
+        const mockError = new Error('Supabase query exception');
+
+        const mockMaybeSingle = vi.fn().mockRejectedValue(mockError);
+        const mockEq2 = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
+        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
+        mockSelect.mockReturnValueOnce({ eq: mockEq1 });
+
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+        const result = await db.findByTxHash('algorand:mainnet', '0x123abc');
+
+        expect(result).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          '[DbManager] Supabase txHash lookup failed, checking local cache:',
+          mockError
+        );
+
+        consoleWarnSpy.mockRestore();
+      });
+
+      it('should return undefined when Supabase returns an error object without throwing', async () => {
+        const db = new DbManager('test_registry.json');
+
+        const mockMaybeSingle = vi.fn().mockResolvedValue({ data: null, error: { message: 'Database error' } });
+        const mockEq2 = vi.fn().mockReturnValue({ maybeSingle: mockMaybeSingle });
+        const mockEq1 = vi.fn().mockReturnValue({ eq: mockEq2 });
+        mockSelect.mockReturnValueOnce({ eq: mockEq1 });
+
+        const result = await db.findByTxHash('algorand:mainnet', '0x123abc');
+
+        expect(result).toBeUndefined();
+      });
+    });
   });
 });
