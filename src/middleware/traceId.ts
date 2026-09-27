@@ -12,6 +12,7 @@
  * via the observability module's pino instance with bound child logger.
  */
 
+import crypto from 'crypto';
 import type { Context, Next } from 'hono';
 import { logger } from '../observability.js';
 
@@ -21,9 +22,9 @@ import { logger } from '../observability.js';
  */
 function generateTraceId(): string {
   try {
-    return require('crypto').randomUUID();
+    return crypto.randomUUID();
   } catch {
-    const bytes = require('crypto').randomBytes(16);
+    const bytes = crypto.randomBytes(16);
     return `${bytes.toString('hex').substring(0, 8)}-${bytes.toString('hex').substring(8, 12)}-4${bytes.toString('hex').substring(13, 16)}-a${bytes.toString('hex').substring(17, 20)}-${bytes.toString('hex').substring(20, 32)}`;
   }
 }
