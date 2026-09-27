@@ -10,6 +10,7 @@ from ipfs_pay_to_pin_client.client import IpfsPayToPinClient
 from ipfs_pay_to_pin_client.exceptions import (
     ExceedsMaxPriceError,
     PaymentRequiredError,
+    PinningFailedError,
     RekeyDetectedError,
 )
 from ipfs_pay_to_pin_client.models import PinResponse
@@ -76,6 +77,22 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
         with self.assertRaises(requests.exceptions.HTTPError):
             client.get_status("QmNotFound")
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_bytes_pinning_failed(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+        mock_post.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+        with self.assertRaises(PinningFailedError) as cm:
+            client.pin_bytes(b"hello world")
+
+        self.assertIn("Pinning failed with status 500: Internal Server Error", str(cm.exception))
 
     @patch("ipfs_pay_to_pin_client.client.requests.post")
     @patch("algosdk.v2client.algod.AlgodClient")
