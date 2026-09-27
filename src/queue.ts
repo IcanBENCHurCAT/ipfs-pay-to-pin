@@ -177,13 +177,14 @@ export class FileQueue {
   }
 
   public async findByTxHash(paymentNetwork: string, txHash: string): Promise<QueueItem | undefined> {
-    const dbItem = await this.dbManager.findByTxHash(paymentNetwork, txHash);
-    if (dbItem) {
-      return dbItem;
+    // ⚡ Bolt: Check in-memory itemsByTxHash map first to avoid unnecessary remote DB queries
+    await this.getItems();
+    const cachedItem = this.itemsByTxHash.get(`${paymentNetwork}:${txHash}`);
+    if (cachedItem) {
+      return cachedItem;
     }
 
-    await this.getItems();
-    return this.itemsByTxHash.get(`${paymentNetwork}:${txHash}`);
+    return this.dbManager.findByTxHash(paymentNetwork, txHash);
   }
 
   public async addJob(
