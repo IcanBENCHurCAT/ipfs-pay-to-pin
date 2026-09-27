@@ -176,4 +176,33 @@ describe('API Integration Tests', () => {
         });
         expect(getRes.headers.get('access-control-allow-origin')).toBe('https://pay-to-pin.duckdns.org');
     });
+
+    it('T027: POST /api/v1/pin rejects oversized base64 payload with 413 Payload Too Large', async () => {
+        // Construct a dummy base64 string whose calculated binary size exceeds 20MB
+        // 20MB = 20,971,520 bytes. base64 string length for >20MB is >27,962,027 chars.
+        // We simulate a large base64 string length using String.prototype.repeat without huge memory overhead in test:
+        // 'A' repeated 28,000,000 times represents ~21MB binary payload.
+        const oversizedBase64 = 'A'.repeat(28 * 1024 * 1024);
+
+        const payload = {
+            filename: 'large_file.bin',
+            data: oversizedBase64
+        };
+
+        const res = await app.request('/api/v1/pin', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-test-bypass-payment': 'true'
+            },
+            body: JSON.stringify(payload)
+        });
+
+        expect(res.status).toBe(413);
+        const data = await res.json();
+        expect(data).toEqual({
+            error: 'Payload Too Large',
+            message: 'File payload exceeds 20MB maximum limit.'
+        });
+    });
 });
