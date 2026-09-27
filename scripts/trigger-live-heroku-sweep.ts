@@ -11,9 +11,6 @@ if (!supabaseUrl || !supabaseKey) {
   process.exit(1);
 }
 
-// Service role key or anon key from env/heroku
-// const supabaseKey = process.env.SUPABASE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
-
 async function main() {
   console.log('======================================================================');
   console.log('  Altering Live Supabase Record to Trigger Heroku Worker Sweeper Log ');
