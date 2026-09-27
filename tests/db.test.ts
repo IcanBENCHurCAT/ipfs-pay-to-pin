@@ -21,7 +21,14 @@ vi.mock('fs', () => {
 
 // Setup Mock for Supabase
 const mockUpsert = vi.fn();
-const mockSelect = vi.fn();
+const mockMaybeSingle = vi.fn();
+const mockEq = vi.fn().mockReturnValue({
+  eq: (...args: any[]) => mockEq(...args),
+  maybeSingle: (...args: any[]) => mockMaybeSingle(...args)
+});
+const mockSelect = vi.fn().mockReturnValue({
+  eq: (...args: any[]) => mockEq(...args)
+});
 const mockFrom = vi.fn().mockReturnValue({
   upsert: mockUpsert,
   select: mockSelect
@@ -44,6 +51,15 @@ describe('DbManager', () => {
     vi.clearAllMocks();
     originalUrl = config.supabaseUrl;
     originalKey = config.supabaseKey;
+
+    // Reset default mock behaviors
+    mockEq.mockReturnValue({
+      eq: (...args: any[]) => mockEq(...args),
+      maybeSingle: (...args: any[]) => mockMaybeSingle(...args)
+    });
+    mockSelect.mockReturnValue({
+      eq: (...args: any[]) => mockEq(...args)
+    });
 
     // Default config values: disabled
     config.supabaseUrl = '';
@@ -107,6 +123,28 @@ describe('DbManager', () => {
       const items = await db.getItems();
 
       expect(items).toEqual([]);
+    });
+
+    describe('findByTxHash', () => {
+      it('should return undefined when txHash is empty or falsy', async () => {
+        const db = new DbManager('test_registry.json');
+
+        const result1 = await db.findByTxHash('algorand:mainnet', '');
+        const result2 = await db.findByTxHash('algorand:mainnet', null as any);
+
+        expect(result1).toBeUndefined();
+        expect(result2).toBeUndefined();
+        expect(mockFrom).not.toHaveBeenCalled();
+      });
+
+      it('should return undefined when Supabase is disabled', async () => {
+        const db = new DbManager('test_registry.json');
+
+        const result = await db.findByTxHash('algorand:mainnet', '0x123tx');
+
+        expect(result).toBeUndefined();
+        expect(mockFrom).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -252,6 +290,116 @@ describe('DbManager', () => {
       expect(items).toEqual(localItems);
       expect(mockReadFile).toHaveBeenCalledWith('test_registry.json', 'utf-8');
       consoleWarnSpy.mockRestore();
+    });
+
+    describe('findByTxHash', () => {
+      it('should return mapped QueueItem when txHash record is found in Supabase', async () => {
+        const db = new DbManager('test_registry.json');
+        const mockRecord = {
+          cid: 'bafybeidme5h53xry6s7yhrssotw4nnevwlfidbkwno3hdo6wd4muqhylke',
+          filename: 'tx_file.txt',
+          size_bytes: 2048,
+          pinned_at: '2026-01-01T00:00:00.000Z',
+          expires_at: '2027-01-01T00:00:00.000Z',
+          renewals_count: 3,
+          status: 'PINNED',
+          payment_network: 'eip155:1',
+          tx_hash: '0xabc123',
+          token_address: '0xusdc',
+          payer_address: '0xpayer',
+          amount_paid: '5000000',
+          settlement_status: 'SETTLED'
+        };
+
+        mockMaybeSingle.mockResolvedValueOnce({ data: mockRecord, error: null });
+
+        const item = await db.findByTxHash('eip155:1', '0xabc123');
+
+        expect(mockFrom).toHaveBeenCalledWith('pin_records');
+        expect(mockSelect).toHaveBeenCalledWith('*');
+        expect(mockEq).toHaveBeenNthCalledWith(1, 'payment_network', 'eip155:1');
+        expect(mockEq).toHaveBeenNthCalledWith(2, 'tx_hash', '0xabc123');
+        expect(mockMaybeSingle).toHaveBeenCalledTimes(1);
+
+        expect(item).toBeDefined();
+        expect(item).toEqual({
+          id: `job_${Date.parse('2026-01-01T00:00:00.000Z')}_hylke`,
+          filename: 'tx_file.txt',
+          cid: 'bafybeidme5h53xry6s7yhrssotw4nnevwlfidbkwno3hdo6wd4muqhylke',
+          filePath: 'queue/recovered_bafybeidme5h53xry6s7yhrssotw4nnevwlfidbkwno3hdo6wd4muqhylke.bin',
+          status: 'PINNED',
+          retryCount: 0,
+          createdAt: Date.parse('2026-01-01T00:00:00.000Z'),
+          gatewayUrl: 'https://ipfs.io/ipfs/bafybeidme5h53xry6s7yhrssotw4nnevwlfidbkwno3hdo6wd4muqhylke',
+          sizeBytes: 2048,
+          pinned_at: Date.parse('2026-01-01T00:00:00.000Z'),
+          expires_at: Date.parse('2027-01-01T00:00:00.000Z'),
+          ttl_days: 365,
+          renewalsCount: 3,
+          paymentNetwork: 'eip155:1',
+          txHash: '0xabc123',
+          tokenAddress: '0xusdc',
+          payerAddress: '0xpayer',
+          amountPaid: 5000000,
+          settlementStatus: 'SETTLED'
+        });
+      });
+
+      it('should correctly apply default fallbacks for missing optional record fields', async () => {
+        const db = new DbManager('test_registry.json');
+        const mockRecord = {
+          cid: 'Qm12345',
+          filename: 'minimal.txt',
+          status: 'PINNED'
+        };
+
+        mockMaybeSingle.mockResolvedValueOnce({ data: mockRecord, error: null });
+
+        const item = await db.findByTxHash('algorand:mainnet', 'tx_fallback');
+
+        expect(item).toBeDefined();
+        expect(item?.paymentNetwork).toBe('algorand:mainnet');
+        expect(item?.txHash).toBeUndefined();
+        expect(item?.tokenAddress).toBeUndefined();
+        expect(item?.payerAddress).toBeUndefined();
+        expect(item?.amountPaid).toBeUndefined();
+        expect(item?.settlementStatus).toBe('SETTLED');
+        expect(item?.sizeBytes).toBe(0);
+        expect(item?.renewalsCount).toBe(0);
+      });
+
+      it('should return undefined when record is not found in Supabase', async () => {
+        const db = new DbManager('test_registry.json');
+        mockMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
+
+        const item = await db.findByTxHash('algorand:mainnet', 'non_existent_tx');
+
+        expect(item).toBeUndefined();
+      });
+
+      it('should return undefined when Supabase query returns an error', async () => {
+        const db = new DbManager('test_registry.json');
+        mockMaybeSingle.mockResolvedValueOnce({ data: null, error: { message: 'Database query error' } });
+
+        const item = await db.findByTxHash('algorand:mainnet', '0xerror');
+
+        expect(item).toBeUndefined();
+      });
+
+      it('should catch exception and return undefined when Supabase client throws', async () => {
+        const db = new DbManager('test_registry.json');
+        const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        mockMaybeSingle.mockRejectedValueOnce(new Error('Network connection lost'));
+
+        const item = await db.findByTxHash('algorand:mainnet', '0xexception');
+
+        expect(item).toBeUndefined();
+        expect(consoleWarnSpy).toHaveBeenCalledWith(
+          expect.stringContaining('[DbManager] Supabase txHash lookup failed'),
+          expect.any(Error)
+        );
+        consoleWarnSpy.mockRestore();
+      });
     });
   });
 });
