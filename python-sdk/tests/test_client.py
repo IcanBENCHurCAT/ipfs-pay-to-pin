@@ -63,6 +63,20 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         res = client.get_status("QmTest")
         self.assertEqual(res["cid"], "QmTest")
 
+    @patch("ipfs_pay_to_pin_client.client.requests.get")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_get_status_http_error(self, mock_to_priv, mock_algod, mock_get):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Not Found")
+        mock_get.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+        with self.assertRaises(requests.exceptions.HTTPError):
+            client.get_status("QmNotFound")
+
     @patch("ipfs_pay_to_pin_client.client.requests.post")
     @patch("algosdk.v2client.algod.AlgodClient")
     @patch("algosdk.mnemonic.to_private_key")
