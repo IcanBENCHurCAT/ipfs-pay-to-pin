@@ -120,3 +120,7 @@
 
 **Optimization:** Replaced `Array.prototype.find` callback closure allocation with a single-pass `for` loop and strict property comparison in `scripts/opt-in-usdc.ts`.
 **Impact:** Avoids closure allocation per item during asset array searching and achieves ~1.7x–2.0x faster lookup speed.
+
+## 2026-03-30 - Check In-Memory Map Cache Before Remote DB Query on findByTxHash
+**Learning:** In `FileQueue.findByTxHash`, the code was delegating directly to `dbManager.findByTxHash` before checking the in-memory `itemsByTxHash` Map. For items already tracked in memory, this triggered unnecessary database network queries and/or disk reads on a hot path during transaction replay checks.
+**Action:** Reordered the check in `FileQueue.findByTxHash` to first call `getItems()` (syncing the in-memory cache) and check `itemsByTxHash.get(...)`. Only if the item is not present in the in-memory map does it delegate to `dbManager.findByTxHash(...)`.
