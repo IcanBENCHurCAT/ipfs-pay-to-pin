@@ -1,4 +1,4 @@
-import { config } from "dotenv";
+import { config as loadDotenv } from "dotenv";
 import { Hono, type Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { bodyLimit } from "hono/body-limit";
@@ -16,7 +16,7 @@ import { globalFileQueue } from "./queue.js";
 import { circuitBreakerMiddleware } from "./middleware/circuitBreaker.js";
 import { rateLimiterMiddleware, rateLimitCleanupInterval } from "./middleware/rateLimiter.js";
 import { initiateOnChainRefund } from "./refund.js";
-import { config as appConfig, validateConfig } from "./config.js";
+import { config, validateConfig } from "./config.js";
 
 process.on('uncaughtException', (err: any) => {
     if (process.env.NODE_ENV === 'production') {
@@ -36,7 +36,7 @@ process.on('unhandledRejection', (reason: any) => {
     }
 });
 
-config();
+loadDotenv();
 validateConfig();
 
 console.log("[Boot] Initializing Gateway on Node.js runtime...", {
@@ -716,7 +716,7 @@ app.post("/api/v1/pin", async (c) => {
         let refundTxId: string | undefined = undefined;
         let refundAttempted = false;
 
-        if (appConfig.enableAutomaticRefunds) {
+        if (config.enableAutomaticRefunds) {
             const clientAddress = c.req.header("x-payment-sender") || c.req.header("x-sender-address");
             const paidAmountHeader = c.req.header("x-payment-amount");
 
