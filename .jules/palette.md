@@ -20,3 +20,6 @@
 ## 2025-08-20 - Explicit CID Boundary Validation
 **Learning:** Passing unvalidated identifiers (like empty or whitespace-only CIDs) directly into `encodeURIComponent` and API paths can cause obscure 404 or 500 network errors that lack actionable feedback for the consuming agent.
 **Action:** Always strictly validate required route parameters (e.g. `cid.trim() !== ''`) within the SDK before initiating any network requests, and throw an explicit `ConfigurationError` explaining exactly what input is missing or malformed to facilitate quick consumer self-correction.
+## 2025-08-21 - Exported Protocol Constants and Granular Validation
+**Learning:** Hardcoding default fallback amounts (like fee pricing) as magic strings and using generic missing property errors hinders SDK integration. Consuming agents cannot programmatically adapt to unexported default values and struggle to debug generic errors.
+**Action:** Always extract protocol rules into exported named constants (e.g., `DEFAULT_PIN_FEE_MICRO_USDC`). Refactor generic object checks (`if (!options || !options.filename)`) into property-specific validations that throw explicit `ConfigurationError` messages indicating exactly which field failed and why.

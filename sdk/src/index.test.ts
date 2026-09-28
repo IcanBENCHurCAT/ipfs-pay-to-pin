@@ -133,11 +133,11 @@ describe('IpfsPayToPinClient', () => {
       });
 
       // @ts-expect-error testing invalid argument
-      await expect(client.pinFile(null)).rejects.toThrow(ConfigurationError);
+      await expect(client.pinFile(null)).rejects.toThrowError(new ConfigurationError('[IpfsClient] Missing required pinFile options.'));
       // @ts-expect-error testing invalid argument
-      await expect(client.pinFile({ data: 'hello' })).rejects.toThrow(ConfigurationError);
+      await expect(client.pinFile({ data: 'hello' })).rejects.toThrowError(new ConfigurationError('[IpfsClient] Expected options.filename to be a non-empty string, got undefined'));
       // @ts-expect-error testing invalid argument
-      await expect(client.pinFile({ filename: 'file.txt' })).rejects.toThrow(ConfigurationError);
+      await expect(client.pinFile({ filename: 'file.txt' })).rejects.toThrowError(new ConfigurationError('[IpfsClient] Expected options.data to be a Buffer or string, got undefined'));
     });
 
     it('throws ConfigurationError if options.data is not a string or Buffer', async () => {
