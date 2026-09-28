@@ -11,6 +11,16 @@ import axios from 'axios';
 export const MAX_PAYLOAD_SIZE_BYTES = 20 * 1024 * 1024;
 
 /**
+ * Default fallback price challenge amount in microUSDC for pinning a new file (10000 = $0.01 USDC).
+ */
+export const DEFAULT_PIN_FEE_MICRO_USDC = 10000;
+
+/**
+ * Default fallback price challenge amount in microUSDC for renewing an existing pinned file (5000 = $0.005 USDC).
+ */
+export const DEFAULT_RENEW_FEE_MICRO_USDC = 5000;
+
+/**
  * Configuration options for initializing the IPFS Pay-to-Pin client.
  * Requires at least one valid signing method (mnemonic, evmPrivateKey, or solanaPrivateKey).
  */
@@ -374,8 +384,12 @@ export class IpfsPayToPinClient {
    * console.log('Pinned to', result.ipfs_cid);
    */
   public async pinFile(options: PinOptions): Promise<PinResponse> {
-    if (!options || !options.filename || !options.data) {
-      throw new ConfigurationError('[IpfsClient] Missing required pinFile options (filename or data).');
+    if (!options) {
+      throw new ConfigurationError('[IpfsClient] Missing required pinFile options.');
+    }
+
+    if (typeof options.filename !== 'string' || options.filename.trim() === '') {
+      throw new ConfigurationError(`[IpfsClient] Expected options.filename to be a non-empty string, got ${typeof options.filename}`);
     }
 
     if (typeof options.data !== 'string' && !Buffer.isBuffer(options.data)) {
@@ -414,7 +428,7 @@ export class IpfsPayToPinClient {
     // 2. Parse multi-chain challenge & select network
     const challenge = this.x402HttpClient.getPaymentRequiredResponse((h) => res402.headers[h.toLowerCase()]);
     const selectedAccept = this.selectBestAcceptOption(challenge);
-    const amountMicroUsdc = parseInt(selectedAccept?.amount || '10000', 10);
+    const amountMicroUsdc = parseInt(selectedAccept?.amount || DEFAULT_PIN_FEE_MICRO_USDC.toString(), 10);
     const priceUsdc = amountMicroUsdc / 1_000_000;
     const selectedNetwork = selectedAccept?.network || 'unknown';
 
@@ -504,7 +518,7 @@ export class IpfsPayToPinClient {
 
     const challenge = this.x402HttpClient.getPaymentRequiredResponse((h) => res402.headers[h.toLowerCase()]);
     const selectedAccept = this.selectBestAcceptOption(challenge);
-    const amountMicroUsdc = parseInt(selectedAccept?.amount || '5000', 10);
+    const amountMicroUsdc = parseInt(selectedAccept?.amount || DEFAULT_RENEW_FEE_MICRO_USDC.toString(), 10);
     const priceUsdc = amountMicroUsdc / 1_000_000;
     const selectedNetwork = selectedAccept?.network || 'unknown';
 
