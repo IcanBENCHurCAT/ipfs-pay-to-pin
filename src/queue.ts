@@ -273,92 +273,117 @@ export class FileQueue {
   }
 
   public async processJobs(): Promise<void> {
-    if (this.isProcessing) {
-      return;
-    }
+    if (this.isProcessing) return;
     this.isProcessing = true;
 
     try {
       const items = await this.getItems();
-      // Off-by-one fix: retryCount < maxRetries ensures exactly maxRetries (5) attempts
-      const pendingItems: QueueItem[] = [];
-      for (let i = 0; i < items.length; i++) {
-        if (items[i].status === 'PENDING' && items[i].retryCount < this.maxRetries) {
-          pendingItems.push(items[i]);
-        }
-      }
-
+      const pendingItems = this.filterPendingItems(items);
       if (pendingItems.length === 0) return;
 
       console.log(`[Queue Worker] Processing ${pendingItems.length} pending pinning jobs (concurrency limit: ${this.maxConcurrent})...`);
 
       for (let i = 0; i < pendingItems.length; i += this.maxConcurrent) {
-        // ⚡ Bolt: Use a pre-allocated array and a for-loop to avoid dynamic array allocations from .slice() and .map()
-        const chunkLen = Math.min(this.maxConcurrent, pendingItems.length - i);
-        const chunk = new Array(chunkLen);
-        const promises = new Array(chunkLen);
-        for (let j = 0; j < chunkLen; j++) {
-          const item = pendingItems[i + j];
-          chunk[j] = item;
-          promises[j] = (async () => {
-            try {
-              await fs.promises.access(item.filePath);
-            } catch {
-              item.status = 'FAILED';
-              return;
-            }
-
-            const stream = fs.createReadStream(item.filePath);
-            const result = await pinFileToStorage(stream, item.filename);
-
-            item.status = 'PINNED';
-            item.cid = result.ipfs_cid;
-            item.gatewayUrl = result.gateway_url;
-
-            try {
-              await fs.promises.unlink(item.filePath);
-            } catch {}
-
-            console.log(`[Queue Worker] Successfully pinned job ${item.id} -> CID ${result.ipfs_cid}`);
-          })();
-        }
-
-        // ⚡ Bolt: Stream file directly from disk via fs.createReadStream to pinFileToStorage to eliminate in-memory buffer allocation
-        const results = await Promise.allSettled(promises);
-
-        let batchFailures = 0;
-        // ⚡ Bolt: Avoid forEach and use single-pass for-loop
-        for (let idx = 0; idx < results.length; idx++) {
-          const res = results[idx];
-          if (res.status === 'rejected') {
-            batchFailures++;
-            const item = chunk[idx];
-            item.retryCount += 1;
-            const delayMs = Math.min(1000 * Math.pow(2, item.retryCount - 1), 60000);
-            console.warn(`[Queue Worker] Failed job ${item.id} (Attempt ${item.retryCount}/${this.maxRetries}, backoff ${delayMs}ms): ${res.reason?.message || res.reason}`);
-            
-            if (item.retryCount >= this.maxRetries) {
-              console.error(`[Queue Worker] Job ${item.id} exceeded max retries. Marking as FAILED.`);
-              item.status = 'FAILED';
-              fs.promises.unlink(item.filePath).catch(() => {});
-            }
-          }
-        }
-
-        if (batchFailures > 0) {
-          this.consecutiveFailures += batchFailures;
-          if (this.consecutiveFailures >= 3) {
-            this.setPinataHealthy(false);
-          }
-        } else {
-          this.consecutiveFailures = 0;
-          this.setPinataHealthy(true);
-        }
+        const results = await this.processBatch(items, pendingItems, i);
+        this.updateHealthMetrics(results);
       }
 
       await this.saveItems(items);
     } finally {
       this.isProcessing = false;
+    }
+  }
+
+  /** Filter items that are PENDING and within their retry budget. */
+  private filterPendingItems(items: QueueItem[]): QueueItem[] {
+    const result: QueueItem[] = [];
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.status === 'PENDING' && item.retryCount < this.maxRetries) {
+        result.push(item);
+      }
+    }
+    return result;
+  }
+
+  /** Process a single batch of concurrent pinning jobs. */
+  private async processBatch(
+    items: QueueItem[],
+    pendingItems: QueueItem[],
+    startIndex: number
+  ): Promise<Array<{ item: QueueItem; rejected: boolean; reason?: unknown }>> {
+    const chunkLen = Math.min(this.maxConcurrent, pendingItems.length - startIndex);
+    const chunk = new Array(chunkLen);
+    const promises = new Array(chunkLen);
+
+    for (let j = 0; j < chunkLen; j++) {
+      const item = pendingItems[startIndex + j];
+      chunk[j] = item;
+      promises[j] = this.processSingleJob(item);
+    }
+
+    const settled = await Promise.allSettled(promises);
+
+    // Convert settled results back to a structured array for caller
+    const results: Array<{ item: QueueItem; rejected: boolean; reason?: unknown }> = [];
+    for (let idx = 0; idx < chunkLen; idx++) {
+      const res = settled[idx];
+      results.push({ item: chunk[idx], rejected: res.status === 'rejected', reason: res.status === 'rejected' ? res.reason : undefined });
+    }
+    return results;
+  }
+
+  /** Process a single job: read file, pin to IPFS, clean up, update item. */
+  private async processSingleJob(item: QueueItem): Promise<void> {
+    try {
+      await fs.promises.access(item.filePath);
+    } catch {
+      item.status = 'FAILED';
+      return;
+    }
+
+    const stream = fs.createReadStream(item.filePath);
+    const result = await pinFileToStorage(stream, item.filename);
+
+    item.status = 'PINNED';
+    item.cid = result.ipfs_cid;
+    item.gatewayUrl = result.gateway_url;
+
+    try {
+      await fs.promises.unlink(item.filePath);
+    } catch {}
+
+    console.log(`[Queue Worker] Successfully pinned job ${item.id} -> CID ${result.ipfs_cid}`);
+  }
+
+  /** Apply retry / failure logic and update health metrics for a batch of results. */
+  private updateHealthMetrics(results: Array<{ item: QueueItem; rejected: boolean; reason?: unknown }>): void {
+    let batchFailures = 0;
+
+    for (let idx = 0; idx < results.length; idx++) {
+      const { item, rejected, reason } = results[idx];
+      if (!rejected) continue;
+
+      batchFailures++;
+      item.retryCount += 1;
+      const delayMs = Math.min(1000 * Math.pow(2, item.retryCount - 1), 60000);
+      console.warn(`[Queue Worker] Failed job ${item.id} (Attempt ${item.retryCount}/${this.maxRetries}, backoff ${delayMs}ms): ${reason?.message || reason}`);
+
+      if (item.retryCount >= this.maxRetries) {
+        console.error(`[Queue Worker] Job ${item.id} exceeded max retries. Marking as FAILED.`);
+        item.status = 'FAILED';
+        fs.promises.unlink(item.filePath).catch(() => {});
+      }
+    }
+
+    if (batchFailures > 0) {
+      this.consecutiveFailures += batchFailures;
+      if (this.consecutiveFailures >= 3) {
+        this.setPinataHealthy(false);
+      }
+    } else {
+      this.consecutiveFailures = 0;
+      this.setPinataHealthy(true);
     }
   }
 
