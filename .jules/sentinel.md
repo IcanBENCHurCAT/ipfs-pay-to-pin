@@ -74,4 +74,9 @@
 ## 2026-09-27 - Denial of Service via Unrestricted Payload Allocation
 **Vulnerability:** In `POST /api/v1/pin`, the server calculated the binary size from Base64 `data` but invoked `Buffer.from(data, 'base64')` without validating that the size was within the 20MB payload limit, leaving the node server vulnerable to heap exhaustion / OOM crashes if a large string was passed.
 **Learning:** Always validate payload boundary metrics (like calculated binary buffer size) before executing memory-allocating functions like `Buffer.from()` or `Buffer.alloc()` on client-controlled input.
+
 **Prevention:** Assert that calculated binary byte sizes do not exceed maximum threshold limits (`parsedBinaryBytes > MAX_PAYLOAD_SIZE`) before buffer allocation and fail fast with an HTTP 413 error.
+## 2026-09-24 - Validate data payload before calculating price
+**Vulnerability:** The `calculateUsdcPrice` logic silently defaulted payload size calculation to 1000 bytes when `body.data` was missing or malformed, enabling an attacker to pay for the cheapest challenge before submitting requests that fail later in the pipeline but still drain their own funds, or bypass checks.
+**Learning:** Never assume inputs will be validated *after* billing or that falling back to a default value is safe in financial logic. If a required field is missing, fail fast with a 400 error rather than continuing with defaults.
+**Prevention:** Always validate all mandatory payload fields *before* running pricing, billing, or access control logic.
