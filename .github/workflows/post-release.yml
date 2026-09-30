@@ -56,7 +56,14 @@ jobs:
       - name: Publish to npm
         run: |
           cd sdk
-          npm publish --provenance --access public
+          npm publish --provenance --access public || {
+            STATUS=$?
+            if [ $STATUS -eq 1 ] && npm view ipfs-pay-to-pin-client@$(node -p "require('./package.json').version") version >/dev/null 2>&1; then
+              echo "Version $(node -p "require('./package.json').version") is already published to npm. Skipping."
+              exit 0
+            fi
+            exit $STATUS
+          }
 
   publish-pypi:
     name: Publish PyPI Package
