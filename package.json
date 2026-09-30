@@ -1,6 +1,6 @@
 {
   "name": "ipfs-pay-to-pin-gateway",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "IPFS Pay-to-Pin Gateway built with official Algorand Foundation @x402/hono and @x402/avm stack",
   "license": "MIT",
   "main": "src/index.ts",
