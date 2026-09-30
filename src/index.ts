@@ -536,20 +536,19 @@ const calculateUsdcPrice = async (ctx: any, isEthereumL1 = false) => {
     let binaryBytes = 1000;
     try {
         const body = await ctx.adapter.getBody();
-        if (!body || !body.data || typeof body.data !== 'string') {
-            throw new HTTPException(400, { message: "Missing or invalid data parameter in JSON payload" });
-        }
-        const dataLen = body.data.length;
-        let padding = 0;
-        if (dataLen > 1) {
-            if (body.data[dataLen - 1] === '=') {
-                padding = body.data[dataLen - 2] === '=' ? 2 : 1;
+        if (body && typeof body.data === 'string' && body.data.length > 0) {
+            const dataLen = body.data.length;
+            let padding = 0;
+            if (dataLen > 1) {
+                if (body.data[dataLen - 1] === '=') {
+                    padding = body.data[dataLen - 2] === '=' ? 2 : 1;
+                }
             }
+            binaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
         }
-        binaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
-    } catch (e: any) {
-        if (e instanceof HTTPException) throw e;
-        throw new HTTPException(400, { message: "Invalid JSON body" });
+    } catch {
+        // Fall back gracefully to base file size if body is absent, non-JSON, or empty
+        binaryBytes = 1000;
     }
     const baseMicroUsdc = 10000; // $0.01 base price
     const bytePriceMicroUsdc = 0.02; // $0.02 per MB (0.02 microUSDC per byte)
