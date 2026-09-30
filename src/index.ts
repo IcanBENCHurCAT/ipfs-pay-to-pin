@@ -133,7 +133,7 @@ const app = new Hono();
 // 🛡️ Sentinel: Restrict CORS origin to trusted domains instead of defaulting to wildcard ('*')
 // to prevent unauthorized web applications from making cross-origin requests or reading responses.
 const getCorsOrigin = (): string | string[] | ((origin: string) => string | null) => {
-    const rawOrigin = appConfig.corsOrigin;
+    const rawOrigin = config.corsOrigin;
     if (!rawOrigin) {
         // Fallback default origins when CORS_ORIGIN is not specified
         return [
