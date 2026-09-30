@@ -181,6 +181,7 @@ describe('sanitizeFilename', () => {
 import { beforeEach, afterEach, vi } from 'vitest';
 import axios from 'axios';
 import fs from 'fs';
+import path from 'path';
 import { pinFileToStorage, unpinFileFromIPFS } from '../src/storage.js';
 
 vi.mock('axios');
@@ -357,7 +358,7 @@ describe('unpinFileFromIPFS', () => {
 
       await unpinFileFromIPFS(cid, filename);
 
-      expect(unlinkSpy).toHaveBeenCalledWith('tmp/test_storage/bafybeiglocal123_document.pdf');
+      expect(unlinkSpy).toHaveBeenCalledWith(path.join('tmp/test_storage', 'bafybeiglocal123_document.pdf'));
     });
 
     it('handles unlink error gracefully when specified local file does not exist', async () => {
@@ -383,8 +384,8 @@ describe('unpinFileFromIPFS', () => {
 
       expect(readdirSpy).toHaveBeenCalledWith('tmp/test_storage');
       expect(unlinkSpy).toHaveBeenCalledTimes(2);
-      expect(unlinkSpy).toHaveBeenNthCalledWith(1, 'tmp/test_storage/bafybeigscan_file1.txt');
-      expect(unlinkSpy).toHaveBeenNthCalledWith(2, 'tmp/test_storage/bafybeigscan_file3.png');
+      expect(unlinkSpy).toHaveBeenNthCalledWith(1, path.join('tmp/test_storage', 'bafybeigscan_file1.txt'));
+      expect(unlinkSpy).toHaveBeenNthCalledWith(2, path.join('tmp/test_storage', 'bafybeigscan_file3.png'));
     });
 
     it('handles error during directory scanning gracefully', async () => {
