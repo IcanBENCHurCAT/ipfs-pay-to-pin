@@ -57,7 +57,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "license": "AGPL-3.0-or-later",
+  "license": "MIT",
   "peerDependencies": {
     "@x402/avm": "^2.26.0",
     "@x402/evm": "^2.26.0",

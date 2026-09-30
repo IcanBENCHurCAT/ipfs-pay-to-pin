@@ -4,7 +4,7 @@ Thank you for your interest in contributing to the IPFS Pay-to-Pin Gateway and C
 
 ## Context & Constraints
 - **Architecture:** Agent-to-Agent (AX) SDK interfacing with the IPFS Pay-to-Pin Gateway via HTTP 402 and Algorand microUSDC micropayments.
-- **License:** AGPLv3. All code and contributions must respect copyleft and network-distribution terms. If you provide this as a service, you must open source your derivative works.
+- **License:** MIT. Contributions are accepted under the MIT License. You are free to use, modify, and distribute this code, including commercially, with no obligation to open-source derivative works.
 - **Package Manager:** `pnpm` exclusively. Never use `npm` or `yarn`.
 
 ## Development Setup

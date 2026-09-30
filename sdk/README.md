@@ -127,4 +127,4 @@ try {
 
 ## License
 
-AGPLv3 License.
+MIT License. See [LICENSE](../LICENSE) for the full text.

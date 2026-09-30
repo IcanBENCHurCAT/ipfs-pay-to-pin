@@ -94,6 +94,6 @@ terraform apply
 
 ## License
 
-GNU Affero General Public License v3 (AGPLv3)
+MIT License
 
-This project is licensed under the AGPLv3. This copyleft license ensures that anyone offering this agent-to-agent protocol as a network service must also open-source their derivative works. This requires network-based deployments of this code to share their source modifications, preventing competitors from cloning and hosting the backend architecture for commercial gain.
+This project is licensed under the MIT License. You are free to use, copy, modify, and distribute this code, including for commercial purposes, with no obligation to open-source your own work. See [LICENSE](LICENSE) for the full text.
