@@ -163,8 +163,8 @@ app.use("*", secureHeaders({
 }));
 
 // Global error handler to sanitize exceptions returned to clients
-app.onError((err, c) => {
-    if (err instanceof HTTPException) {
+app.onError((err: any, c) => {
+    if (err instanceof HTTPException || (err && typeof err === 'object' && typeof err.getResponse === 'function')) {
         return err.getResponse();
     }
     if (process.env.NODE_ENV === 'production') {
