@@ -31,3 +31,6 @@
 ## 2026-09-22 - Fix Invalid CI Action Versions
 **Learning:** Hardcoding future or non-existent GitHub Action versions (like `actions/checkout@v7` or `pnpm/action-setup@v6`) fundamentally breaks CI/CD pipelines before they can even start, as the GitHub Actions runner fails to fetch the action source code.
 **Prevention:** Always verify action versions against public registries or stick to established current major versions (like `v4` for node/checkout) unless specifically testing an upstream prerelease.
+## 2026-09-30 - Fix Invalid CI Action Versions
+**Learning:** Hardcoding future or non-existent GitHub Action versions (like `actions/checkout@v7` or `pnpm/action-setup@v6`) fundamentally breaks CI/CD pipelines before they can even start, as the GitHub Actions runner fails to fetch the action source code.
+**Action:** Always verify action versions against public registries or stick to established current major versions (like `v4` for node/checkout) unless specifically testing an upstream prerelease.
