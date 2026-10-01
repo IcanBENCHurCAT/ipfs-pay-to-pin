@@ -5,12 +5,15 @@ import { webhookRateLimiterMiddleware, rateLimitMap, WINDOW_MS, MAX_REQUESTS, MA
 beforeEach(() => {
   rateLimitMap.clear();
   vi.useFakeTimers();
+  // Honor X-Forwarded-For so per-IP tests exercise the IP bucketing.
+  process.env.TRUST_PROXY = 'true';
 });
 
 afterEach(() => {
   rateLimitMap.clear();
   vi.useRealTimers();
   vi.clearAllMocks();
+  delete process.env.TRUST_PROXY;
 });
 
 describe('Webhook Rate Limiter Middleware', () => {
