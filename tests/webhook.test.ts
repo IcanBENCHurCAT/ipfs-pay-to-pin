@@ -2,11 +2,12 @@ import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { WebhookDeliveryService, type WebhookPayload } from '../src/webhook.js';
 import crypto from 'crypto';
 
-// Mock crypto.randomBytes
+// Mock crypto.randomBytes (named export; src/webhook.ts imports { randomBytes } from 'node:crypto')
 vi.mock('crypto', () => ({
   default: {
     randomBytes: vi.fn().mockReturnValue(Buffer.from('mock-random-bytes')),
   },
+  randomBytes: vi.fn().mockReturnValue(Buffer.from('mock-random-bytes')),
 }));
 
 // Mock fetch globally
@@ -38,31 +39,15 @@ vi.mock('@supabase/supabase-js', () => ({
   createClient: vi.fn(() => mockSupabase),
 }));
 
-// Mock Supabase client
-const mockSupabase = {
-  from: vi.fn(() => ({
-    insert: vi.fn().mockResolvedValue({ error: null }),
-    select: vi.fn(() => ({
-      eq: vi.fn(() => ({
-        order: vi.fn(() => ({
-          limit: vi.fn().mockResolvedValue({ data: null, error: null }),
-        })),
-      })),
-      or: vi.fn(() => ({
-        order: vi.fn(() => ({
-          limit: vi.fn().mockResolvedValue({ data: null, error: null }),
-        })),
-      })),
-      order: vi.fn(() => ({
-        limit: vi.fn().mockResolvedValue({ data: null, error: null }),
-      })),
-    })),
-  })),
-};
+// deliver() persists via trackDelivery without mutating the input record;
+// these helpers read back what was actually inserted.
+function lastInsertedRow(): Record<string, any> {
+  const results = mockSupabase.from.mock.results;
+  const last = results[results.length - 1].value as { insert: ReturnType<typeof vi.fn> };
+  const calls = last.insert.mock.calls;
+  return calls[calls.length - 1][0];
+}
 
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: vi.fn(() => mockSupabase),
-}));
 
 describe('WebhookDeliveryService', () => {
   let service: WebhookDeliveryService;
@@ -292,9 +277,10 @@ describe('WebhookDeliveryService', () => {
       const result = await service.deliver(record);
 
       expect(result.status).toBe(429);
-      // Check that next_retry_at was set
-      expect(record.next_retry_at).toBeDefined();
-      expect(record.next_retry_at).toBeGreaterThan(Date.now());
+      // deliver() does not mutate the input record; the retry is persisted via trackDelivery
+      const inserted = lastInsertedRow();
+      expect(inserted.status).toBe('RATE_LIMITED');
+      expect(inserted.next_retry_at).toBeGreaterThan(Date.now());
     });
 
     it('should retry on network errors up to maxRetries', async () => {
@@ -323,10 +309,11 @@ describe('WebhookDeliveryService', () => {
 
       expect(result.status).toBe(0); // 0 indicates network error
       expect(result.error).toContain('Network Error');
-      // Should have scheduled a retry
-      expect(record.attempts).toBe(1);
-      expect(record.status).toBe('TIMED_OUT');
-      expect(record.next_retry_at).toBeGreaterThan(Date.now());
+      // Should have scheduled a retry (persisted via trackDelivery; input record is not mutated)
+      const retried = lastInsertedRow();
+      expect(retried.attempts).toBe(1);
+      expect(retried.status).toBe('TIMED_OUT');
+      expect(retried.next_retry_at).toBeGreaterThan(Date.now());
     });
 
     it('should mark as FAILED after maxRetries exceeded', async () => {
@@ -354,8 +341,8 @@ describe('WebhookDeliveryService', () => {
       const result = await service.deliver(record);
 
       expect(result.status).toBe(0);
-      // Should be marked as FAILED, not TIMED_OUT
-      expect(record.status).toBe('FAILED');
+      // Should be marked as FAILED, not TIMED_OUT (persisted via trackDelivery)
+      expect(lastInsertedRow().status).toBe('FAILED');
     });
 
     it('should abort on timeout', async () => {
@@ -515,9 +502,7 @@ describe('WebhookDeliveryService', () => {
       vi.spyOn(mockSupabase, 'from').mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
-            order: vi.fn().mockReturnValue({
-              limit: vi.fn().mockResolvedValue({ data: mockDeliveries, error: null }),
-            }),
+            order: vi.fn().mockResolvedValue({ data: mockDeliveries, error: null }),
           }),
         }),
       } as any);
