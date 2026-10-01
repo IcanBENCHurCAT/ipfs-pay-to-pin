@@ -1,106 +1,98 @@
 /**
- * Observability Module — Centralized logging, metrics, and tracing
+ * Observability - structured JSON logging and in-memory metrics.
  *
- * Provides:
- * - Pino logger for structured JSON logging
- * - Prometheus counters and gauges via prom-client
- * - Global registry for metrics collection
- *
- * Consumers:
- *   import { logger, incrementCounter, setGauge, getMetricsRegister } from './observability.js';
+ * Dependency-free on purpose: the gateway image stays lean (no pino/prom-client).
+ * - logger: JSON log lines on stdout with child() binding support.
+ * - incrementCounter / setGauge: process-local counters and gauges.
+ * - getMetricsRegister: exposes them in Prometheus text format for /metrics.
+ * - initOtel / shutdownOtel: no-ops until the feat-otel-tracing branch lands.
  */
 
-import pino from 'pino';
-import { Registry, Counter, Gauge } from 'prom-client';
+export type LogBindings = Record<string, unknown>;
 
-// ─── Logger ───────────────────────────────────────────────────────────────────
-
-export const logger = pino({
-  level: process.env.LOG_LEVEL || 'info',
-  transport:
-    process.env.NODE_ENV !== 'production'
-      ? { target: 'pino-pretty', options: { colorize: true } }
-      : undefined,
-  formatters: {
-    level: (label) => ({ level: label }),
-  },
-  timestamp: pino.stdTimeFunctions.isoTime,
-});
-
-// ─── Metrics Registry ─────────────────────────────────────────────────────────
-
-const registry = new Registry();
-
-export function getMetricsRegister(): Registry {
-  return registry;
+export interface Logger {
+  debug(obj: unknown, msg?: string): void;
+  info(obj: unknown, msg?: string): void;
+  warn(obj: unknown, msg?: string): void;
+  error(obj: unknown, msg?: string): void;
+  child(bindings: LogBindings): Logger;
 }
 
-// ─── Counters ─────────────────────────────────────────────────────────────────
-
-interface CounterMap {
-  [name: string]: Counter<string>;
+function writeLog(level: string, bindings: LogBindings, obj: unknown, msg?: string): void {
+  const entry: Record<string, unknown> = {
+    level,
+    time: new Date().toISOString(),
+    service: "ipfs-pay-to-pin",
+    ...bindings,
+  };
+  if (typeof obj === "object" && obj !== null) {
+    Object.assign(entry, obj);
+  } else if (obj !== undefined) {
+    entry.data = obj;
+  }
+  if (msg !== undefined) entry.msg = msg;
+  console.log(JSON.stringify(entry));
 }
 
-const counterMap: CounterMap = {};
-
-/**
- * Increment a Prometheus counter with optional labels.
- * Creates the counter on first use if it does not exist.
- */
-export function incrementCounter(
-  name: string,
-  labels?: Record<string, string>
-): void {
-  if (!counterMap[name]) {
-    counterMap[name] = new Counter({
-      name,
-      help: `Auto-created counter: ${name}`,
-    });
-    registry.registerMetric(counterMap[name]);
-  }
-
-  const counter = registry.getSingleMetric(name) as Counter<string> | undefined;
-
-  if (!counter) {
-    counterMap[name] = new Counter({
-      name,
-      help: `Auto-created counter: ${name}`,
-    });
-    registry.registerMetric(counterMap[name]);
-    (counterMap[name] as Counter<string>).inc(labels || {});
-    return;
-  }
-
-  counter.inc(labels || {});
+function makeLogger(bindings: LogBindings = {}): Logger {
+  const debugEnabled = (): boolean => (process.env.LOG_LEVEL || "info").toLowerCase() === "debug";
+  return {
+    debug: (obj, msg) => { if (debugEnabled()) writeLog("debug", bindings, obj, msg); },
+    info: (obj, msg) => writeLog("info", bindings, obj, msg),
+    warn: (obj, msg) => writeLog("warn", bindings, obj, msg),
+    error: (obj, msg) => writeLog("error", bindings, obj, msg),
+    child: (b) => makeLogger({ ...bindings, ...b }),
+  };
 }
 
-// ─── Gauges ───────────────────────────────────────────────────────────────────
+export const logger: Logger = makeLogger();
 
-interface GaugeMap {
-  [name: string]: Gauge<string>;
+export type MetricLabels = Record<string, string>;
+
+const counters = new Map<string, number>();
+const gauges = new Map<string, number>();
+
+function metricKey(name: string, labels: MetricLabels): string {
+  const parts = Object.keys(labels).sort().map((k) => `${k}="${labels[k]}"`);
+  return parts.length > 0 ? `${name}{${parts.join(",")}}` : name;
 }
 
-const gaugeMap: GaugeMap = {};
+export function incrementCounter(name: string, labels: MetricLabels = {}, by = 1): void {
+  const k = metricKey(name, labels);
+  counters.set(k, (counters.get(k) ?? 0) + by);
+}
 
-/**
- * Set a Prometheus gauge value with optional labels.
- * Creates the gauge on first use if it does not exist.
- */
-export function setGauge(
-  name: string,
-  value: number,
-  labels?: Record<string, string>
-): void {
-  if (!gaugeMap[name]) {
-    gaugeMap[name] = new Gauge({
-      name,
-      help: `Auto-created gauge: ${name}`,
-    });
-    registry.registerMetric(gaugeMap[name]);
-  }
+export function setGauge(name: string, value: number, labels: MetricLabels = {}): void {
+  gauges.set(metricKey(name, labels), value);
+}
 
-  const gauge = registry.getSingleMetric(name) as Gauge<string> | undefined;
-  if (gauge) {
-    gauge.set(labels || {}, value);
-  }
+export interface MetricsRegister {
+  metrics(): Promise<string>;
+}
+
+export function getMetricsRegister(): MetricsRegister {
+  return {
+    async metrics(): Promise<string> {
+      const lines: string[] = [];
+      for (const [k, v] of counters) lines.push(`${k} ${v}`);
+      for (const [k, v] of gauges) lines.push(`${k} ${v}`);
+      return lines.join("\n") + "\n";
+    },
+  };
+}
+
+export function initMetrics(): void {
+  // In-memory store is ready on import; hook for future backends.
+}
+
+export function isMetricsAvailable(): boolean {
+  return true;
+}
+
+export function initOtel(): void {
+  // OpenTelemetry wiring is in progress on the feat-otel-tracing branch; no-op on main.
+}
+
+export async function shutdownOtel(): Promise<void> {
+  // No-op until OTel is wired up.
 }
