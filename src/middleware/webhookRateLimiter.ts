@@ -79,7 +79,7 @@ export async function webhookRateLimiterMiddleware(c: Context, next: Next) {
   c.header('X-RateLimit-Reset', Math.ceil(record.resetTime / 1000).toString());
   c.header('Retry-After', String(Math.ceil((record.resetTime - now) / 1000)));
 
-  if (record.count >= MAX_REQUESTS) {
+  if (record.count > MAX_REQUESTS) {
     return c.json({
       error: "Too Many Requests",
       message: "Webhook admin endpoint rate limit exceeded. Maximum 20 requests per minute allowed."
