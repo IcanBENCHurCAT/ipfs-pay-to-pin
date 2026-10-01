@@ -197,6 +197,7 @@ export class FileQueue {
       payerAddress?: string;
       amountPaid?: number;
       settlementStatus?: 'PENDING' | 'VERIFIED' | 'SETTLED' | 'FAILED';
+      webhookUrl?: string;
     }
   ): Promise<QueueItem> {
     const safeFilename = sanitizeFilename(filename);
