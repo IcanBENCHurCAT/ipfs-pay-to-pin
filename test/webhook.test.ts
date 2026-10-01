@@ -120,10 +120,10 @@ describe('WebhookDeliveryService', () => {
     });
 
     it('should return false when webhook is disabled', async () => {
-      const disabledService = new WebhookDeliveryService({}, undefined, undefined);
-      // Force disable via env
+      // Force disable via env BEFORE constructing (constructor reads env once)
       const orig = process.env.WEBHOOK_ENABLED;
       process.env.WEBHOOK_ENABLED = 'false';
+      const disabledService = new WebhookDeliveryService({}, undefined, undefined);
       
       const result = await disabledService.fire(
         'pin.completed',
