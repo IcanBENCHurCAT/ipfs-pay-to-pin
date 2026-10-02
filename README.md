@@ -94,6 +94,6 @@ terraform apply
 
 ## License
 
-MIT License
+GNU AGPLv3 License
 
-This project is licensed under the MIT License. You are free to use, copy, modify, and distribute this code, including for commercial purposes, with no obligation to open-source your own work. See [LICENSE](LICENSE) for the full text.
+This project is licensed under the GNU Affero General Public License v3.0 or later. All code, contributions, and derivative works must respect copyleft and network-distribution terms. See [LICENSE](LICENSE) for the full text.

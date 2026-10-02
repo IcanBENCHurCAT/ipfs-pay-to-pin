@@ -11,8 +11,8 @@ info:
     name: IPFS Pay-to-Pin Gateway
     email: garretparker@gmail.com
   license:
-    name: MIT
-    url: https://opensource.org/licenses/MIT
+    name: AGPL-3.0-or-later
+    url: https://www.gnu.org/licenses/agpl-3.0.html
 
 servers:
   - url: https://pay-to-pin.duckdns.org
