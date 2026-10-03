@@ -34,3 +34,6 @@
 ## 2026-09-30 - Fix Invalid CI Action Versions
 **Learning:** Hardcoding future or non-existent GitHub Action versions (like `actions/checkout@v7` or `pnpm/action-setup@v6`) fundamentally breaks CI/CD pipelines before they can even start, as the GitHub Actions runner fails to fetch the action source code.
 **Action:** Always verify action versions against public registries or stick to established current major versions (like `v4` for node/checkout) unless specifically testing an upstream prerelease.
+## 2026-10-03 - Standardize AGPLv3 Licensing
+**Action:** Replaced erroneous MIT license references across SDK workspaces (Python and TS), CONTRIBUTING guidelines, and READMEs to strictly adhere to the AGPL-3.0-or-later license.
+**Why:** The repository was originally initialized with mixed licenses. Standardizing to AGPLv3 ensures network distribution and copyleft legal protections are legally sound for consuming agents and open-source forks.
