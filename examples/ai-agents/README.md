@@ -468,7 +468,7 @@ Found a bug? Have an improvement? PRs welcome! See [CONTRIBUTING.md](../../CONTR
 
 ## 📄 License
 
-MIT — see [LICENSE](../../LICENSE) for details.
+AGPLv3 — see [LICENSE](../../LICENSE) for details.
 
 ---
 
