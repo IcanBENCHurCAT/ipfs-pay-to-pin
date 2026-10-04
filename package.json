@@ -20,7 +20,7 @@
   "dependencies": {
     "@hono/node-server": "^2.1.1",
     "@hono/swagger-ui": "^0.6.1",
-    "@supabase/supabase-js": "^2.117.1",
+    "@supabase/supabase-js": "^2.117.2",
     "@types/node": "^26.6.3",
     "@x402/avm": "^2.26.0",
     "@x402/core": "^2.25.0",
