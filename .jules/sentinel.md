@@ -80,3 +80,7 @@
 **Vulnerability:** The `calculateUsdcPrice` logic silently defaulted payload size calculation to 1000 bytes when `body.data` was missing or malformed, enabling an attacker to pay for the cheapest challenge before submitting requests that fail later in the pipeline but still drain their own funds, or bypass checks.
 **Learning:** Never assume inputs will be validated *after* billing or that falling back to a default value is safe in financial logic. If a required field is missing, fail fast with a 400 error rather than continuing with defaults.
 **Prevention:** Always validate all mandatory payload fields *before* running pricing, billing, or access control logic.
+## 2026-10-04 - Fix SSRF bypass via alternative loopback addresses
+**Vulnerability:** The webhook subsystem only blocked `127.0.0.1` and `::1` explicitly. Node.js `URL` parsing returns IPv6 loopback formatted as `[::1]`, and allows IPv4 alternative loopback blocks (like `127.0.0.2` or octal/hex equivalents) to bypass the explicit check, enabling SSRF into local services.
+**Learning:** Checking for equality against `127.0.0.1` or `::1` is insufficient due to IP range availability (`127.0.0.0/8`) and the formatting brackets `[]` native to the WHATWG URL object for IPv6.
+**Prevention:** Always use regex (`/^127\./`) to block the entire IPv4 loopback block, and explicitly test for `[::1]`, `[::]`, and `[::ffff:` IPv4-mapped forms in URL parsed hostnames.

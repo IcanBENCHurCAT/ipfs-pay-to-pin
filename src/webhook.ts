@@ -98,7 +98,12 @@ function isSafeUrl(url: string): boolean {
     }
     const hostname = parsed.hostname;
     // Block localhost, loopback, link-local, private ranges
-    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1') {
+    if (hostname === 'localhost') {
+      return false;
+    }
+    // 🛡️ Sentinel: Fix SSRF bypasses via 127.x.x.x block and properly handle IPv6 brackets
+    if (/^127\./.test(hostname)) return false;
+    if (hostname === '[::1]' || hostname === '[::]' || hostname.startsWith('[::ffff:')) {
       return false;
     }
     if (/^10\./.test(hostname)) return false;
