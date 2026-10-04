@@ -124,3 +124,7 @@
 ## 2026-03-30 - Check In-Memory Map Cache Before Remote DB Query on findByTxHash
 **Learning:** In `FileQueue.findByTxHash`, the code was delegating directly to `dbManager.findByTxHash` before checking the in-memory `itemsByTxHash` Map. For items already tracked in memory, this triggered unnecessary database network queries and/or disk reads on a hot path during transaction replay checks.
 **Action:** Reordered the check in `FileQueue.findByTxHash` to first call `getItems()` (syncing the in-memory cache) and check `itemsByTxHash.get(...)`. Only if the item is not present in the in-memory map does it delegate to `dbManager.findByTxHash(...)`.
+
+## 2026-10-25 - [Avoid Massive Buffer Allocations in Base64 Size Calculation]
+**Learning:** In the `validateBatchPayload` function within `src/batchPin.ts`, decoding large base64 strings into `Buffer`s (`decodeBase64`) just to calculate their length allocated massive amounts of memory and blocked the Node.js event loop unnecessarily during payload validation. Every file was essentially decoded twice—once for validation and once during actual processing.
+**Action:** Replaced the buffer allocation with a direct mathematical calculation of the base64 decoded byte size (`Math.floor(((dataLen - padding) * 3) / 4)`), similar to the approach used in `src/index.ts`. This completely eliminates the intermediate V8 `Buffer` allocations during validation, massively reducing GC overhead and event loop blocking for batch requests.

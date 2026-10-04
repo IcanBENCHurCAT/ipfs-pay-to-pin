@@ -80,8 +80,18 @@ function validateBatchPayload(
     }
 
     // Decode base64 and accumulate byte size
-    const buffer = decodeBase64(obj.data);
-    totalBytes += buffer.length;
+    // ⚡ Bolt: Calculate base64 decoded size mathematically to prevent
+    // blocking the Node.js event loop with massive Buffer allocations during batch validation
+    const dataStr = obj.data as string;
+    const dataLen = dataStr.length;
+    let padding = 0;
+    if (dataLen > 1) {
+        if (dataStr[dataLen - 1] === '=') {
+            padding = dataStr[dataLen - 2] === '=' ? 2 : 1;
+        }
+    }
+    const parsedBinaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
+    totalBytes += parsedBinaryBytes;
 
     decoded.push({
       filename: obj.filename,
