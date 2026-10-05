@@ -23,3 +23,7 @@
 ## 2025-08-21 - Exported Protocol Constants and Granular Validation
 **Learning:** Hardcoding default fallback amounts (like fee pricing) as magic strings and using generic missing property errors hinders SDK integration. Consuming agents cannot programmatically adapt to unexported default values and struggle to debug generic errors.
 **Action:** Always extract protocol rules into exported named constants (e.g., `DEFAULT_PIN_FEE_MICRO_USDC`). Refactor generic object checks (`if (!options || !options.filename)`) into property-specific validations that throw explicit `ConfigurationError` messages indicating exactly which field failed and why.
+
+## 2025-08-22 - Strict Configuration Validation on Initialization
+**Learning:** Initializing an SDK client without validating that the `config` object exists can cause obscure `TypeError: Cannot read properties of undefined` crashes when agents mistakenly instantiate the client empty.
+**Action:** Always validate that required top-level configuration parameters are objects (e.g., `if (!config || typeof config !== 'object')`) in the class constructor. Throw an explicit `ConfigurationError` providing actionable context rather than letting native runtime errors bubble up to consumers.

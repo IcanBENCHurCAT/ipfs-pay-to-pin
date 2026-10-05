@@ -211,8 +211,12 @@ export class IpfsPayToPinClient {
    * @throws {ConfigurationError} If the client is initialized without at least one valid wallet key.
    */
   constructor(config: IpfsPayToPinConfig) {
+    if (!config || typeof config !== 'object') {
+      throw new ConfigurationError(`[IpfsClient] Initialization failed: Expected a configuration object, got ${typeof config}`);
+    }
+
     if (!config.mnemonic && !config.evmPrivateKey && !config.solanaPrivateKey) {
-      throw new ConfigurationError('IpfsPayToPinClient requires at least one wallet key (mnemonic, evmPrivateKey, or solanaPrivateKey).');
+      throw new ConfigurationError('[IpfsClient] IpfsPayToPinClient requires at least one wallet key (mnemonic, evmPrivateKey, or solanaPrivateKey).');
     }
 
     this.sender = config.sender;
