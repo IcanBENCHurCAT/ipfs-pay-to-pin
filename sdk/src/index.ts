@@ -124,7 +124,7 @@ export interface RenewResponse {
  */
 export class InsufficientBudgetError extends Error {
   /**
-   * Constructs an InsufficientBudgetError.
+   * Constructs an InsufficientBudgetError when a requested payment amount exceeds the maximum configured price budget cap (maxPriceUsdc).
    * @param {string} message - The error message detailing the budget failure.
    */
   constructor(message: string) {
@@ -139,7 +139,7 @@ export class InsufficientBudgetError extends Error {
  */
 export class PaymentDeclinedError extends Error {
   /**
-   * Constructs a PaymentDeclinedError.
+   * Constructs a PaymentDeclinedError when a custom `confirmPrice` callback rejects a payment by returning `false`.
    * @param {string} message - The error message detailing the declined payment.
    */
   constructor(message: string) {
@@ -154,7 +154,7 @@ export class PaymentDeclinedError extends Error {
  */
 export class ConfigurationError extends Error {
   /**
-   * Constructs a ConfigurationError.
+   * Constructs a ConfigurationError when the SDK is misconfigured or when invalid inputs are provided to client methods.
    * @param {string} message - The error message detailing the configuration or input failure.
    */
   constructor(message: string) {
@@ -173,7 +173,7 @@ export class GatewayError extends Error {
   public status?: number;
 
   /**
-   * Constructs a GatewayError.
+   * Constructs a GatewayError when the IPFS Pay-to-Pin gateway returns an HTTP error or when network issues occur.
    * @param {string} message - The error message detailing the gateway failure.
    * @param {number} [status] - Optional HTTP status code associated with the error.
    */
