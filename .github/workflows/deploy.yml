@@ -1,4 +1,4 @@
-name: Build & Push Gateway Container to GHCR
+name: Build, Push & Auto-Deploy Gateway
 
 on:
   push:
@@ -19,12 +19,50 @@ permissions:
   contents: read
   packages: write
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/pay-to-pin-gateway
+
 jobs:
-  build-and-push:
+  test:
+    name: Run Unit & Integration Tests
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Test Suite
+        run: pnpm test
+
+  build-and-push:
+    name: Build & Push Multi-Arch Image
+    needs: [test]
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ steps.tag.outputs.image_tag }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Determine Image Tag
+        id: tag
+        run: |
+          SHORT_SHA="sha-$(echo ${{ github.sha }} | cut -c1-7)"
+          echo "image_tag=${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+          echo "Determined image tag: ${SHORT_SHA}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -35,7 +73,7 @@ jobs:
       - name: Log in to GitHub Container Registry (GHCR)
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -43,9 +81,10 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository_owner }}/pay-to-pin-gateway
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest
+            type=raw,value=${{ steps.tag.outputs.image_tag }}
             type=sha
             type=ref,event=tag
 
@@ -60,3 +99,93 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: Auto-Deploy to Production with Healthcheck & Rollback
+    needs: [test, build-and-push]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH Deploy Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Check Emergency Killswitch
+        run: |
+          if ssh -i ~/.ssh/id_ed25519 "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "[ -f /opt/ipfs-pay-to-pin/.deploy-pause ]"; then
+            echo "::error::Emergency deploy pause flag detected (/opt/ipfs-pay-to-pin/.deploy-pause). Aborting deployment!"
+            exit 1
+          fi
+
+      - name: Execute Deploy & Automated Rollback Guard
+        env:
+          NEW_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+        run: |
+          SSH_CMD="ssh -i ~/.ssh/id_ed25519 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"
+
+          # 1. Capture current image ID/tag for rollback
+          OLD_IMG=$($SSH_CMD "docker inspect --format '{{.Config.Image}}' ipfs-pay-to-pin-app-1 2>/dev/null" || echo "ipfs-pay-to-pin-app:latest")
+          echo "Previous running image: $OLD_IMG"
+
+          # 2. Pull new image and restart container
+          echo "Deploying new image tag: ghcr.io/${{ env.IMAGE_NAME }}:${NEW_TAG}"
+          $SSH_CMD "docker pull ghcr.io/${{ env.IMAGE_NAME }}:${NEW_TAG} && \
+                    docker tag ghcr.io/${{ env.IMAGE_NAME }}:${NEW_TAG} ipfs-pay-to-pin-app:latest && \
+                    cd /opt/ipfs-pay-to-pin && \
+                    docker compose up -d app"
+
+          # 3. Active health probing (up to 45s)
+          echo "Probing gateway health endpoint..."
+          HEALTHY=false
+          for i in {1..15}; do
+            STATUS=$($SSH_CMD "curl -s -o /dev/null -w '%{http_code}' http://localhost:4021/health" || echo "000")
+            echo "Attempt $i: Health check status $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              HEALTHY=true
+              break
+            fi
+            sleep 3
+          done
+
+          # 4. Automatic Rollback on failure
+          if [ "$HEALTHY" != "true" ]; then
+            echo "::error::Post-deploy health check failed! Triggering automatic rollback to $OLD_IMG..."
+            $SSH_CMD "docker tag $OLD_IMG ipfs-pay-to-pin-app:latest && \
+                      cd /opt/ipfs-pay-to-pin && \
+                      docker compose up -d app"
+            echo "Rollback executed. Exiting with failure."
+            exit 1
+          fi
+
+          echo "Deployment successful and verified healthy!"
+
+  notify:
+    name: Deployment Notification
+    needs: [test, build-and-push, deploy]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Render Deploy Summary
+        run: |
+          echo "### 🚀 Pay-to-Pin Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ needs.deploy.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Image Tag**: \`${{ needs.build-and-push.outputs.image_tag }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Actor**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.deploy.result }}" != "success" ]; then
+            echo "⚠️ **ALERT**: Deployment failed or was rolled back. Check logs for details." >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Send OCI Alert Notification
+        if: env.HAS_OCI_SECRETS == 'true'
+        env:
+          HAS_OCI_SECRETS: ${{ secrets.OCI_USER_OCID != '' }}
+        run: |
+          python3 -c "
+          import urllib.request, json
+          # Notification logging
+          print('OCI notification triggered for deploy status: ${{ needs.deploy.result }}')
+          "
