@@ -325,6 +325,9 @@ export class WebhookDeliveryService {
     let failed = 0;
     let skipped = 0;
 
+    // ⚡ Bolt: Parallelized outgoing webhook HTTP requests using Promise.all to reduce sequential processing latency
+    const deliveryPromises: ReturnType<typeof this.deliver>[] = [];
+
     for (const record of pending) {
       if (record.status === 'DELIVERED') {
         skipped++;
@@ -337,7 +340,12 @@ export class WebhookDeliveryService {
         continue;
       }
 
-      const result = await this.deliver(record);
+      deliveryPromises.push(this.deliver(record));
+    }
+
+    const results = await Promise.all(deliveryPromises);
+
+    for (const result of results) {
       if (result.status >= 200 && result.status < 300) {
         delivered++;
       } else {
