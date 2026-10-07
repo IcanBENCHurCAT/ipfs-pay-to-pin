@@ -92,3 +92,20 @@ ipfs-pay-to-pin/
 
 ---
 *Keep this document updated as the project evolves.*
+
+## 6. Pay.sh discovery (Solana agent marketplace)
+
+- The `/api/v1/pin` 402 challenge already advertises Solana mainnet USDC
+  (`solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`, mint
+  `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v`), which satisfies Pay.sh's
+  listing requirements: HTTP 402 with a valid x402 challenge, Solana mainnet,
+  USDC settlement.
+- `SOLANA_ESCROW_ADDRESS` MUST be a real Solana wallet in production. The code
+  default (`11111111111111111111111111111111`) is a placeholder; with it set,
+  Solana payments are advertised but cannot settle.
+- Catalog listing lives at `pay-skills/icanbenchurcat/ipfs-pay-to-pin/PAY.md`
+  (frontmatter follows the `solana-foundation/pay-skills` schema and passes its
+  length/category rules). To go live in `pay skills search`, open a PR against
+  `solana-foundation/pay-skills` adding it as
+  `providers/icanbenchurcat/ipfs-pay-to-pin/PAY.md`. Their CI probes every
+  endpoint and blocks merge unless each returns a valid Solana 402 challenge.
