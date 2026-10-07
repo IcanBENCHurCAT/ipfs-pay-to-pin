@@ -721,6 +721,7 @@ app.post("/api/v1/pin", async (c) => {
             renewal_url: `/api/v1/renew?cid=${job.cid}`
         }, 201);
     } catch (e: any) {
+        if (e instanceof HTTPException) throw e;
         console.error("[Pin Error]", e?.message);
         
         let refundTxId: string | undefined = undefined;
@@ -815,6 +816,7 @@ app.post("/api/v1/renew", async (c) => {
             renewals_count: renewedItem.renewalsCount
         }, 200);
     } catch (e: any) {
+        if (e instanceof HTTPException) throw e;
         console.error("[Renew Error]", e?.message || e);
         return c.json({ error: "Failed to process pin renewal. Please try again later." }, 500);
     }
