@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach, vi, afterAll } from 'vitest';
 import { globalFileQueue } from '../src/queue.js';
 import { paymentMiddleware } from '@x402/hono';
+import * as refundModule from '../src/refund.js';
+import { config } from '../src/config.js';
 
 // Mock x402 middleware since we don't want to actually require payments in testing the endpoints logic
 vi.mock('@x402/hono', async (importOriginal) => {
@@ -204,5 +206,48 @@ describe('API Integration Tests', () => {
             error: 'Payload Too Large',
             message: 'File payload exceeds 20MB maximum limit.'
         });
+    });
+
+    it('T028: POST /api/v1/pin ignores client-spoofed x-payment-amount header during refund calculation', async () => {
+        const originalEnableRefunds = config.enableAutomaticRefunds;
+        config.enableAutomaticRefunds = true;
+
+        const refundSpy = vi.spyOn(refundModule, 'initiateOnChainRefund').mockResolvedValue({
+            success: true,
+            txId: 'MOCK_REFUND_TX_123'
+        });
+
+        vi.spyOn(globalFileQueue, 'addJob').mockRejectedValue(new Error('Simulated queue storage failure'));
+
+        // Payload with 100 bytes binary data -> Base64 encoded is ~136 chars
+        const testData = Buffer.alloc(100, 'a').toString('base64');
+        const payload = {
+            filename: 'refund_test.txt',
+            data: testData
+        };
+
+        const res = await app.request('/api/v1/pin', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-test-bypass-payment': 'true',
+                'x-payment-sender': 'ZJEC6JMCNYZFJUQIA4KRVXPTU34F2UQCRZEB5BX5ZS57CPVKTUFK3WA5IY',
+                'x-payment-amount': '999999999' // Attacker spoofing 999 USDC refund
+            },
+            body: JSON.stringify(payload)
+        });
+
+        expect(res.status).toBe(500);
+        const data = await res.json();
+        expect(data.refund_initiated).toBe(true);
+        expect(data.refund_tx_id).toBe('MOCK_REFUND_TX_123');
+
+        // Expected refund for 100 bytes is 10000 + 100 * 0.02 = 10002 microUSDC, NOT 999999999
+        expect(refundSpy).toHaveBeenCalledWith(expect.objectContaining({
+            amountMicroUsdc: 10002,
+            recipientAddress: 'ZJEC6JMCNYZFJUQIA4KRVXPTU34F2UQCRZEB5BX5ZS57CPVKTUFK3WA5IY'
+        }));
+
+        config.enableAutomaticRefunds = originalEnableRefunds;
     });
 });
