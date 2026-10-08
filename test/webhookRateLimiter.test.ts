@@ -169,4 +169,24 @@ describe('Webhook Rate Limiter Middleware', () => {
     });
     expect(res.status).toBe(429);
   });
+
+  it('should prevent rate limit bypass via spoofed X-Forwarded-For prefixes', async () => {
+    const appSpoof = new Hono();
+    appSpoof.use('/api/v1/webhooks', webhookRateLimiterMiddleware);
+    appSpoof.get('/api/v1/webhooks', (c) => c.json({ ok: true }));
+
+    // Attacker rotates spoofed prefix but proxy appends real client IP "198.51.100.42"
+    for (let i = 0; i < MAX_REQUESTS; i++) {
+      const res = await appSpoof.request('/api/v1/webhooks', {
+        headers: { 'X-Forwarded-For': `10.0.0.${i}, 198.51.100.42` },
+      });
+      expect(res.status).toBe(200);
+    }
+
+    // Request 21 should be rate limited despite new spoofed prefix
+    const res = await appSpoof.request('/api/v1/webhooks', {
+      headers: { 'X-Forwarded-For': '10.0.0.99, 198.51.100.42' },
+    });
+    expect(res.status).toBe(429);
+  });
 });
