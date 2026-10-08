@@ -8,7 +8,7 @@ import { swaggerUI } from "@hono/swagger-ui";
 import { serve } from "@hono/node-server";
 import { paymentMiddleware, x402ResourceServer } from "@x402/hono";
 import { ExactAvmScheme } from "@x402/avm/exact/server";
-import { ALGORAND_MAINNET_CAIP2, ALGORAND_TESTNET_CAIP2, USDC_MAINNET_ASA_ID, USDC_TESTNET_ASA_ID } from "@x402/avm";
+import { ALGORAND_MAINNET_CAIP2, ALGORAND_TESTNET_CAIP2, USDC_MAINNET_ASA_ID, USDC_TESTNET_ASA_ID, getSenderFromTransaction } from "@x402/avm";
 import { HTTPFacilitatorClient } from "@x402/core/server";
 import { bazaarResourceServerExtension, declareDiscoveryExtension } from "@x402/extensions";
 import type { ResourceServerExtension } from "@x402/core/types";
@@ -728,7 +728,24 @@ app.post("/api/v1/pin", async (c) => {
         let refundAttempted = false;
 
         if (config.enableAutomaticRefunds) {
-            const clientAddress = c.req.header("x-payment-sender") || c.req.header("x-sender-address");
+            // 🛡️ Sentinel: Prevent arbitrary refund target address injection.
+            // Extract the refund recipient address from the signed transaction payload in the PAYMENT-SIGNATURE header
+            // to ensure refunds are sent strictly to the original on-chain payment sender, not a spoofed header.
+            let clientAddress: string | undefined = undefined;
+            const paymentSigHeader = c.req.header("payment-signature") || c.req.header("PAYMENT-SIGNATURE");
+            if (paymentSigHeader) {
+                try {
+                    const decodedPayload = JSON.parse(Buffer.from(paymentSigHeader, "base64").toString("utf-8"));
+                    const rawTxn = decodedPayload?.payload?.txns?.[0];
+                    if (rawTxn && typeof rawTxn === "string") {
+                        const txnBytes = new Uint8Array(Buffer.from(rawTxn, "base64"));
+                        clientAddress = getSenderFromTransaction(txnBytes, true);
+                    }
+                } catch (err: any) {
+                    console.warn("[Refund Warning] Failed to parse sender address from PAYMENT-SIGNATURE header:", err?.message || err);
+                }
+            }
+
             const paidAmountHeader = c.req.header("x-payment-amount");
 
             // Security: Prevent escrow drain by capping the refund to the maximum expected price
