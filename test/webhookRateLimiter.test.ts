@@ -116,6 +116,26 @@ describe('Webhook Rate Limiter Middleware', () => {
     expect(res3.status).toBe(429);
   });
 
+  it('should extract the last IP in X-Forwarded-For to prevent IP spoofing', async () => {
+    const app = new Hono();
+    app.use('/api/v1/webhooks', webhookRateLimiterMiddleware);
+    app.get('/api/v1/webhooks', (c) => c.json({ ok: true }));
+
+    // Attacker sends spoofed prefix 'fake-spoofed-ip', proxy appends 'legit-client-ip'
+    for (let i = 0; i < MAX_REQUESTS; i++) {
+      const res = await app.request('/api/v1/webhooks', {
+        headers: { 'X-Forwarded-For': `spoofed-ip-${i}, legit-client-ip` },
+      });
+      expect(res.status).toBe(200);
+    }
+
+    // Even if attacker changes spoofed IP in header, last IP remains 'legit-client-ip' and gets blocked
+    const resBlock = await app.request('/api/v1/webhooks', {
+      headers: { 'X-Forwarded-For': 'another-spoofed-ip, legit-client-ip' },
+    });
+    expect(resBlock.status).toBe(429);
+  });
+
   it('should expose correct constants for testing', () => {
     expect(MAX_REQUESTS).toBe(20);
     expect(WINDOW_MS).toBe(60 * 1000);

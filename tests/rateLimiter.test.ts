@@ -80,7 +80,7 @@ describe('rateLimiterMiddleware', () => {
     const nextMock: Next = vi.fn().mockResolvedValue(undefined);
     config.trustProxy = true;
 
-    // 1. Native IP missing, fallback to x-forwarded-for (first entry) when trusted
+    // 1. Native IP missing, fallback to x-forwarded-for (last entry) when trusted
     const { context: ctx1 } = createMockContext({
       headers: { 'x-forwarded-for': ' 1.1.1.1 , 2.2.2.2', 'x-real-ip': '10.0.0.1' }
     });
@@ -106,6 +106,28 @@ describe('rateLimiterMiddleware', () => {
     const { context: ctx4 } = createMockContext({});
     await rateLimiterMiddleware(ctx4, nextMock);
     expect(nextMock).toHaveBeenCalledTimes(4);
+  });
+
+  it('prevents X-Forwarded-For IP spoofing by using the rightmost (proxy-appended) IP when trustProxy is enabled', async () => {
+    const nextMock: Next = vi.fn().mockResolvedValue(undefined);
+    config.trustProxy = true;
+
+    // Spoofed header: attacker sends 'spoofed-attacker-ip', proxy appends 'real-client-ip'
+    const { context } = createMockContext({
+      headers: { 'x-forwarded-for': 'spoofed-attacker-ip, real-client-ip' }
+    });
+
+    // Make 59 requests with real-client-ip
+    for (let i = 0; i < 59; i++) {
+      await rateLimiterMiddleware(context, nextMock);
+    }
+
+    // 60th request from the same chain should be blocked under 'real-client-ip'
+    const { context: ctxBlock, getJsonResponse } = createMockContext({
+      headers: { 'x-forwarded-for': 'different-spoofed-ip, real-client-ip' }
+    });
+    await rateLimiterMiddleware(ctxBlock, nextMock);
+    expect(getJsonResponse()?.status).toBe(429);
   });
 
   it('implements sliding-window limit and sets response headers correctly', async () => {
