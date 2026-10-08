@@ -88,3 +88,8 @@
 **Vulnerability:** Hono's `c.req.json()` throws an `HTTPException` for invalid JSON bodies. If wrapped in a generic `try/catch` block that doesn't re-throw it, the 400 Bad Request is swallowed and processed as a generic 500 server error, which can trigger unintended failure paths (like executing a refund for a bad client request).
 **Learning:** Custom HTTP exceptions must be explicitly re-thrown in catch blocks to preserve correct HTTP status codes and prevent server fault logic from executing on client errors.
 **Prevention:** Always re-throw `HTTPException` instances in Hono route `catch` blocks using `if (e instanceof HTTPException) throw e;` before handling generic errors.
+
+## 2026-10-15 - Weak Origin Parsing in CORS Configuration
+**Vulnerability:** Weak CORS origin parsing blindly split comma-separated strings without URL validation or origin normalization, accepting malformed origins or trailing slashes that failed matching or opened policy to unintended entries.
+**Learning:** Splitting configuration strings by commas without standard URL parsing can preserve invalid schemes, trailing paths/slashes, or malformed domain strings that bypass exact origin equality checks or allow misconfigurations.
+**Prevention:** Always parse configured origins with `new URL()`, restrict allowed protocols to `http:` and `https:`, extract `url.origin` to normalize away trailing slashes or paths, and discard malformed entries securely.
