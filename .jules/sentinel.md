@@ -84,6 +84,11 @@
 **Vulnerability:** The webhook subsystem only blocked `127.0.0.1` and `::1` explicitly. Node.js `URL` parsing returns IPv6 loopback formatted as `[::1]`, and allows IPv4 alternative loopback blocks (like `127.0.0.2` or octal/hex equivalents) to bypass the explicit check, enabling SSRF into local services.
 **Learning:** Checking for equality against `127.0.0.1` or `::1` is insufficient due to IP range availability (`127.0.0.0/8`) and the formatting brackets `[]` native to the WHATWG URL object for IPv6.
 **Prevention:** Always use regex (`/^127\./`) to block the entire IPv4 loopback block, and explicitly test for `[::1]`, `[::]`, and `[::ffff:` IPv4-mapped forms in URL parsed hostnames.
+## 2026-10-08 - Unsafe X-Forwarded-For IP Extraction in Rate Limiters
+**Vulnerability:** Rate limiters in `src/middleware/rateLimiter.ts` and `src/middleware/webhookRateLimiter.ts` extracted client IP using `c.req.header('x-forwarded-for')?.split(',')[0]`.
+**Learning:** Standard reverse proxies append client or downstream IPs to the rightmost end of the `X-Forwarded-For` header chain (`client, proxy1, proxy2`). Taking the first element (`split(',')[0]`) allows an attacker to send a custom `X-Forwarded-For: spoofed-ip` header, which the proxy forwards as `X-Forwarded-For: spoofed-ip, real-client-ip`. Taking index 0 evaluates `spoofed-ip`, allowing complete rate limit bypass.
+**Prevention:** When trusting proxy headers, always extract the rightmost IP address added by the trusted proxy using `.split(',').pop()?.trim()` (or configure proxy IP trust depth).
+
 ## 2023-10-27 - Swallowed HTTPException in Hono Routes
 **Vulnerability:** Hono's `c.req.json()` throws an `HTTPException` for invalid JSON bodies. If wrapped in a generic `try/catch` block that doesn't re-throw it, the 400 Bad Request is swallowed and processed as a generic 500 server error, which can trigger unintended failure paths (like executing a refund for a bad client request).
 **Learning:** Custom HTTP exceptions must be explicitly re-thrown in catch blocks to preserve correct HTTP status codes and prevent server fault logic from executing on client errors.
