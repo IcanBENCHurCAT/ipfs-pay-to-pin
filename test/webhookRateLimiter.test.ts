@@ -89,29 +89,29 @@ describe('Webhook Rate Limiter Middleware', () => {
     expect(res.status).toBe(200);
   });
 
-  it('should track rate limits per IP', async () => {
+  it('should track rate limits per IP using the rightmost IP in X-Forwarded-For', async () => {
     // First app with test-ip-1
     const app1 = new Hono();
     app1.use('/api/v1/webhooks', webhookRateLimiterMiddleware);
     app1.get('/api/v1/webhooks', (c) => c.json({ ok: true }));
 
-    // Exhaust rate limit for 'test-ip-1'
+    // Exhaust rate limit for 'real-proxy-ip' when client attempts spoofing with 'spoofed-ip, real-proxy-ip'
     for (let i = 0; i < MAX_REQUESTS; i++) {
       const res = await app1.request('/api/v1/webhooks', {
-        headers: { 'X-Forwarded-For': 'test-ip-1' },
+        headers: { 'X-Forwarded-For': `spoofed-ip-${i}, real-proxy-ip` },
       });
       expect(res.status).toBe(200);
     }
 
-    // Request from different IP should still work
+    // Request from different rightmost IP should still work
     const res2 = await app1.request('/api/v1/webhooks', {
-      headers: { 'X-Forwarded-For': 'test-ip-2' },
+      headers: { 'X-Forwarded-For': 'spoofed-ip-0, other-proxy-ip' },
     });
     expect(res2.status).toBe(200);
 
-    // Request from same IP should be rate limited
+    // Request with same rightmost IP should be rate limited despite changing spoofed IP in prefix
     const res3 = await app1.request('/api/v1/webhooks', {
-      headers: { 'X-Forwarded-For': 'test-ip-1' },
+      headers: { 'X-Forwarded-For': 'another-spoofed-ip, real-proxy-ip' },
     });
     expect(res3.status).toBe(429);
   });

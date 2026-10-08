@@ -80,7 +80,7 @@ describe('rateLimiterMiddleware', () => {
     const nextMock: Next = vi.fn().mockResolvedValue(undefined);
     config.trustProxy = true;
 
-    // 1. Native IP missing, fallback to x-forwarded-for (first entry) when trusted
+    // 1. Native IP missing, fallback to x-forwarded-for (rightmost entry, i.e., 2.2.2.2) when trusted to prevent spoofing
     const { context: ctx1 } = createMockContext({
       headers: { 'x-forwarded-for': ' 1.1.1.1 , 2.2.2.2', 'x-real-ip': '10.0.0.1' }
     });
