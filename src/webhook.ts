@@ -98,12 +98,16 @@ function isSafeUrl(url: string): boolean {
     }
     const hostname = parsed.hostname;
     // Block localhost, loopback, link-local, private ranges
-    if (hostname === 'localhost') {
+    if (hostname === 'localhost' || hostname === 'localhost.') {
       return false;
     }
     // 🛡️ Sentinel: Fix SSRF bypasses via 127.x.x.x block and properly handle IPv6 brackets
     if (/^127\./.test(hostname)) return false;
     if (hostname === '[::1]' || hostname === '[::]' || hostname.startsWith('[::ffff:')) {
+      return false;
+    }
+    // 🛡️ Sentinel: Block IPv6 Unique Local (fc00::/7) and Link-Local (fe80::/10) ranges
+    if (/^\[f[cd][0-9a-f]{2}:/i.test(hostname) || /^\[fe[89ab][0-9a-f]:/i.test(hostname)) {
       return false;
     }
     if (/^10\./.test(hostname)) return false;
