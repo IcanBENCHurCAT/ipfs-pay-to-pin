@@ -21,7 +21,7 @@ permissions:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/pay-to-pin-gateway
+  IMAGE_NAME: icanbenchurcat/pay-to-pin-gateway
 
 jobs:
   test:
@@ -130,9 +130,10 @@ jobs:
           echo "Previous running image: $OLD_IMG"
 
           # 2. Pull new image and restart container
-          echo "Deploying new image tag: ghcr.io/${{ env.IMAGE_NAME }}:${NEW_TAG}"
-          $SSH_CMD "docker pull ghcr.io/${{ env.IMAGE_NAME }}:${NEW_TAG} && \
-                    docker tag ghcr.io/${{ env.IMAGE_NAME }}:${NEW_TAG} ipfs-pay-to-pin-app:latest && \
+          PULL_IMG=$(echo "ghcr.io/${{ env.IMAGE_NAME }}:${NEW_TAG}" | tr '[:upper:]' '[:lower:]')
+          echo "Deploying new image tag: $PULL_IMG"
+          $SSH_CMD "docker pull $PULL_IMG && \
+                    docker tag $PULL_IMG ipfs-pay-to-pin-app:latest && \
                     cd /opt/ipfs-pay-to-pin && \
                     docker compose up -d app"
 
