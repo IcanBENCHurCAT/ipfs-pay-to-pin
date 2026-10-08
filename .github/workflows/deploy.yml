@@ -137,11 +137,11 @@ jobs:
                     cd /opt/ipfs-pay-to-pin && \
                     docker compose up -d app"
 
-          # 3. Active health probing (up to 45s)
+          # 3. Active health probing (up to 60s)
           echo "Probing gateway health endpoint..."
           HEALTHY=false
-          for i in {1..15}; do
-            STATUS=$($SSH_CMD "curl -s -o /dev/null -w '%{http_code}' http://localhost:4021/health" || echo "000")
+          for i in {1..20}; do
+            STATUS=$(curl -s -o /dev/null -w '%{http_code}' https://pay-to-pin.duckdns.org/health || echo "000")
             echo "Attempt $i: Health check status $STATUS"
             if [ "$STATUS" = "200" ]; then
               HEALTHY=true
