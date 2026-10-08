@@ -88,3 +88,8 @@
 **Vulnerability:** Hono's `c.req.json()` throws an `HTTPException` for invalid JSON bodies. If wrapped in a generic `try/catch` block that doesn't re-throw it, the 400 Bad Request is swallowed and processed as a generic 500 server error, which can trigger unintended failure paths (like executing a refund for a bad client request).
 **Learning:** Custom HTTP exceptions must be explicitly re-thrown in catch blocks to preserve correct HTTP status codes and prevent server fault logic from executing on client errors.
 **Prevention:** Always re-throw `HTTPException` instances in Hono route `catch` blocks using `if (e instanceof HTTPException) throw e;` before handling generic errors.
+
+## 2026-10-08 - Unrestricted Base64 Payload Allocation in Batch Pinning
+**Vulnerability:** In `src/batchPin.ts`, `decodeBase64` passed Base64 file payloads directly to `Buffer.from(data, 'base64')` without checking the Base64 string length or calculated decoded size, exposing the gateway to heap exhaustion and OOM DoS attacks.
+**Learning:** Checking total payload batch size after decoding or parsing is insufficient if individual Base64 items allocate large Buffers in memory before validation occurs.
+**Prevention:** Mathematically calculate Base64 decoded byte length O(1) from the string length and padding characters, validating that it does not exceed allowed limits before allocating memory via `Buffer.from`.
