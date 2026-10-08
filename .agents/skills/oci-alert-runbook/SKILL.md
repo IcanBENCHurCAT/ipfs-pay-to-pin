@@ -38,7 +38,7 @@ This skill serves as the **living operational runbook** for the IPFS Pay-to-Pin 
                                                v
                              +-----------------+-----------------+
                              |    OCI Pay-to-Pin Gateway VM      |
-                             |   (150.230.165.53 / Ashburn AD1)  |
+                             |   (<INSTANCE_IP> / Ashburn AD1)   |
                              |  - Docker: Caddy (SSL 443)      |
                              |  - Docker: Hono App (Port 4021) |
                              |  - Supabase Postgres DB           |
@@ -81,7 +81,7 @@ curl -Iv https://pay-to-pin.duckdns.org/health
 SSH into the gateway host and check container health:
 
 ```bash
-ssh -i ~/.oci/oci_api_key.pem ubuntu@150.230.165.53
+ssh -i ~/.oci/oci_api_key.pem ubuntu@<INSTANCE_IP>
 docker ps -a
 ```
 
@@ -124,7 +124,7 @@ If domain resolution or SSL handshakes fail:
 dig +short pay-to-pin.duckdns.org
 
 # Force update DuckDNS IP if record drifted
-curl "https://www.duckdns.org/update?domains=pay-to-pin&token=9eacaaae-1019-4506-a956-8d9b01c29d78&ip=150.230.165.53"
+curl "https://www.duckdns.org/update?domains=pay-to-pin&token=${DUCKDNS_TOKEN}&ip=<INSTANCE_IP>"
 ```
 
 ---
@@ -138,7 +138,7 @@ Check instance state from local machine:
 
 ```bash
 oci compute instance get \
-  --instance-id ocid1.instance.oc1.iad.anuwcljteyy7bsqcxhr2phqmmzy2upewyhdxxgv6exfjojzkpjh73seyrsla
+  --instance-id <INSTANCE_OCID>
 ```
 
 #### Step 2: Trigger Instance Soft Reset
@@ -147,7 +147,7 @@ Reboot the instance cleanly to migrate hypervisor hosts if necessary:
 ```bash
 oci compute instance action \
   --action SOFTRESET \
-  --instance-id ocid1.instance.oc1.iad.anuwcljteyy7bsqcxhr2phqmmzy2upewyhdxxgv6exfjojzkpjh73seyrsla
+  --instance-id <INSTANCE_OCID>
 ```
 
 If soft reset hangs for > 3 minutes, force a hard reset:
@@ -155,14 +155,14 @@ If soft reset hangs for > 3 minutes, force a hard reset:
 ```bash
 oci compute instance action \
   --action HARDRESET \
-  --instance-id ocid1.instance.oc1.iad.anuwcljteyy7bsqcxhr2phqmmzy2upewyhdxxgv6exfjojzkpjh73seyrsla
+  --instance-id <INSTANCE_OCID>
 ```
 
 #### Step 3: Post-Boot Verification
 Once instance transitions back to `RUNNING`:
 
 ```bash
-ssh -i ~/.oci/oci_api_key.pem ubuntu@150.230.165.53 "docker ps && curl -s http://localhost:4021/health"
+ssh -i ~/.oci/oci_api_key.pem ubuntu@<INSTANCE_IP> "docker ps && curl -s http://localhost:4021/health"
 ```
 
 ---

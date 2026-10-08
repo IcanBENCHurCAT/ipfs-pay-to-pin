@@ -80,3 +80,7 @@
 **Vulnerability:** The `calculateUsdcPrice` logic silently defaulted payload size calculation to 1000 bytes when `body.data` was missing or malformed, enabling an attacker to pay for the cheapest challenge before submitting requests that fail later in the pipeline but still drain their own funds, or bypass checks.
 **Learning:** Never assume inputs will be validated *after* billing or that falling back to a default value is safe in financial logic. If a required field is missing, fail fast with a 400 error rather than continuing with defaults.
 **Prevention:** Always validate all mandatory payload fields *before* running pricing, billing, or access control logic.
+## 2026-10-02 - Remove Hardcoded sensitive infrastructure credentials from OCI Runbook
+**Vulnerability:** A hardcoded OCI Instance IP address (`150.230.165.53`), a DuckDNS token (`9eacaaae-1019-4506-a956-8d9b01c29d78`), and an OCI OCID were present in `.agents/skills/oci-alert-runbook/SKILL.md`.
+**Learning:** Including specific sensitive infrastructure identifiers in documentation, runbooks, or markdown files exposes the project to potential attackers and breaches.
+**Prevention:** Use environment variables (e.g., `${DUCKDNS_TOKEN}`) or generic placeholders (e.g., `<INSTANCE_IP>`) in documentation and runbooks instead of hardcoded infrastructure credentials.
