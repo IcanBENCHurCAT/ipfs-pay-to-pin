@@ -80,3 +80,7 @@
 **Vulnerability:** The `calculateUsdcPrice` logic silently defaulted payload size calculation to 1000 bytes when `body.data` was missing or malformed, enabling an attacker to pay for the cheapest challenge before submitting requests that fail later in the pipeline but still drain their own funds, or bypass checks.
 **Learning:** Never assume inputs will be validated *after* billing or that falling back to a default value is safe in financial logic. If a required field is missing, fail fast with a 400 error rather than continuing with defaults.
 **Prevention:** Always validate all mandatory payload fields *before* running pricing, billing, or access control logic.
+## 2026-10-08 - pino mock removal in tests
+**Vulnerability:** A mock logger in `tests/observability.test.ts` assumed `pino` was an available dependency.
+**Learning:** Adding test-only assumptions on uninstalled dependencies can cause tests to fail. `src/observability.ts` explicitly documented the project was kept lean by NOT including `pino`.
+**Prevention:** Verify that test utilities do not try to import unregistered dependencies before asserting logs.
