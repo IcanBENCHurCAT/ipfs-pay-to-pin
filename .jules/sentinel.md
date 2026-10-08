@@ -88,3 +88,8 @@
 **Vulnerability:** Hono's `c.req.json()` throws an `HTTPException` for invalid JSON bodies. If wrapped in a generic `try/catch` block that doesn't re-throw it, the 400 Bad Request is swallowed and processed as a generic 500 server error, which can trigger unintended failure paths (like executing a refund for a bad client request).
 **Learning:** Custom HTTP exceptions must be explicitly re-thrown in catch blocks to preserve correct HTTP status codes and prevent server fault logic from executing on client errors.
 **Prevention:** Always re-throw `HTTPException` instances in Hono route `catch` blocks using `if (e instanceof HTTPException) throw e;` before handling generic errors.
+
+## 2026-10-08 - Client-Side Refund Amount Spoofing via HTTP Headers
+**Vulnerability:** The refund calculation during file upload pinning failure trusted client-supplied HTTP headers (`x-payment-amount`) to determine how much microUSDC to refund back to the sender address. An attacker could send an arbitrarily large `x-payment-amount` header to drain the escrow wallet when a pinning job failed.
+**Learning:** Financial refund logic must never trust unverified client-controlled headers or parameters. Refunds must always be calculated using deterministic server-side formula based on verified transaction data or actual request body metrics.
+**Prevention:** Calculate refund amounts strictly from the verified payload binary size using the server-side pricing formula (`10000 + Math.floor(binaryBytes * 0.02)`) and ignore client headers like `x-payment-amount`.

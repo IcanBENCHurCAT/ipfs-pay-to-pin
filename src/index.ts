@@ -729,15 +729,15 @@ app.post("/api/v1/pin", async (c) => {
 
         if (config.enableAutomaticRefunds) {
             const clientAddress = c.req.header("x-payment-sender") || c.req.header("x-sender-address");
-            const paidAmountHeader = c.req.header("x-payment-amount");
 
-            // Security: Prevent escrow drain by capping the refund to the maximum expected price
-            // based on the exact size calculation used during payment verification.
+            // 🛡️ Sentinel Security: Prevent client-side refund spoofing and escrow drain.
+            // Do not trust arbitrary client HTTP headers (like x-payment-amount). Instead, calculate
+            // the exact refund amount strictly from the actual verified payload binary size.
             let binaryBytes = 1000;
             if (parsedBinaryBytes !== null) {
                 binaryBytes = parsedBinaryBytes;
             } else {
-                // Determine raw payload size if JSON parsing fails to prevent content-length spoofing
+                // Determine raw payload size if JSON parsing fails
                 try {
                     const bodyRaw = await c.req.raw.clone().arrayBuffer();
                     binaryBytes = Math.max(1000, Math.floor(bodyRaw.byteLength * 0.75));
@@ -745,9 +745,7 @@ app.post("/api/v1/pin", async (c) => {
                     binaryBytes = 1000;
                 }
             }
-            const maxExpectedPrice = 10000 + Math.floor(binaryBytes * 0.02);
-            let paidAmount = paidAmountHeader ? Number(paidAmountHeader) : 10000;
-            paidAmount = Math.min(paidAmount, maxExpectedPrice);
+            const paidAmount = 10000 + Math.floor(binaryBytes * 0.02);
 
             if (clientAddress) {
                 refundAttempted = true;
