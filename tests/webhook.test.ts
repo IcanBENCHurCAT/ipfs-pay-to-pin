@@ -101,6 +101,44 @@ describe('WebhookDeliveryService', () => {
       expect(result).toBe(false);
     });
 
+    it('should block all 127.x.x.x loopback URLs', async () => {
+      const res1 = await service.fire('pin.completed', 'cid', 'f', 'url', 'http://127.0.0.2/webhook');
+      const res2 = await service.fire('pin.completed', 'cid', 'f', 'url', 'http://127.0.1.1/webhook');
+      const res3 = await service.fire('pin.completed', 'cid', 'f', 'url', 'http://127.255.255.254/webhook');
+
+      expect(res1).toBe(false);
+      expect(res2).toBe(false);
+      expect(res3).toBe(false);
+    });
+
+    it('should block IPv6 bracket addresses (loopback, IPv4-mapped, link-local, unique local)', async () => {
+      const res1 = await service.fire('pin.completed', 'cid', 'f', 'url', 'http://[::1]/webhook');
+      const res2 = await service.fire('pin.completed', 'cid', 'f', 'url', 'http://[::]/webhook');
+      const res3 = await service.fire('pin.completed', 'cid', 'f', 'url', 'http://[::ffff:127.0.0.1]/webhook');
+      const res4 = await service.fire('pin.completed', 'cid', 'f', 'url', 'http://[fe80::1]/webhook');
+      const res5 = await service.fire('pin.completed', 'cid', 'f', 'url', 'http://[fc00::1]/webhook');
+      const res6 = await service.fire('pin.completed', 'cid', 'f', 'url', 'http://[fd00::1]/webhook');
+
+      expect(res1).toBe(false);
+      expect(res2).toBe(false);
+      expect(res3).toBe(false);
+      expect(res4).toBe(false);
+      expect(res5).toBe(false);
+      expect(res6).toBe(false);
+    });
+
+    it('should block localhost with trailing dot', async () => {
+      const result = await service.fire(
+        'pin.completed',
+        'bafybeitest',
+        'test.txt',
+        'https://ipfs.io/ipfs/bafybeitest',
+        'http://localhost.:3000/webhook'
+      );
+
+      expect(result).toBe(false);
+    });
+
     it('should block 127.0.0.1 URLs', async () => {
       const result = await service.fire(
         'pin.completed',
