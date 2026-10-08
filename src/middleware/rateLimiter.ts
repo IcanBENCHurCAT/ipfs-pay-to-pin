@@ -47,8 +47,15 @@ export async function rateLimiterMiddleware(c: Context, next: Next) {
 
   let ip = nativeIp;
   if (!ip && trustProxy) {
-    ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim()
-      || c.req.header('x-real-ip');
+    // Security: Trusted reverse proxies append the client IP to the end of X-Forwarded-For.
+    // Taking the first entry (`split(',')[0]`) allows an attacker to inject arbitrary headers and bypass rate limits.
+    // Taking the last non-empty entry ensures we extract the IP appended by the trusted proxy.
+    const xff = c.req.header('x-forwarded-for');
+    if (xff) {
+      const ips = xff.split(',').map(s => s.trim()).filter(Boolean);
+      ip = ips.pop();
+    }
+    ip = ip || c.req.header('x-real-ip');
   }
 
   ip = ip || 'unknown-ip';

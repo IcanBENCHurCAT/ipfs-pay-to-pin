@@ -80,7 +80,7 @@ describe('rateLimiterMiddleware', () => {
     const nextMock: Next = vi.fn().mockResolvedValue(undefined);
     config.trustProxy = true;
 
-    // 1. Native IP missing, fallback to x-forwarded-for (first entry) when trusted
+    // 1. Native IP missing, fallback to x-forwarded-for (last entry appended by proxy) when trusted
     const { context: ctx1 } = createMockContext({
       headers: { 'x-forwarded-for': ' 1.1.1.1 , 2.2.2.2', 'x-real-ip': '10.0.0.1' }
     });
@@ -174,6 +174,25 @@ describe('rateLimiterMiddleware', () => {
     for (let i = 0; i <= 5005; i++) {
       const { context } = createMockContext({ ipRaw: `10.0.1.${i}` });
       await rateLimiterMiddleware(context, nextMock);
+    }
+  });
+
+  it('prevents rate limit bypass via spoofed X-Forwarded-For prefixes when trustProxy is enabled', async () => {
+    const nextMock: Next = vi.fn().mockResolvedValue(undefined);
+    config.trustProxy = true;
+
+    // Attacker sends spoofed prefix, proxy appends real client IP "203.0.113.195"
+    // Send 60 requests using the same proxy-appended IP but varying spoofed prefixes
+    for (let i = 0; i < 60; i++) {
+      const { context, getJsonResponse } = createMockContext({
+        headers: { 'x-forwarded-for': `10.0.0.${i}, 203.0.113.195` }
+      });
+      await rateLimiterMiddleware(context, nextMock);
+      if (i < 59) {
+        expect(getJsonResponse()).toBeNull();
+      } else {
+        expect(getJsonResponse()?.status).toBe(429);
+      }
     }
   });
 });
