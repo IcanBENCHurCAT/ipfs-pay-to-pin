@@ -300,6 +300,56 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         self.assertIn("algorand:mainnet", err_msg)
         self.assertIn("eip155:1337", err_msg)
 
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_handle_payment_flow_missing_header(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_402 = MagicMock()
+        mock_402.status_code = 402
+        mock_402.headers = {}
+        mock_post.return_value = mock_402
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+        with self.assertRaises(PaymentRequiredError) as ctx:
+            client.pin_bytes(b"hello world")
+
+        self.assertIn("PAYMENT-REQUIRED header missing", str(ctx.exception))
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_handle_payment_flow_malformed_header_invalid_base64(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_402 = MagicMock()
+        mock_402.status_code = 402
+        mock_402.headers = {"PAYMENT-REQUIRED": "not_valid_base64!!"}
+        mock_post.return_value = mock_402
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+        with self.assertRaises(PaymentRequiredError) as ctx:
+            client.pin_bytes(b"hello world")
+
+        self.assertIn("Failed to decode PAYMENT-REQUIRED header challenge", str(ctx.exception))
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_handle_payment_flow_malformed_header_invalid_json(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_402 = MagicMock()
+        mock_402.status_code = 402
+        # Base64 string containing invalid JSON
+        invalid_json_b64 = base64.b64encode(b"not json content").decode("utf-8")
+        mock_402.headers = {"PAYMENT-REQUIRED": invalid_json_b64}
+        mock_post.return_value = mock_402
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+        with self.assertRaises(PaymentRequiredError) as ctx:
+            client.pin_bytes(b"hello world")
+
+        self.assertIn("Failed to decode PAYMENT-REQUIRED header challenge", str(ctx.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
