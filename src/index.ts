@@ -822,6 +822,12 @@ app.post("/api/v1/renew", async (c) => {
 
 app.get("/api/v1/pin/:cid", async (c) => {
     const cid = c.req.param("cid");
+
+    // 🛡️ Sentinel: Validate CID parameter to prevent injection, type confusion, or length-based DoS
+    if (!cid || typeof cid !== 'string' || cid.trim() === '' || cid.length > 255) {
+        return c.json({ error: "Missing or invalid cid parameter" }, 400);
+    }
+
     const status = await globalFileQueue.getPinStatus(cid);
     
     if (!status) {

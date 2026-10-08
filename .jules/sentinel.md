@@ -84,3 +84,8 @@
 **Vulnerability:** The webhook subsystem only blocked `127.0.0.1` and `::1` explicitly. Node.js `URL` parsing returns IPv6 loopback formatted as `[::1]`, and allows IPv4 alternative loopback blocks (like `127.0.0.2` or octal/hex equivalents) to bypass the explicit check, enabling SSRF into local services.
 **Learning:** Checking for equality against `127.0.0.1` or `::1` is insufficient due to IP range availability (`127.0.0.0/8`) and the formatting brackets `[]` native to the WHATWG URL object for IPv6.
 **Prevention:** Always use regex (`/^127\./`) to block the entire IPv4 loopback block, and explicitly test for `[::1]`, `[::]`, and `[::ffff:` IPv4-mapped forms in URL parsed hostnames.
+
+## 2026-10-18 - Missing Input Boundary Validation on CID Path Parameter
+**Vulnerability:** The `GET /api/v1/pin/:cid` route parsed the `cid` path parameter using `c.req.param("cid")` and passed it directly to backend queues (`getPinStatus`) without explicit boundary validation (such as checking for empty strings or length constraints), exposing the service to potential application-level denial of service via excessively long strings or obscure backend 404/500 errors.
+**Learning:** Routing identifiers from path parameters must be validated at the boundary, regardless of the HTTP framework used. Passing unvalidated parameters to backend queues assumes backend systems handle all extreme edge cases securely and efficiently, which violates defense-in-depth principles.
+**Prevention:** Explicitly validate path parameters for type (e.g. string), non-empty payload (`cid.trim() !== ''`), and strict length limits (e.g., `< 255` characters) before utilizing them in database lookups or backend logic, returning HTTP 400 for bad requests instead of propagating errors.
