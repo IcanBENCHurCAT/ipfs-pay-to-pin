@@ -130,26 +130,52 @@ const pinDiscovery = declareDiscoveryExtension({
 
 const app = new Hono();
 
-// 🛡️ Sentinel: Restrict CORS origin to trusted domains instead of defaulting to wildcard ('*')
-// to prevent unauthorized web applications from making cross-origin requests or reading responses.
-const getCorsOrigin = (): string | string[] | ((origin: string) => string | null) => {
+// 🛡️ Sentinel: Restrict CORS origin to trusted domains and strictly validate origin URLs
+// to prevent unauthorized web applications or misconfigured substring entries from making cross-origin requests.
+const getCorsOrigin = (reqOrigin: string): string | null => {
     const rawOrigin = config.corsOrigin;
-    if (!rawOrigin) {
-        // Fallback default origins when CORS_ORIGIN is not specified
-        return [
-            "https://pay-to-pin.duckdns.org",
-            "http://localhost:3000",
-            "http://localhost:4021"
-        ];
+    const defaultOrigins = [
+        "https://pay-to-pin.duckdns.org",
+        "http://localhost:3000",
+        "http://localhost:4021"
+    ];
+
+    let allowedOrigins: string[];
+    if (!rawOrigin || !rawOrigin.trim()) {
+        allowedOrigins = defaultOrigins;
+    } else {
+        allowedOrigins = rawOrigin
+            .split(',')
+            .map(o => o.trim())
+            .filter(Boolean)
+            .map(o => {
+                if (o === '*') return '*';
+                try {
+                    const u = new URL(o);
+                    if (u.protocol === 'http:' || u.protocol === 'https:') {
+                        return u.origin;
+                    }
+                } catch {
+                    // Discard malformed URL entries securely
+                }
+                return null;
+            })
+            .filter((o): o is string => Boolean(o));
     }
-    if (rawOrigin.includes(',')) {
-        return rawOrigin.split(',').map(o => o.trim()).filter(Boolean);
+
+    if (allowedOrigins.includes('*')) {
+        return '*';
     }
-    return rawOrigin.trim();
+
+    if (allowedOrigins.includes(reqOrigin)) {
+        return reqOrigin;
+    }
+
+    return null;
 };
 
 app.use("*", cors({
-    origin: getCorsOrigin()
+    origin: getCorsOrigin
 }));
 
 // Global secure headers middleware

@@ -51,4 +51,55 @@ describe('CORS Middleware Configuration', () => {
     expect(res.status).toBe(204);
     expect(res.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:3000');
   });
+
+  it('correctly parses and normalizes comma-separated CORS_ORIGIN values', async () => {
+    config.corsOrigin = 'https://app.example.com/, http://localhost:8080/path, https://trusted.org';
+
+    // Matched normalized origin (trailing slash removed)
+    const res1 = await app.request('/health', {
+      method: 'GET',
+      headers: { Origin: 'https://app.example.com' },
+    });
+    expect(res1.headers.get('Access-Control-Allow-Origin')).toBe('https://app.example.com');
+
+    // Matched origin with port
+    const res2 = await app.request('/health', {
+      method: 'GET',
+      headers: { Origin: 'http://localhost:8080' },
+    });
+    expect(res2.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:8080');
+
+    // Reject unlisted origin
+    const res3 = await app.request('/health', {
+      method: 'GET',
+      headers: { Origin: 'https://untrusted.com' },
+    });
+    expect(res3.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+
+  it('safely ignores malformed or non-http(s) origin entries in CORS_ORIGIN', async () => {
+    config.corsOrigin = 'invalid-domain-no-protocol, ftp://files.example.com, https://valid.com';
+
+    const resValid = await app.request('/health', {
+      method: 'GET',
+      headers: { Origin: 'https://valid.com' },
+    });
+    expect(resValid.headers.get('Access-Control-Allow-Origin')).toBe('https://valid.com');
+
+    const resInvalid = await app.request('/health', {
+      method: 'GET',
+      headers: { Origin: 'https://invalid-domain-no-protocol' },
+    });
+    expect(resInvalid.headers.get('Access-Control-Allow-Origin')).toBeNull();
+  });
+
+  it('supports wildcard * CORS_ORIGIN setting when explicitly configured', async () => {
+    config.corsOrigin = '*';
+
+    const res = await app.request('/health', {
+      method: 'GET',
+      headers: { Origin: 'https://any-domain.com' },
+    });
+    expect(res.headers.get('Access-Control-Allow-Origin')).toBe('*');
+  });
 });
