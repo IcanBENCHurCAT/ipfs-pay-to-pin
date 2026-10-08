@@ -88,3 +88,8 @@
 **Vulnerability:** Hono's `c.req.json()` throws an `HTTPException` for invalid JSON bodies. If wrapped in a generic `try/catch` block that doesn't re-throw it, the 400 Bad Request is swallowed and processed as a generic 500 server error, which can trigger unintended failure paths (like executing a refund for a bad client request).
 **Learning:** Custom HTTP exceptions must be explicitly re-thrown in catch blocks to preserve correct HTTP status codes and prevent server fault logic from executing on client errors.
 **Prevention:** Always re-throw `HTTPException` instances in Hono route `catch` blocks using `if (e instanceof HTTPException) throw e;` before handling generic errors.
+
+## 2026-10-08 - Unsafe Leftmost IP Parsing in X-Forwarded-For Rate Limiters
+**Vulnerability:** Taking the first element (`split(',')[0]`) from the `X-Forwarded-For` header allows client IP spoofing in rate limiters when running behind trusted reverse proxies, because attackers can supply custom `X-Forwarded-For` header values that standard proxies prepend to.
+**Learning:** In standard reverse proxy configurations (Nginx, Cloudflare, AWS ALB), proxy servers append client or upstream IP addresses to the right-hand end of the `X-Forwarded-For` header chain (`client, proxy1, proxy2`).
+**Prevention:** Always extract the rightmost IP address (`split(',').pop()?.trim()`) from `X-Forwarded-For` when `trustProxy` is enabled so rate limiting operates on the IP appended by the direct trusted proxy.
