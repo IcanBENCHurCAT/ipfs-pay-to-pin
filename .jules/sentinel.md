@@ -88,3 +88,8 @@
 **Vulnerability:** Hono's `c.req.json()` throws an `HTTPException` for invalid JSON bodies. If wrapped in a generic `try/catch` block that doesn't re-throw it, the 400 Bad Request is swallowed and processed as a generic 500 server error, which can trigger unintended failure paths (like executing a refund for a bad client request).
 **Learning:** Custom HTTP exceptions must be explicitly re-thrown in catch blocks to preserve correct HTTP status codes and prevent server fault logic from executing on client errors.
 **Prevention:** Always re-throw `HTTPException` instances in Hono route `catch` blocks using `if (e instanceof HTTPException) throw e;` before handling generic errors.
+
+## 2026-10-08 - SSRF Bypass via 127.x.x.x Loopbacks and IPv6 Formatting Brackets
+**Vulnerability:** URL hostname validation that checks only exact string `127.0.0.1` or `[::1]` can be bypassed by attackers using alternative 127.x.x.x loopback addresses (e.g. `127.0.0.2`), trailing dot variations (`localhost.`), or IPv6 bracketed ranges (`[fe80::1]`, `[fc00::1]`).
+**Learning:** Node.js `URL` normalizes IPv4 octals/integers to standard dot-decimal IPv4 hostnames (e.g. `127.1` -> `127.0.0.1`) and IPv6 bracket hostnames, but host checks must use regex matching for the full 127.0.0.0/8 block (`/^127\./`), trailing dot variations (`localhost.`), and IPv6 brackets (`[fe80::]`, `[fc00::]`).
+**Prevention:** Use comprehensive regex checks for `127.x.x.x`, IPv6 brackets for link-local/unique local ranges, and test both string literal and alternative representations of loopback addresses.
