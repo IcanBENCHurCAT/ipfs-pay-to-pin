@@ -88,3 +88,11 @@
 **Vulnerability:** Hono's `c.req.json()` throws an `HTTPException` for invalid JSON bodies. If wrapped in a generic `try/catch` block that doesn't re-throw it, the 400 Bad Request is swallowed and processed as a generic 500 server error, which can trigger unintended failure paths (like executing a refund for a bad client request).
 **Learning:** Custom HTTP exceptions must be explicitly re-thrown in catch blocks to preserve correct HTTP status codes and prevent server fault logic from executing on client errors.
 **Prevention:** Always re-throw `HTTPException` instances in Hono route `catch` blocks using `if (e instanceof HTTPException) throw e;` before handling generic errors.
+
+## 2026-10-08 - Prevent Arbitrary Refund Target Address Injection
+
+**Vulnerability:** Automatic refunds in `src/index.ts` extracted the refund target address from user-supplied request headers (`x-payment-sender` or `x-sender-address`). An attacker could trigger an intentional upload failure while providing a spoofed header pointing to an arbitrary wallet address, allowing them to steal escrow refunds.
+
+**Learning:** HTTP request headers are unauthenticated and spoofable by clients. Refund targets must be cryptographically bound to the original transaction signer rather than client-provided metadata headers.
+
+**Prevention:** Parse the signed transaction payload from the `PAYMENT-SIGNATURE` header using `getSenderFromTransaction` from `@x402/avm` to extract the cryptographically verified sender address. Do not fall back to untrusted request headers if header parsing fails or if the header is missing.

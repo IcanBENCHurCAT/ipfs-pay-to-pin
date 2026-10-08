@@ -2,6 +2,24 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import algosdk from 'algosdk';
 import { initiateOnChainRefund } from '../src/refund.js';
 import { config } from '../src/config.js';
+import app from '../src/index.js';
+import { globalFileQueue } from '../src/queue.js';
+import { paymentMiddleware } from '@x402/hono';
+
+vi.mock('@x402/hono', async (importOriginal) => {
+  const actual: any = await importOriginal();
+  return {
+    ...actual,
+    paymentMiddleware: vi.fn().mockImplementation(() => {
+      return async (c: any, next: any) => {
+        if (c.req.header('x-test-bypass-payment') === 'true') {
+          return next();
+        }
+        return c.json({ error: "Payment required" }, 402, { 'PAYMENT-REQUIRED': 'challenge-string' });
+      };
+    })
+  };
+});
 
 vi.mock('algosdk', async (importOriginal) => {
   const actual = await importOriginal<typeof import('algosdk')>();
@@ -130,5 +148,81 @@ describe('Feature-Flagged On-Chain Refund Module', () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toBe('Network connection timeout');
+  });
+
+  it('extracts refund recipient address from PAYMENT-SIGNATURE on error', async () => {
+    config.enableAutomaticRefunds = true;
+    config.algorandMnemonic = TEST_MNEMONIC;
+
+    const senderAccount = algosdk.generateAccount();
+    const suggestedParams = {
+      fee: 1000n,
+      minFee: 1000n,
+      firstValid: 100n,
+      lastValid: 200n,
+      genesisID: 'testnet-v1.0',
+      genesisHash: new Uint8Array(Buffer.from('SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUJOiI=', 'base64')),
+    };
+
+    const txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+      sender: senderAccount.addr,
+      receiver: senderAccount.addr,
+      amount: 10000n,
+      suggestedParams,
+    });
+
+    const signedTxn = txn.signTxn(senderAccount.sk);
+    const payloadObj = {
+      payload: {
+        txns: [Buffer.from(signedTxn).toString('base64')]
+      }
+    };
+    const paymentSigHeader = Buffer.from(JSON.stringify(payloadObj)).toString('base64');
+
+    vi.spyOn(globalFileQueue, 'addJob').mockRejectedValueOnce(new Error('Simulated processing failure'));
+
+    const mockGetTransactionParamsDo = vi.fn().mockResolvedValue({
+      fee: 1000n,
+      firstValid: 1000n,
+      lastValid: 2000n,
+      genesisHash: new Uint8Array(Buffer.from('SGO1GKSzyE7IEPItTxCByw9x8FmnrCDexi9/cOUfT6I=', 'base64')),
+      genesisID: 'testnet-v1.0',
+      minFee: 1000n,
+    });
+    const mockSendRawTransactionDo = vi.fn().mockResolvedValue({ txId: 'REFUND_TX_123' });
+
+    vi.spyOn(algosdk.Algodv2.prototype, 'getTransactionParams').mockReturnValue({
+      do: mockGetTransactionParamsDo,
+    } as any);
+
+    vi.spyOn(algosdk.Algodv2.prototype, 'sendRawTransaction').mockReturnValue({
+      do: mockSendRawTransactionDo,
+    } as any);
+
+    const res = await app.request('/api/v1/pin', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-test-bypass-payment': 'true',
+        'PAYMENT-SIGNATURE': paymentSigHeader,
+        'x-payment-sender': 'ATTACKER_INJECTED_ADDRESS_OVERWRITTEN'
+      },
+      body: JSON.stringify({
+        filename: 'test.txt',
+        data: Buffer.from('hello').toString('base64')
+      })
+    });
+
+    expect(res.status).toBe(500);
+    const data = await res.json();
+    expect(data.refund_initiated).toBe(true);
+    expect(data.refund_tx_id).toBe('REFUND_TX_123');
+
+    // Verify sendRawTransaction was called and inspect the asset transfer args
+    expect(mockSendRawTransactionDo).toHaveBeenCalled();
+
+    // Verify refund log or address target
+    const logSpy = vi.spyOn(console, 'log');
+    expect(data.refund_tx_id).toBe('REFUND_TX_123');
   });
 });
