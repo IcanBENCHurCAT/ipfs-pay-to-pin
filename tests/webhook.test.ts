@@ -499,13 +499,13 @@ describe('WebhookDeliveryService', () => {
         },
       ];
 
-      vi.spyOn(mockSupabase, 'from').mockReturnValue({
+      vi.spyOn(mockSupabase, 'from').mockImplementationOnce(() => ({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             order: vi.fn().mockResolvedValue({ data: mockDeliveries, error: null }),
           }),
         }),
-      } as any);
+      }) as any);
 
       const result = await service.getDeliveriesByCid('bafybeitest');
 
@@ -515,14 +515,14 @@ describe('WebhookDeliveryService', () => {
   });
 
   describe('constructor()', () => {
-    it('should disable webhooks when WEBHOOK_ENABLED=false', () => {
+    it('should disable webhooks when WEBHOOK_ENABLED=false', async () => {
       const originalEnv = process.env.WEBHOOK_ENABLED;
       process.env.WEBHOOK_ENABLED = 'false';
 
       const disabledService = new WebhookDeliveryService(undefined, 'https://test.supabase.co', 'test-key');
 
       // Should fire and return false (disabled)
-      const result = disabledService.fire(
+      const result = await disabledService.fire(
         'pin.completed',
         'bafybeitest',
         'test.txt',
@@ -530,10 +530,13 @@ describe('WebhookDeliveryService', () => {
         'https://example.com/webhook'
       );
 
-      process.env.WEBHOOK_ENABLED = originalEnv;
+      if (originalEnv === undefined) {
+        delete process.env.WEBHOOK_ENABLED;
+      } else {
+        process.env.WEBHOOK_ENABLED = originalEnv;
+      }
 
-      // Note: Since fire() returns a Promise, we need to await it
-      expect(result).resolves.toBe(false);
+      expect(result).toBe(false);
     });
 
     it('should use custom config values', () => {
@@ -566,7 +569,7 @@ describe('WebhookDeliveryService', () => {
   });
 
   describe('isSafeUrl()', () => {
-    // isSafeUrl is a module-level function, test via fire() blocking
+    // isSafeUrl is a module-level function, test via fire() and deliver() blocking
     it('should block link-local addresses (169.254.x.x)', async () => {
       const result = await service.fire(
         'pin.completed',
@@ -579,16 +582,44 @@ describe('WebhookDeliveryService', () => {
       expect(result).toBe(false);
     });
 
-    it('should block invalid URLs', async () => {
-      const result = await service.fire(
-        'pin.completed',
-        'bafybeitest',
-        'test.txt',
-        'https://ipfs.io/ipfs/bafybeitest',
-        'not-a-valid-url'
-      );
+    it('should block invalid and unparseable URLs via catch block', async () => {
+      const unparseableUrls = ['not-a-valid-url', 'http://[', '://bad-url', 'http://:'];
 
-      expect(result).toBe(false);
+      for (const unparseableUrl of unparseableUrls) {
+        // Test via fire()
+        const fireResult = await service.fire(
+          'pin.completed',
+          'bafybeitest',
+          'test.txt',
+          'https://ipfs.io/ipfs/bafybeitest',
+          unparseableUrl
+        );
+        expect(fireResult).toBe(false);
+
+        // Test via deliver()
+        const record = {
+          id: 'wh_test_unparseable',
+          webhook_url: unparseableUrl,
+          event: 'pin.completed' as const,
+          payload: {
+            event: 'pin.completed' as const,
+            cid: 'bafybeitest',
+            filename: 'test.txt',
+            timestamp: new Date().toISOString(),
+          } as WebhookPayload,
+          status: 'PENDING' as const,
+          attempts: 0,
+          next_retry_at: null,
+          last_error: null,
+          created_at: Date.now(),
+          delivered_at: null,
+          cid: 'bafybeitest',
+        };
+
+        const deliverResult = await service.deliver(record);
+        expect(deliverResult.status).toBe(0);
+        expect(deliverResult.error).toBe('Unsafe URL blocked');
+      }
     });
 
     it('should block file:// URLs', async () => {
