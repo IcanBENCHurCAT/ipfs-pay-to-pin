@@ -65,16 +65,17 @@ class IpfsPayToPinClient:
         return resp.json()
 
     def renew_pin(self, cid: str, max_price_usdc: Optional[float] = None) -> PinResponse:
-        url = f"{self.gateway_url}/api/v1/pin/{cid}/renew"
-        resp = requests.post(url)
+        url = f"{self.gateway_url}/api/v1/renew"
+        payload = {"cid": cid}
+        resp = requests.post(url, json=payload)
         if resp.status_code == 402:
-            return self._handle_payment_flow(url, {}, resp, max_price_usdc=max_price_usdc)
+            return self._handle_payment_flow(url, payload, resp, max_price_usdc=max_price_usdc)
         resp.raise_for_status()
         data = resp.json()
         return PinResponse(
             cid=data.get("cid", cid),
             status=data.get("status", "pinned"),
-            pin_expires_at=data.get("pin_expires_at", ""),
+            pin_expires_at=data.get("expires_at") or data.get("pin_expires_at", ""),
             size_bytes=data.get("size_bytes", 0),
             tx_id=data.get("tx_id"),
         )
@@ -241,9 +242,9 @@ class IpfsPayToPinClient:
         if paid_resp.status_code in (200, 201):
             res_json = paid_resp.json()
             return PinResponse(
-                cid=res_json["cid"],
+                cid=res_json.get("cid", payload.get("cid", "")),
                 status=res_json.get("status", "pinned"),
-                pin_expires_at=res_json.get("pin_expires_at", ""),
+                pin_expires_at=res_json.get("expires_at") or res_json.get("pin_expires_at", ""),
                 size_bytes=res_json.get("size_bytes", 0),
                 tx_id=res_json.get("tx_id"),
             )

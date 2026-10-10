@@ -133,7 +133,7 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         mock_response.json.return_value = {
             "cid": "QmRenew123",
             "status": "pinned",
-            "pin_expires_at": "2026-12-31T23:59:59Z",
+            "expires_at": "2026-12-31T23:59:59Z",
             "size_bytes": 1024,
             "tx_id": "tx_renew_abc",
         }
@@ -149,7 +149,10 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         self.assertEqual(res.pin_expires_at, "2026-12-31T23:59:59Z")
         self.assertEqual(res.size_bytes, 1024)
         self.assertEqual(res.tx_id, "tx_renew_abc")
-        mock_post.assert_called_once_with(f"{self.gateway_url}/api/v1/pin/QmRenew123/renew")
+        mock_post.assert_called_once_with(
+            f"{self.gateway_url}/api/v1/renew",
+            json={"cid": "QmRenew123"}
+        )
 
     @patch("ipfs_pay_to_pin_client.client.requests.post")
     @patch("algosdk.v2client.algod.AlgodClient")
