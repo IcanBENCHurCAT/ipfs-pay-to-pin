@@ -38,3 +38,8 @@
 ## 2026-10-03 - Repo license is MIT, do not enforce AGPL
 **Learning:** Garret relicensed this repo from AGPL-3.0-or-later to MIT on 2026-09-30, then reverted two Tux PRs (#264, #265) on 2026-10-03 that had re-applied AGPL. The MIT references were deliberate, not erroneous.
 **Action:** Never change license files or license fields back to AGPL. The repo stays MIT unless Garret says otherwise.
+
+## 2026-10-10 - Align Python SDK renew_pin route and payload with Gateway API
+
+**Learning:** When client SDKs (like `python-sdk`) call gateway endpoints, verify that the path and request body match the actual gateway routes in `src/index.ts`, OpenAPI specs, and TypeScript SDK implementations. The gateway expected `POST /api/v1/renew` with body `{"cid": cid}`, whereas the Python client previously targeted `POST /api/v1/pin/{cid}/renew` without a body, causing 404 errors.
+**Action:** Always cross-reference client SDK endpoint paths and request bodies against gateway route handlers (`src/index.ts`) and OpenAPI specs when auditing or writing SDK methods.
