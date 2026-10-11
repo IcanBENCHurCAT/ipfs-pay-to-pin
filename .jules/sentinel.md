@@ -101,3 +101,8 @@
 **Learning:** HTTP request headers are unauthenticated and spoofable by clients. Refund targets must be cryptographically bound to the original transaction signer rather than client-provided metadata headers.
 
 **Prevention:** Parse the signed transaction payload from the `PAYMENT-SIGNATURE` header using `getSenderFromTransaction` from `@x402/avm` to extract the cryptographically verified sender address. Do not fall back to untrusted request headers if header parsing fails or if the header is missing.
+
+## 2026-10-14 - Missing Input Validation on Path Parameters
+**Vulnerability:** The route `app.get("/api/v1/pin/:cid")` extracted the `cid` path parameter but did not validate its length or emptiness before passing it to backend data layers (`globalFileQueue.getPinStatus`).
+**Learning:** Unvalidated routing identifiers extracted from HTTP path parameters can cause application-level DoS (if arbitrarily long strings are provided) or obscure backend errors when passed to internal queue or database lookup functions.
+**Prevention:** Always validate maximum length boundaries (e.g., `length <= 255`) and emptiness for routing identifiers at the route boundary before processing.
