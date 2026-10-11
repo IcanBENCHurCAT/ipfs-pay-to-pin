@@ -841,6 +841,13 @@ app.post("/api/v1/renew", async (c) => {
 
 app.get("/api/v1/pin/:cid", async (c) => {
     const cid = c.req.param("cid");
+
+    // 🛡️ Sentinel: Validate routing identifier length and emptiness before passing to data layers
+    // to prevent application-level DoS or obscure backend errors from malformed input.
+    if (!cid || cid.trim() === '' || cid.length > 255) {
+        return c.json({ error: "Invalid CID parameter" }, 400);
+    }
+
     const status = await globalFileQueue.getPinStatus(cid);
     
     if (!status) {
