@@ -43,3 +43,8 @@
 
 **Learning:** When client SDKs (like `python-sdk`) call gateway endpoints, verify that the path and request body match the actual gateway routes in `src/index.ts`, OpenAPI specs, and TypeScript SDK implementations. The gateway expected `POST /api/v1/renew` with body `{"cid": cid}`, whereas the Python client previously targeted `POST /api/v1/pin/{cid}/renew` without a body, causing 404 errors.
 **Action:** Always cross-reference client SDK endpoint paths and request bodies against gateway route handlers (`src/index.ts`) and OpenAPI specs when auditing or writing SDK methods.
+
+## 2026-10-24 - Migrate Python SDK Algorand Transaction Signing to Atomic Transaction Composer
+
+**Learning:** In `py-algorand-sdk` (v2.12+), calling `txn.sign(private_key)` emits a `DeprecationWarning` instructing callers to use `sign_transaction_with_signer(txn, AccountTransactionSigner(private_key))`. Updating `client.py` to use `AccountTransactionSigner` and `sign_transaction_with_signer` eliminates deprecation warnings while ensuring full compatibility with atomic transaction composition standards.
+**Action:** Always use `AccountTransactionSigner` and `sign_transaction_with_signer` from `algosdk.atomic_transaction_composer` when signing Algorand transactions in Python SDK code.

@@ -207,6 +207,10 @@ class IpfsPayToPinClient:
             }
             sig_header = json.dumps(sig_data)
         elif self.sender_mnemonic and self._algod_client:
+            from algosdk.atomic_transaction_composer import (
+                AccountTransactionSigner,
+                sign_transaction_with_signer,
+            )
             from algosdk.transaction import AssetTransferTxn
             recipient = payment_opt["payTo"]
             asset_id = int(payment_opt.get("asset") or payment_opt.get("assetId") or 31566704)
@@ -220,7 +224,8 @@ class IpfsPayToPinClient:
                 index=asset_id,
             )
             from algosdk import encoding
-            stxn = txn.sign(self._algorand_private_key)
+            signer = AccountTransactionSigner(self._algorand_private_key)
+            stxn = sign_transaction_with_signer(txn, signer)
             signed_b64 = encoding.msgpack_encode(stxn)
             sig_data = {
                 "x402Version": 2,
