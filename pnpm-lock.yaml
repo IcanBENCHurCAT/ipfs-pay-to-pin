@@ -33,8 +33,8 @@ importers:
         specifier: ^2.28.0
         version: 2.28.0(typescript@7.0.2)
       '@x402/hono':
-        specifier: ^2.27.0
-        version: 2.27.0(hono@4.13.13)(typescript@7.0.2)
+        specifier: ^2.28.0
+        version: 2.28.0(hono@4.13.13)(typescript@7.0.2)
       '@x402/svm':
         specifier: ^2.28.0
         version: 2.28.0(@solana/kit@5.5.1(typescript@7.0.2))(@solana/sysvars@5.5.1(typescript@7.0.2))(typescript@7.0.2)
@@ -1586,25 +1586,19 @@ packages:
   '@x402/core@2.25.0':
     resolution: {integrity: sha512-5Ys0XYz3FKutxVKoXC46R/XPT/oaAbuj7ahzrlVHwQxZJPH9u6u91IOh0ztz+7G/zYGsaXR8l3ety205QtEnUw==}
 
-  '@x402/core@2.27.0':
-    resolution: {integrity: sha512-UbxCKnoTsg5nQX9fYER3g9tt5l80jHm1IZOmDczQRqE0cwskls5r+VAAj0iUQfHVshnpv0qo/rLFI7UntqL96g==}
-
   '@x402/core@2.28.0':
     resolution: {integrity: sha512-Da/7zKxCKqpBoB4Msc9tFgkAv7tJTD8nG+DSSm+QdXAyJS4PQsmgVSKe17rDJTtlu0pwNbLcOje6MyQ6kaDkig==}
 
   '@x402/evm@2.28.0':
     resolution: {integrity: sha512-BZuoaCKMoPQQuMTa4oibvoyI06WdCpgrzgdicUu8d+5NBMAfWb6LAmSQf1KkeiS8C+25/+2JGB4cHSL0VLGnSA==}
 
-  '@x402/extensions@2.27.0':
-    resolution: {integrity: sha512-eGBZZCTNtJsbzYoOe72Mfo/HN7Ir4i8+gmBUQ3ScrTiO91Q0bscO6LjGg2d3oJiFQ6g+YVXn+5fLxCEwoqgFsA==}
-
   '@x402/extensions@2.28.0':
     resolution: {integrity: sha512-M3SVxO8DJnx7gpok/ODQp803jr21s1XrCMholNw0hSgOVvSPRksfTZ+CUNfJwteNaHmaAxGjPelXWBhTCMD9oQ==}
 
-  '@x402/hono@2.27.0':
-    resolution: {integrity: sha512-ySXqPl32IcctPBbDIuX3+sjJfwNpCE3lsEt4F0PE30VyIYrnmQ/VrSCkMp456AzR9WagV+gqna3cwxEr70/s0g==}
+  '@x402/hono@2.28.0':
+    resolution: {integrity: sha512-tR/AegvCpluj4AX1uYpqt0Ak7e3RcA2QE9GYrPCzwZTxv2z7gYUl7xE/olaxxDEiEb/yRmlsNAxmL81cARjeKw==}
     peerDependencies:
-      '@x402/paywall': ^2.27.0
+      '@x402/paywall': ^2.28.0
       hono: ^4.0.0
     peerDependenciesMeta:
       '@x402/paywall':
@@ -3716,10 +3710,6 @@ snapshots:
     dependencies:
       zod: 3.25.76
 
-  '@x402/core@2.27.0':
-    dependencies:
-      zod: 3.25.76
-
   '@x402/core@2.28.0':
     dependencies:
       zod: 3.25.76
@@ -3731,23 +3721,6 @@ snapshots:
       zod: 3.25.76
     transitivePeerDependencies:
       - bufferutil
-      - typescript
-      - utf-8-validate
-
-  '@x402/extensions@2.27.0(typescript@7.0.2)':
-    dependencies:
-      '@noble/curves': 1.9.7
-      '@scure/base': 1.2.6
-      '@signinwithethereum/siwe': 4.2.1(viem@2.57.2(typescript@7.0.2)(zod@3.25.76))
-      '@x402/core': 2.27.0
-      ajv: 8.20.0
-      jose: 5.10.0
-      tweetnacl: 1.0.3
-      viem: 2.57.2(typescript@7.0.2)(zod@3.25.76)
-      zod: 3.25.76
-    transitivePeerDependencies:
-      - bufferutil
-      - ethers
       - typescript
       - utf-8-validate
 
@@ -3768,10 +3741,10 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@x402/hono@2.27.0(hono@4.13.13)(typescript@7.0.2)':
+  '@x402/hono@2.28.0(hono@4.13.13)(typescript@7.0.2)':
     dependencies:
-      '@x402/core': 2.27.0
-      '@x402/extensions': 2.27.0(typescript@7.0.2)
+      '@x402/core': 2.28.0
+      '@x402/extensions': 2.28.0(typescript@7.0.2)
       hono: 4.13.13
     transitivePeerDependencies:
       - bufferutil
