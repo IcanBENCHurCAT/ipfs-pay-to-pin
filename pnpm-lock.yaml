@@ -21,8 +21,8 @@ importers:
         specifier: ^26.6.4
         version: 26.6.4
       '@x402/avm':
-        specifier: ^2.26.0
-        version: 2.26.0
+        specifier: ^2.28.0
+        version: 2.28.0
       '@x402/core':
         specifier: ^2.25.0
         version: 2.25.0
@@ -92,8 +92,8 @@ importers:
         version: 1.20.0
     devDependencies:
       '@x402/avm':
-        specifier: ^2.26.0
-        version: 2.26.0
+        specifier: ^2.28.0
+        version: 2.28.0
       '@x402/core':
         specifier: ^2.25.0
         version: 2.25.0
@@ -1580,14 +1580,11 @@ packages:
   '@vitest/spy@5.0.3':
     resolution: {integrity: sha512-XhFysQTB8AZ+P4gMi+Lpo99vg2AZi0qKpaB9yXQl37+CaMEAPO3iH/wGVnSyL5MPERiLezpqTVtrR6UZH5GCXg==}
 
-  '@x402/avm@2.26.0':
-    resolution: {integrity: sha512-jnBAIziOc3MQ7h/DmaVrE61gWI0ZJemkMP8hp4i+n4q0hnFm/Khaxn2qf42gtiFDQQAij076qp3z6SbP/fy09w==}
+  '@x402/avm@2.28.0':
+    resolution: {integrity: sha512-ww6EPNQvWKsQdjDFzAA2w15rGDFo+5sRZk9iFerLIMM0URa/A70nPoh4FerH9Bss/lBjUcKG01wYI+i6HBK8/g==}
 
   '@x402/core@2.25.0':
     resolution: {integrity: sha512-5Ys0XYz3FKutxVKoXC46R/XPT/oaAbuj7ahzrlVHwQxZJPH9u6u91IOh0ztz+7G/zYGsaXR8l3ety205QtEnUw==}
-
-  '@x402/core@2.26.0':
-    resolution: {integrity: sha512-8dlXip9u0JjyELzzFz48vntuMajvUjA8IYpitfaW423m53bR49amZDIn3n4gXRYoNEKzGB9Rtn8at35WHz61cA==}
 
   '@x402/core@2.27.0':
     resolution: {integrity: sha512-UbxCKnoTsg5nQX9fYER3g9tt5l80jHm1IZOmDczQRqE0cwskls5r+VAAj0iUQfHVshnpv0qo/rLFI7UntqL96g==}
@@ -3721,16 +3718,12 @@ snapshots:
 
   '@vitest/spy@5.0.3': {}
 
-  '@x402/avm@2.26.0':
+  '@x402/avm@2.28.0':
     dependencies:
       '@algorandfoundation/algokit-utils': 10.0.0-alpha.46
-      '@x402/core': 2.26.0
+      '@x402/core': 2.28.0
 
   '@x402/core@2.25.0':
-    dependencies:
-      zod: 3.25.76
-
-  '@x402/core@2.26.0':
     dependencies:
       zod: 3.25.76
 
