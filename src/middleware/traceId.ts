@@ -15,6 +15,23 @@
 import crypto from 'crypto';
 import type { Context, Next } from 'hono';
 import { logger } from '../observability.js';
+import { config } from '../config.js';
+
+/**
+ * Safely extracts the native IP address from Node/Hono request objects.
+ */
+function getNativeIp(c: Context): string | undefined {
+  const rawObj = c.req.raw as unknown as Record<string, unknown> | undefined;
+  if (typeof rawObj?.ip === 'string') {
+    return rawObj.ip;
+  }
+  const reqObj = c.req as unknown as Record<string, unknown> | undefined;
+  const nestedRaw = reqObj?.raw as Record<string, unknown> | undefined;
+  if (typeof nestedRaw?.ip === 'string') {
+    return nestedRaw.ip;
+  }
+  return undefined;
+}
 
 /**
  * Generate a trace ID. Uses crypto.randomUUID() if available (Node 14.17+),
@@ -72,13 +89,28 @@ export function traceIdMiddleware() {
       c.header('Traceparent', traceParent);
     }
     
+    // Priority: 1. Proxy headers (if explicitly enabled). 2. Native IP.
+    const nativeIp = getNativeIp(c);
+    const trustProxy = config.trustProxy || process.env.TRUST_PROXY === 'true';
+
+    let ip: string | undefined;
+    if (trustProxy) {
+      // Security: Standard reverse proxies append the client/downstream IP to the end of X-Forwarded-For.
+      // Taking the first element allows attackers to spoof their IP by sending custom X-Forwarded-For headers.
+      ip = c.req.header('x-forwarded-for')?.split(',').pop()?.trim()
+        || c.req.header('x-real-ip');
+    }
+
+    // Fallback to native IP if proxy headers are not present or not trusted.
+    ip = ip || nativeIp || 'unknown';
+
     // Request logging
     const startTime = Date.now();
     childLogger.info({
       method: c.req.method,
       path: c.req.path,
       trace_id: traceId,
-      ip: c.req.header('x-forwarded-for') || c.req.header('x-real-ip') || 'unknown',
+      ip: ip,
     }, '[HTTP] Request received');
     
     try {
