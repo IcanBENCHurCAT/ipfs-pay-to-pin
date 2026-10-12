@@ -106,3 +106,7 @@
 **Vulnerability:** The route `app.get("/api/v1/pin/:cid")` extracted the `cid` path parameter but did not validate its length or emptiness before passing it to backend data layers (`globalFileQueue.getPinStatus`).
 **Learning:** Unvalidated routing identifiers extracted from HTTP path parameters can cause application-level DoS (if arbitrarily long strings are provided) or obscure backend errors when passed to internal queue or database lookup functions.
 **Prevention:** Always validate maximum length boundaries (e.g., `length <= 255`) and emptiness for routing identifiers at the route boundary before processing.
+## 2026-10-14 - IP Spoofing via X-Forwarded-For in Trace Logs
+**Vulnerability:** The `traceIdMiddleware` blindly trusted the `X-Forwarded-For` header for IP extraction (`ip: c.req.header("x-forwarded-for")`) when logging requests without verifying whether the application was configured to trust proxy headers.
+**Learning:** Blindly trusting `X-Forwarded-For` allows attackers to easily spoof their source IP in the application logs, bypassing log-based monitoring, investigations, and blocklists. Native IPs must always take precedence unless explicitly behind a trusted proxy.
+**Prevention:** To prevent IP spoofing in application logs, middleware extracting IP addresses must prioritize native connection IPs. Proxy headers (`X-Forwarded-For`) should only be parsed if `config.trustProxy` is explicitly enabled.
