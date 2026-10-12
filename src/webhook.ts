@@ -192,7 +192,15 @@ export class WebhookDeliveryService {
       return [];
     }
 
-    return (data || []).map((row) => this.rowToRecord(row));
+    // ⚡ Bolt: Replaced (data || []).map() with pre-allocated Array and single-pass for-loop
+    // to prevent intermediate closure allocations and reduce GC pressure.
+    const resultData = data || [];
+    const len = resultData.length;
+    const records = new Array(len);
+    for (let i = 0; i < len; i++) {
+      records[i] = this.rowToRecord(resultData[i]);
+    }
+    return records;
   }
 
   /**
@@ -214,7 +222,15 @@ export class WebhookDeliveryService {
       return [];
     }
 
-    return (data || []).map((row) => this.rowToRecord(row));
+    // ⚡ Bolt: Replaced (data || []).map() with pre-allocated Array and single-pass for-loop
+    // to prevent intermediate closure allocations and reduce GC pressure.
+    const resultData = data || [];
+    const len = resultData.length;
+    const records = new Array(len);
+    for (let i = 0; i < len; i++) {
+      records[i] = this.rowToRecord(resultData[i]);
+    }
+    return records;
   }
 
   /**
