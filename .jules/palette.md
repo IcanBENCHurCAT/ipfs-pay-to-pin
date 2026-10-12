@@ -27,3 +27,7 @@
 ## 2025-08-22 - Strict Configuration Validation on Initialization
 **Learning:** Initializing an SDK client without validating that the `config` object exists can cause obscure `TypeError: Cannot read properties of undefined` crashes when agents mistakenly instantiate the client empty.
 **Action:** Always validate that required top-level configuration parameters are objects (e.g., `if (!config || typeof config !== 'object')`) in the class constructor. Throw an explicit `ConfigurationError` providing actionable context rather than letting native runtime errors bubble up to consumers.
+
+## 2025-08-23 - Exported Utility Types and Internal Boundaries
+**Learning:** Hardcoding protocol boundaries (like JSON payload overhead) and keeping useful callback types inline makes it difficult for consuming agents to predict failures or implement type-safe configurations without redundant code.
+**Action:** Always extract and export utility types (e.g. `ConfirmPriceCallback`) and magic number protocol limits (e.g. `DEFAULT_MAX_PRICE_USDC`, `PAYLOAD_JSON_OVERHEAD_BYTES`) as named constants to improve discoverability and predictability.

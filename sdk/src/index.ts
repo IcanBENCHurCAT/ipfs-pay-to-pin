@@ -21,6 +21,25 @@ export const DEFAULT_PIN_FEE_MICRO_USDC = 10000;
 export const DEFAULT_RENEW_FEE_MICRO_USDC = 5000;
 
 /**
+ * Default maximum price budget cap in USDC (1.0 = $1.00 USDC) to prevent unexpected overcharging.
+ */
+export const DEFAULT_MAX_PRICE_USDC = 1.0;
+
+/**
+ * Byte overhead reserved for JSON structure (filename, etc) when sending a payload to the gateway.
+ */
+export const PAYLOAD_JSON_OVERHEAD_BYTES = 10240;
+
+/**
+ * Callback function signature to manually approve or decline payments dynamically before execution.
+ * @param priceUsdc - The requested price in USDC.
+ * @param description - A description of the transaction (e.g., filename or renewal).
+ * @param network - The network CAIP-2 identifier where the payment will be executed.
+ * @returns A promise that resolves to true to approve or false to decline the payment.
+ */
+export type ConfirmPriceCallback = (priceUsdc: number, description: string, network: string) => Promise<boolean>;
+
+/**
  * Configuration options for initializing the IPFS Pay-to-Pin client.
  * Requires at least one valid signing method (mnemonic, evmPrivateKey, or solanaPrivateKey).
  */
@@ -44,7 +63,7 @@ export interface IpfsPayToPinConfig {
   /** Maximum price budget cap in USDC (default: $1.00 USDC) to prevent unexpected overcharging. */
   maxPriceUsdc?: number;
   /** Optional callback to manually approve or decline payments dynamically before execution. */
-  confirmPrice?: (priceUsdc: number, description: string, network: string) => Promise<boolean>;
+  confirmPrice?: ConfirmPriceCallback;
 }
 
 /**
@@ -197,7 +216,7 @@ export class IpfsPayToPinClient {
   private networkCaip2: string;
   private preferredNetwork?: string;
   private maxPriceUsdc: number;
-  private confirmPrice?: (priceUsdc: number, description: string, network: string) => Promise<boolean>;
+  private confirmPrice?: ConfirmPriceCallback;
   private x402HttpClient: x402HTTPClient;
   private x402ClientInstance: x402Client;
   private registeredNetworks: Set<string> = new Set();
@@ -222,7 +241,7 @@ export class IpfsPayToPinClient {
     this.sender = config.sender;
     this.gatewayUrl = (config.gatewayUrl || 'https://pay-to-pin.duckdns.org').replace(/\/$/, '');
     this.preferredNetwork = config.preferredNetwork;
-    this.maxPriceUsdc = config.maxPriceUsdc ?? 1.0;
+    this.maxPriceUsdc = config.maxPriceUsdc ?? DEFAULT_MAX_PRICE_USDC;
     this.confirmPrice = config.confirmPrice;
 
     const network = config.network || 'mainnet';
@@ -405,7 +424,7 @@ export class IpfsPayToPinClient {
       : Math.ceil(options.data.byteLength * 4 / 3);
 
     // We leave a small 10KB buffer for JSON structure (filename, etc)
-    if (estimatedSize > MAX_PAYLOAD_SIZE_BYTES - 10240) {
+    if (estimatedSize > MAX_PAYLOAD_SIZE_BYTES - PAYLOAD_JSON_OVERHEAD_BYTES) {
       throw new ConfigurationError(`[IpfsClient] File payload size (${estimatedSize} bytes) exceeds the 20MB gateway limit.`);
     }
 
