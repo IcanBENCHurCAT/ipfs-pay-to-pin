@@ -746,10 +746,9 @@ app.post("/api/v1/pin", async (c) => {
                 }
             }
 
-            const paidAmountHeader = c.req.header("x-payment-amount");
-
-            // Security: Prevent escrow drain by capping the refund to the maximum expected price
-            // based on the exact size calculation used during payment verification.
+            // 🛡️ Sentinel: Prevent untrusted header abuse for refunds.
+            // Client-provided payment headers must never be trusted for financial calculations.
+            // Refund amounts are strictly computed server-side based on expected pricing.
             let binaryBytes = 1000;
             if (parsedBinaryBytes !== null) {
                 binaryBytes = parsedBinaryBytes;
@@ -763,8 +762,7 @@ app.post("/api/v1/pin", async (c) => {
                 }
             }
             const maxExpectedPrice = 10000 + Math.floor(binaryBytes * 0.02);
-            let paidAmount = paidAmountHeader ? Number(paidAmountHeader) : 10000;
-            paidAmount = Math.min(paidAmount, maxExpectedPrice);
+            const paidAmount = maxExpectedPrice;
 
             if (clientAddress) {
                 refundAttempted = true;
