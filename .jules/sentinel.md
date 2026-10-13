@@ -110,3 +110,8 @@
 **Vulnerability:** The `traceIdMiddleware` blindly trusted the `X-Forwarded-For` header for IP extraction (`ip: c.req.header("x-forwarded-for")`) when logging requests without verifying whether the application was configured to trust proxy headers.
 **Learning:** Blindly trusting `X-Forwarded-For` allows attackers to easily spoof their source IP in the application logs, bypassing log-based monitoring, investigations, and blocklists. Native IPs must always take precedence unless explicitly behind a trusted proxy.
 **Prevention:** To prevent IP spoofing in application logs, middleware extracting IP addresses must prioritize native connection IPs. Proxy headers (`X-Forwarded-For`) should only be parsed if `config.trustProxy` is explicitly enabled.
+
+## 2026-10-18 - Client-Provided Payment Header Trust for Refunds
+**Vulnerability:** The automatic refund logic extracted the `x-payment-amount` header to determine the amount to refund, meaning an attacker could intentionally fail their request and manipulate the header to steal funds up to the maximum capped value.
+**Learning:** Client-provided HTTP headers, including payment amounts or sender addresses, are untrusted and easily spoofable. Never rely on them for financial calculations, refunds, or access control.
+**Prevention:** Always compute refund amounts or financial metrics strictly server-side using verified payload data or original signed transaction details, rather than unauthenticated client headers.
