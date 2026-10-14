@@ -72,4 +72,4 @@ This document defines the prescriptive architectural rules, engineering standard
 
 ---
 
-**Version**: 2.0.0 | **Ratified**: 2026-07-20 | **Last Amended**: 2026-08-09
+**Version**: 2.0.0 | **Ratified**: 2026-07-20 | **Last Amended**: 2026-10-14
