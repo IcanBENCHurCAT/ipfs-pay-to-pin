@@ -26,6 +26,10 @@ Thank you for your interest in contributing to the IPFS Pay-to-Pin Gateway and C
    ```bash
    pnpm run -r test
    ```
+6. Run Python SDK unit tests:
+   ```bash
+   cd python-sdk && pip install -e ".[dev]" && python3 -m pytest
+   ```
 
 ## Pull Request Guidelines
 
