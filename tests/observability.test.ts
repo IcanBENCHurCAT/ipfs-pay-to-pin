@@ -92,7 +92,6 @@ describe('Observability — Structured Logging', () => {
     expect(log).toHaveProperty('flags', { a: true, b: false });
   });
 });
-
 describe('Observability — Trace ID Middleware', () => {
   let app: Hono;
 
