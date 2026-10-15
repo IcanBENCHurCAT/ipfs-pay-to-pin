@@ -31,12 +31,38 @@ export interface BatchPinConfig {
 }
 
 /**
- * Decode base64 string to Buffer, or throw on invalid base64.
+ * Decode base64 string to Buffer with payload size limit enforcement, or throw on invalid base64 or size limit exceeded.
  */
-function decodeBase64(data: string): Buffer {
+export function decodeBase64(data: string, maxBytes: number = 20 * 1024 * 1024): Buffer {
+  // 🛡️ Sentinel: Unrestricted Base64 Payload Allocation Guard.
+  // Validate base64 format and calculated decoded byte length mathematically O(1)
+  // before calling Buffer.from(data, 'base64') to prevent memory exhaustion / OOM DoS attacks.
+  if (!/^[A-Za-z0-9+/=\-_]+$/.test(data)) {
+    throw new Error('Invalid base64 encoding in file data.');
+  }
+
+  const dataLen = data.length;
+  let padding = 0;
+  if (dataLen > 1) {
+    if (data[dataLen - 1] === '=') {
+      padding = data[dataLen - 2] === '=' ? 2 : 1;
+    }
+  }
+  const estimatedBytes = Math.floor(((dataLen - padding) * 3) / 4);
+  if (estimatedBytes > maxBytes) {
+    throw new Error(`File payload size (${estimatedBytes} bytes) exceeds maximum allowed limit of ${maxBytes} bytes.`);
+  }
+
   try {
-    return Buffer.from(data, 'base64');
-  } catch {
+    const buffer = Buffer.from(data, 'base64');
+    if (buffer.length > maxBytes) {
+      throw new Error(`File payload size (${buffer.length} bytes) exceeds maximum allowed limit of ${maxBytes} bytes.`);
+    }
+    return buffer;
+  } catch (err: any) {
+    if (err?.message?.includes('exceeds maximum allowed limit')) {
+      throw err;
+    }
     throw new Error('Invalid base64 encoding in file data.');
   }
 }
@@ -109,9 +135,9 @@ function validateBatchPayload(
 /**
  * Process a single file in the batch. Returns either a success result or an error.
  */
-async function processSingleFile(file: BatchPinItem, webhookUrl?: string): Promise<BatchPinResult | BatchPinError> {
+async function processSingleFile(file: BatchPinItem, webhookUrl?: string, maxBytes?: number): Promise<BatchPinResult | BatchPinError> {
   try {
-    const buffer = decodeBase64(file.data);
+    const buffer = decodeBase64(file.data, maxBytes);
 
     const queueItem = await globalFileQueue.addJob(file.filename, buffer, webhookUrl ? { webhookUrl } : undefined);
 
@@ -154,7 +180,7 @@ export async function handleBatchPin(files: unknown[], config: BatchPinConfig, w
 
   // Process all files concurrently — partial success is supported
   const results = await Promise.allSettled(
-    decodedFiles.map((file) => processSingleFile(file, webhookUrl))
+    decodedFiles.map((file) => processSingleFile(file, webhookUrl, config.maxBytes))
   );
 
   const pins: (BatchPinResult | BatchPinError)[] = [];

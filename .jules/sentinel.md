@@ -120,3 +120,8 @@
 **Vulnerability:** A hardcoded OCI Instance IP address (150.230.165.53), a DuckDNS token, and an OCI OCID were present in .agents/skills/oci-alert-runbook/SKILL.md.
 **Learning:** Including specific sensitive infrastructure identifiers in documentation, runbooks, or markdown files exposes the project to reconnaissance and potential breaches.
 **Prevention:** Use environment variables (e.g., ${DUCKDNS_TOKEN}) or generic placeholders (e.g., <INSTANCE_IP>) in documentation and runbooks instead of hardcoded infrastructure credentials.
+
+## 2026-10-15 - Unrestricted Base64 Payload Allocation in Batch Pinning
+**Vulnerability:** In `src/batchPin.ts`, `decodeBase64` passed Base64 file payloads directly to `Buffer.from(data, 'base64')` without checking the Base64 string length or calculated decoded size, exposing the gateway to heap exhaustion and OOM DoS attacks.
+**Learning:** Checking total payload batch size after decoding or parsing is insufficient if individual Base64 items allocate large Buffers in memory before validation occurs.
+**Prevention:** Mathematically calculate Base64 decoded byte length O(1) from the string length and padding characters, validating that it does not exceed allowed limits before allocating memory via `Buffer.from`.
