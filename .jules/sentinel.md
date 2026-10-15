@@ -115,3 +115,8 @@
 **Vulnerability:** The automatic refund logic extracted the `x-payment-amount` header to determine the amount to refund, meaning an attacker could intentionally fail their request and manipulate the header to steal funds up to the maximum capped value.
 **Learning:** Client-provided HTTP headers, including payment amounts or sender addresses, are untrusted and easily spoofable. Never rely on them for financial calculations, refunds, or access control.
 **Prevention:** Always compute refund amounts or financial metrics strictly server-side using verified payload data or original signed transaction details, rather than unauthenticated client headers.
+
+## 2026-10-15 - Remove Hardcoded Sensitive Infrastructure Credentials from OCI Runbook
+**Vulnerability:** A hardcoded OCI Instance IP address (150.230.165.53), a DuckDNS token, and an OCI OCID were present in .agents/skills/oci-alert-runbook/SKILL.md.
+**Learning:** Including specific sensitive infrastructure identifiers in documentation, runbooks, or markdown files exposes the project to reconnaissance and potential breaches.
+**Prevention:** Use environment variables (e.g., ${DUCKDNS_TOKEN}) or generic placeholders (e.g., <INSTANCE_IP>) in documentation and runbooks instead of hardcoded infrastructure credentials.
