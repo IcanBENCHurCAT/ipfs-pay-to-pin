@@ -43,7 +43,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run Test Suite
-        run: pnpm run -r build && pnpm run -r test
+        run: pnpm run -r --include-workspace-root build && pnpm run -r --include-workspace-root test
 
   build-and-push:
     name: Build & Push Multi-Arch Image

@@ -56,7 +56,7 @@ pnpm run dev
 
 # Run unit and integration tests
 pnpm test
-pnpm run -r test
+pnpm run -r --include-workspace-root test
 
 # Run Python SDK unit tests
 cd python-sdk && pip install -e ".[dev]" && python3 -m pytest

@@ -19,5 +19,5 @@ Please ensure your title matches the active persona:
 <!-- Confirm that you have run tests and builds. Provide output if helpful. -->
 <!-- For Palette: Describe the Before/After/Agent impact -->
 <!-- For Bolt: Explicitly measure and document the expected performance impact -->
-- [ ] `pnpm run -r build` completed successfully.
-- [ ] `pnpm run -r test` completed successfully.
+- [ ] `pnpm run -r --include-workspace-root build` completed successfully.
+- [ ] `pnpm run -r --include-workspace-root test` completed successfully.

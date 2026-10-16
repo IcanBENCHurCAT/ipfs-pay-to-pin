@@ -16,15 +16,15 @@ Thank you for your interest in contributing to the IPFS Pay-to-Pin Gateway and C
    ```
 3. Run builds across the workspace:
    ```bash
-   pnpm run -r build
+   pnpm run -r --include-workspace-root build
    ```
 4. Run lint checks across the workspace:
    ```bash
-   pnpm run -r lint
+   pnpm run -r --include-workspace-root lint
    ```
 5. Run tests across the workspace:
    ```bash
-   pnpm run -r test
+   pnpm run -r --include-workspace-root test
    ```
 6. Run Python SDK unit tests:
    ```bash
@@ -42,6 +42,6 @@ To ensure maximum hygiene and clear communication, all Pull Requests must adhere
 
 ## Testing
 
-Always run test commands (`pnpm test` or `pnpm run -r test`) before creating a PR. Do not modify `package.json` or `tsconfig.json` dependencies/architectures without prior discussion.
+Always run test commands (`pnpm test` or `pnpm run -r --include-workspace-root test`) before creating a PR. Do not modify `package.json` or `tsconfig.json` dependencies/architectures without prior discussion.
 
 Thank you for helping keep this repository pristine and professional!
