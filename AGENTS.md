@@ -57,7 +57,7 @@ ipfs-pay-to-pin/
 
 ## 4. Coding Conventions & Guardrails
 
-- **Package Manager**: Use `pnpm` exclusively for Node workspace tasks (`pnpm install`, `pnpm test`, `pnpm run -r test`, `pnpm run -r build`).
+- **Package Manager**: Use `pnpm` exclusively for Node workspace tasks (`pnpm install`, `pnpm test`, `pnpm run -r --include-workspace-root test`, `pnpm run -r --include-workspace-root build`).
 - **Python Testing**: Use `python3 -m pytest python-sdk/tests` for Python SDK testing.
 - **No Hardcoded Secrets**: Access credentials (e.g., `PINATA_JWT`, `SUPABASE_KEY`, `ALGORAND_WALLET_PRIVATE_KEY`) strictly from `.env` or environment variables.
 - **x402 Compliance**: Always use standard `@x402/hono` middleware for generating `402 Payment Required` responses (`PAYMENT-REQUIRED` and `PAYMENT-SIGNATURE` headers).
