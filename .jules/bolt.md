@@ -136,3 +136,7 @@
 ## 2026-10-12 - [Avoid .map() intermediate array allocations in large database processing]
 **Learning:** In src/webhook.ts's getPendingDeliveries and getDeliveriesByCid functions, querying the database and returning (data || []).map((row) => this.rowToRecord(row)) dynamically allocated an intermediate array and closure on the V8 event loop for each query result row. When processing large tables or webhook queues, this created significant garbage collection pressure during high-throughput polling.
 **Action:** Replaced the chained .map() call with an explicitly pre-allocated array (new Array(len)) and a single-pass for loop, avoiding dynamic allocation completely.
+
+## 2026-11-21 - [Avoid .map() intermediate array allocations in batch pin processing]
+**Learning:** In `src/batchPin.ts`, using `decodedFiles.map(...)` inside `Promise.allSettled` dynamically allocated an intermediate array and closure on the V8 event loop. When processing large batches of files concurrently, this created garbage collection pressure.
+**Action:** Replaced the chained `.map()` call with an explicitly pre-allocated array (`new Array(decodedFiles.length)`) and a single-pass `for` loop, avoiding dynamic array allocation completely.

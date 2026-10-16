@@ -179,9 +179,13 @@ export async function handleBatchPin(files: unknown[], config: BatchPinConfig, w
   );
 
   // Process all files concurrently — partial success is supported
-  const results = await Promise.allSettled(
-    decodedFiles.map((file) => processSingleFile(file, webhookUrl, config.maxBytes))
-  );
+  // ⚡ Bolt: Replaced decodedFiles.map() with pre-allocated Array and single-pass for-loop
+  // to avoid intermediate array allocations and GC overhead during high-throughput batching
+  const batchPromises = new Array(decodedFiles.length);
+  for (let i = 0; i < decodedFiles.length; i++) {
+    batchPromises[i] = processSingleFile(decodedFiles[i], webhookUrl, config.maxBytes);
+  }
+  const results = await Promise.allSettled(batchPromises);
 
   const pins: (BatchPinResult | BatchPinError)[] = [];
   let succeeded = 0;
