@@ -69,7 +69,7 @@ ipfs-pay-to-pin/
 ## 5. Deployment Procedures & CI/CD
 
 ### Environment Setup & Infrastructure
-- **Hosting Platform**: Oracle Cloud Infrastructure (OCI Always-Free VPS via 1-Click Terraform) or Docker Compose production reverse proxy setup (as defined in constitution).
+- **Hosting Platform**: Oracle Cloud Infrastructure (OCI Always-Free `VM.Standard.E2.1.Micro` at `157.151.148.61`), running Docker Compose in `/opt/services` alongside InkPanel with shared Caddy edge TLS and 120s Watchtower continuous deployment.
 - **Database & State Persistence**: Supabase PostgreSQL (`SUPABASE_URL` and `SUPABASE_KEY`). Ensures pin records, retention metadata, and renewal histories survive dyno restarts and ephemeral filesystem resets. Local file registry (`queue/registry.json`) is maintained as a zero-dependency fallback for offline dev/testing.
 - **Upstream Storage**: Pinata API (`PINATA_JWT`).
 

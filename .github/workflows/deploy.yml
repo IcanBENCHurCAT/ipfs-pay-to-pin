@@ -114,8 +114,8 @@ jobs:
 
       - name: Check Emergency Killswitch
         run: |
-          if ssh -i ~/.ssh/id_ed25519 "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "[ -f /opt/ipfs-pay-to-pin/.deploy-pause ]"; then
-            echo "::error::Emergency deploy pause flag detected (/opt/ipfs-pay-to-pin/.deploy-pause). Aborting deployment!"
+          if ssh -i ~/.ssh/id_ed25519 "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" "[ -f /opt/services/.deploy-pause ] || [ -f /opt/ipfs-pay-to-pin/.deploy-pause ]"; then
+            echo "::error::Emergency deploy pause flag detected (.deploy-pause). Aborting deployment!"
             exit 1
           fi
 
@@ -126,16 +126,16 @@ jobs:
           SSH_CMD="ssh -i ~/.ssh/id_ed25519 ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}"
 
           # 1. Capture current image ID/tag for rollback
-          OLD_IMG=$($SSH_CMD "docker inspect --format '{{.Config.Image}}' ipfs-pay-to-pin-app-1 2>/dev/null" || echo "ipfs-pay-to-pin-app:latest")
+          OLD_IMG=$($SSH_CMD "docker inspect --format '{{.Config.Image}}' ipfs-gateway 2>/dev/null || docker inspect --format '{{.Config.Image}}' ipfs-pay-to-pin-app-1 2>/dev/null" || echo "ghcr.io/${{ env.IMAGE_NAME }}:latest")
           echo "Previous running image: $OLD_IMG"
 
-          # 2. Pull new image and restart container
+          # 2. Pull new image and restart container in unified services stack
           PULL_IMG=$(echo "ghcr.io/${{ env.IMAGE_NAME }}:${NEW_TAG}" | tr '[:upper:]' '[:lower:]')
           echo "Deploying new image tag: $PULL_IMG"
           $SSH_CMD "docker pull $PULL_IMG && \
-                    docker tag $PULL_IMG ipfs-pay-to-pin-app:latest && \
-                    cd /opt/ipfs-pay-to-pin && \
-                    docker compose up -d app"
+                    docker tag $PULL_IMG ghcr.io/${{ env.IMAGE_NAME }}:latest && \
+                    cd /opt/services && \
+                    docker compose up -d gateway"
 
           # 3. Active health probing (up to 60s)
           echo "Probing gateway health endpoint..."
@@ -153,9 +153,9 @@ jobs:
           # 4. Automatic Rollback on failure
           if [ "$HEALTHY" != "true" ]; then
             echo "::error::Post-deploy health check failed! Triggering automatic rollback to $OLD_IMG..."
-            $SSH_CMD "docker tag $OLD_IMG ipfs-pay-to-pin-app:latest && \
-                      cd /opt/ipfs-pay-to-pin && \
-                      docker compose up -d app"
+            $SSH_CMD "docker tag $OLD_IMG ghcr.io/${{ env.IMAGE_NAME }}:latest && \
+                      cd /opt/services && \
+                      docker compose up -d gateway"
             echo "Rollback executed. Exiting with failure."
             exit 1
           fi

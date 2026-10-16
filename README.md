@@ -62,37 +62,15 @@ pnpm run -r --include-workspace-root test
 cd python-sdk && pip install -e ".[dev]" && python3 -m pytest
 ```
 
-## Production Docker & VPS Deployment (DuckDNS + Automated SSL)
+## Production Deployment (Unified Always-Free VM)
 
-Deploy to any VPS (such as Oracle Cloud Always Free VM) with 1-command Docker Compose and automated Let's Encrypt SSL certificates via Caddy:
+IPFS Pay-to-Pin is deployed to a persistent **Oracle Cloud Infrastructure (OCI) Always-Free VM** (`VM.Standard.E2.1.Micro`) at `157.151.148.61`, co-located with InkPanel in `/opt/services`:
 
-```bash
-# 1. Clone repository and set up environment
-cp .env.example .env
-
-# 2. Configure .env with your PINATA_JWT, ESCROW_ADDRESS, DUCKDNS_SUBDOMAIN, and DUCKDNS_TOKEN
-
-# 3. Launch full stack (App + Caddy HTTPS + DuckDNS updater)
-docker compose up -d
-```
-
-- **Reverse Proxy**: Caddy 2 automatically provisions and renews Let's Encrypt TLS certificates for `https://<subdomain>.duckdns.org`.
-- **Volume Persistence**: Upload queue buffers and registry state persist across container restarts via the `queue_data` Docker volume.
-
-## OCI Container Instances (Serverless 0-to-N Auto-Scaling)
-
-Deploy to Oracle Cloud Infrastructure using Terraform with automatic 0-to-N HTTP auto-scaling and Workload Identity Federation (WLIF) for GitHub Actions:
-
-```bash
-cd terraform
-cp terraform.tfvars.example terraform.tfvars
-# Fill in OCI credentials & app settings in terraform.tfvars
-terraform init
-terraform apply
-```
-- **0-to-N Scaling**: Automatically provisions container instances on HTTP traffic demand and scales down to 0 instances when idle to minimize cost.
-- **Shared FSS Storage**: Persists local fallback queue registry across dynamic container instances.
-- **CI/CD Deployment**: Automated container build and push to OCIR via GitHub Actions (`.github/workflows/deploy.yml`).
+- **Unified Ingress**: A single shared Caddy 2 reverse proxy terminates TLS on ports 80/443 and routes traffic by Host header (`pay-to-pin.duckdns.org` -> `gateway:4021`).
+- **Direct DNS**: DNS A records map directly to the static host IP `157.151.148.61` (no background DuckDNS updater container needed).
+- **Volume Persistence**: Upload queue buffers and registry state persist across container restarts via the `gateway_queue` Docker volume (`/app/queue`).
+- **Resource Boundaries**: Enforced 160M memory limit protects host RAM.
+- **CI/CD Pipeline**: GitHub Actions (`.github/workflows/deploy.yml`) builds multi-arch images (`linux/amd64`, `linux/arm64`) and pushes to `ghcr.io/icanbenchurcat/pay-to-pin-gateway`. The on-host Watchtower daemon detects image updates every 120s and rolls the container with automatic layer cleanup.
 
 
 ## License
