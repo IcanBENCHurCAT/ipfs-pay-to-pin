@@ -53,8 +53,15 @@ const counters = new Map<string, number>();
 const gauges = new Map<string, number>();
 
 function metricKey(name: string, labels: MetricLabels): string {
-  const parts = Object.keys(labels).sort().map((k) => `${k}="${labels[k]}"`);
-  return parts.length > 0 ? `${name}{${parts.join(",")}}` : name;
+  const keys = Object.keys(labels);
+  if (keys.length === 0) return name;
+  keys.sort();
+  const parts = new Array(keys.length);
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    parts[i] = `${k}="${labels[k]}"`;
+  }
+  return `${name}{${parts.join(",")}}`;
 }
 
 export function incrementCounter(name: string, labels: MetricLabels = {}, by = 1): void {

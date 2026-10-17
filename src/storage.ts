@@ -55,7 +55,12 @@ const MAGIC_BYTE_SIGNATURES: Record<string, string[]> = {
 };
 
 // ⚡ Bolt: Pre-allocate static Buffer representations of magic byte signatures to prevent intermediate string allocations during validation
-const FLAT_SIGNATURE_BUFFERS = Object.values(MAGIC_BYTE_SIGNATURES).flat().map(sig => Buffer.from(sig, 'latin1'));
+const FLAT_SIGNATURE_BUFFERS: Buffer[] = [];
+for (const sigs of Object.values(MAGIC_BYTE_SIGNATURES)) {
+  for (let i = 0; i < sigs.length; i++) {
+    FLAT_SIGNATURE_BUFFERS.push(Buffer.from(sigs[i], 'latin1'));
+  }
+}
 
 /** Validate file content by checking magic bytes & safe text types */
 export function validateContentType(buffer: Buffer): boolean {
