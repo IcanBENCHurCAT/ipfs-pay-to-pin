@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Optional
 
 
 @dataclass
@@ -8,4 +9,4 @@ class PinResponse:
     status: str
     pin_expires_at: str
     size_bytes: int
-    tx_id: Optional[str] = None
+    tx_id: str | None = None

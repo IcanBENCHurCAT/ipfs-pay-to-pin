@@ -55,6 +55,7 @@ jobs:
           python -m pip install --upgrade pip
           cd python-sdk
           python -m pip install -e ".[dev]"
+          ruff check .
           python -m pytest
 
   security:

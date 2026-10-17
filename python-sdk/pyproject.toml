@@ -52,6 +52,7 @@ all = [
 ]
 dev = [
   "pytest>=7.0.0",
+  "ruff>=0.1.0",
   "py-algorand-sdk>=2.0.0",
   "eth-account>=0.8.0",
   "solders>=0.18.0"

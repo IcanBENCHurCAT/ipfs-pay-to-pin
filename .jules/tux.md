@@ -48,3 +48,8 @@
 
 **Learning:** In `py-algorand-sdk` (v2.12+), calling `txn.sign(private_key)` emits a `DeprecationWarning` instructing callers to use `sign_transaction_with_signer(txn, AccountTransactionSigner(private_key))`. Updating `client.py` to use `AccountTransactionSigner` and `sign_transaction_with_signer` eliminates deprecation warnings while ensuring full compatibility with atomic transaction composition standards.
 **Action:** Always use `AccountTransactionSigner` and `sign_transaction_with_signer` from `algosdk.atomic_transaction_composer` when signing Algorand transactions in Python SDK code.
+
+## 2026-10-27 - Integrate Ruff Python Linting into CI Workflow and SDK
+
+**Learning:** Adding `ruff` as a development dependency in `pyproject.toml` and executing `ruff check .` in GitHub Actions CI ensures automated style and type annotation enforcement across Python packages.
+**Action:** Always include `ruff check` in CI workflows for Python subpackages to catch unused imports, unformatted code, and type annotation issues automatically before merging.
