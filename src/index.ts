@@ -144,23 +144,24 @@ const getCorsOrigin = (reqOrigin: string): string | null => {
     if (!rawOrigin || !rawOrigin.trim()) {
         allowedOrigins = defaultOrigins;
     } else {
-        allowedOrigins = rawOrigin
-            .split(',')
-            .map(o => o.trim())
-            .filter(Boolean)
-            .map(o => {
-                if (o === '*') return '*';
-                try {
-                    const u = new URL(o);
-                    if (u.protocol === 'http:' || u.protocol === 'https:') {
-                        return u.origin;
-                    }
-                } catch {
-                    // Discard malformed URL entries securely
+        const parts = rawOrigin.split(',');
+        allowedOrigins = [];
+        for (let i = 0; i < parts.length; i++) {
+            const o = parts[i].trim();
+            if (!o) continue;
+            if (o === '*') {
+                allowedOrigins.push('*');
+                continue;
+            }
+            try {
+                const u = new URL(o);
+                if (u.protocol === 'http:' || u.protocol === 'https:') {
+                    allowedOrigins.push(u.origin);
                 }
-                return null;
-            })
-            .filter((o): o is string => Boolean(o));
+            } catch {
+                // Discard malformed URL entries securely
+            }
+        }
     }
 
     if (allowedOrigins.includes('*')) {

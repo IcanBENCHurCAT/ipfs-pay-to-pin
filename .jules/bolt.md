@@ -140,3 +140,6 @@
 ## 2026-11-21 - [Avoid .map() intermediate array allocations in batch pin processing]
 **Learning:** In `src/batchPin.ts`, using `decodedFiles.map(...)` inside `Promise.allSettled` dynamically allocated an intermediate array and closure on the V8 event loop. When processing large batches of files concurrently, this created garbage collection pressure.
 **Action:** Replaced the chained `.map()` call with an explicitly pre-allocated array (`new Array(decodedFiles.length)`) and a single-pass `for` loop, avoiding dynamic array allocation completely.
+## 2026-11-22 - [Avoid chained array allocations in hot paths like CORS origin validation]
+**Learning:** Using chained array methods like `.split(',').map().filter().map().filter()` inside per-request functions such as `getCorsOrigin` dynamically allocates multiple intermediate arrays on the V8 event loop. For high-frequency validation logic, this significantly increases garbage collection pressure.
+**Action:** Replaced the chained `.map().filter()` arrays with a single-pass `for` loop and a pre-allocated array strategy, manually populating the allowed origins.
