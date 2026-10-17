@@ -1,17 +1,15 @@
+from __future__ import annotations
+
 import base64
 import json
 import os
-from typing import Optional, Union
 
 import requests
 
 from .exceptions import (
     ExceedsMaxPriceError,
-    InsufficientFundsError,
     PaymentRequiredError,
-    PayToPinError,
     PinningFailedError,
-    RekeyDetectedError,
 )
 from .models import PinResponse
 
@@ -20,13 +18,13 @@ class IpfsPayToPinClient:
     def __init__(
         self,
         gateway_url: str = "https://pay-to-pin.duckdns.org",
-        sender_mnemonic: Optional[str] = None,
-        sender: Optional[str] = None,
-        evm_private_key: Optional[str] = None,
-        solana_private_key: Optional[str] = None,
+        sender_mnemonic: str | None = None,
+        sender: str | None = None,
+        evm_private_key: str | None = None,
+        solana_private_key: str | None = None,
         algod_server: str = "https://mainnet-api.algonode.cloud",
         algod_token: str = "",
-        preferred_network: Optional[str] = None,
+        preferred_network: str | None = None,
     ):
         if not sender_mnemonic and not evm_private_key and not solana_private_key:
             raise ValueError(
@@ -64,7 +62,7 @@ class IpfsPayToPinClient:
         resp.raise_for_status()
         return resp.json()
 
-    def renew_pin(self, cid: str, max_price_usdc: Optional[float] = None) -> PinResponse:
+    def renew_pin(self, cid: str, max_price_usdc: float | None = None) -> PinResponse:
         url = f"{self.gateway_url}/api/v1/renew"
         payload = {"cid": cid}
         resp = requests.post(url, json=payload)
@@ -84,7 +82,7 @@ class IpfsPayToPinClient:
         self,
         data: bytes,
         filename: str = "file.bin",
-        max_price_usdc: Optional[float] = None,
+        max_price_usdc: float | None = None,
     ) -> PinResponse:
         b64_content = base64.b64encode(data).decode("utf-8")
         payload = {
@@ -111,7 +109,7 @@ class IpfsPayToPinClient:
     def pin_file(
         self,
         file_path: str,
-        max_price_usdc: Optional[float] = None,
+        max_price_usdc: float | None = None,
     ) -> PinResponse:
         filename = os.path.basename(file_path)
         with open(file_path, "rb") as f:
@@ -130,7 +128,7 @@ class IpfsPayToPinClient:
         matching = [a for a in accepts if any(a.get("network", "").startswith(net) for net in available_networks)]
         if not matching:
             raise PaymentRequiredError(
-                f"Client has signers for {available_networks}, but server required {list(a.get('network') for a in accepts)}"
+                f"Client has signers for {available_networks}, but server required {[a.get('network') for a in accepts]}"
             )
 
         if self.preferred_network:
@@ -154,7 +152,7 @@ class IpfsPayToPinClient:
         url: str,
         payload: dict,
         initial_resp: requests.Response,
-        max_price_usdc: Optional[float] = None,
+        max_price_usdc: float | None = None,
     ) -> PinResponse:
         hdr = initial_resp.headers.get("PAYMENT-REQUIRED")
         if not hdr:
@@ -162,7 +160,7 @@ class IpfsPayToPinClient:
 
         try:
             challenge = json.loads(base64.b64decode(hdr).decode("utf-8"))
-        except Exception as e:
+        except (json.JSONDecodeError, ValueError, TypeError) as e:
             raise PaymentRequiredError(f"Failed to decode PAYMENT-REQUIRED header challenge: {e}")
 
         accepts = challenge.get("accepts", [])

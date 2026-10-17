@@ -1,17 +1,17 @@
+import base64
+import json
 import unittest
 from unittest.mock import MagicMock, patch
-import json
-import base64
 
 import requests
 from algosdk import account
 from algosdk.transaction import SuggestedParams
+
 from ipfs_pay_to_pin_client.client import IpfsPayToPinClient
 from ipfs_pay_to_pin_client.exceptions import (
     ExceedsMaxPriceError,
     PaymentRequiredError,
     PinningFailedError,
-    RekeyDetectedError,
 )
 from ipfs_pay_to_pin_client.models import PinResponse
 
