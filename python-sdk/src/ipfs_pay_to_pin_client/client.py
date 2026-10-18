@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import os
+from urllib.parse import quote
 
 import requests
 
@@ -57,21 +58,35 @@ class IpfsPayToPinClient:
                 pass
 
     def get_status(self, cid: str) -> dict:
-        url = f"{self.gateway_url}/api/v1/pin/{cid}"
-        resp = requests.get(url)
-        resp.raise_for_status()
-        return resp.json()
+        if not cid or not isinstance(cid, str) or not cid.strip():
+            raise ValueError("Invalid CID provided: Expected a non-empty string.")
+
+        encoded_cid = quote(cid.strip(), safe="")
+        url = f"{self.gateway_url}/api/v1/pin/{encoded_cid}"
+        try:
+            resp = requests.get(url)
+            resp.raise_for_status()
+            return resp.json()
+        except requests.RequestException as e:
+            err_msg = str(e)
+            if e.response is not None and getattr(e.response, "text", None):
+                err_msg = e.response.text or err_msg
+            raise PinningFailedError(f"Status lookup failed for CID {cid}: {err_msg}") from e
 
     def renew_pin(self, cid: str, max_price_usdc: float | None = None) -> PinResponse:
+        if not cid or not isinstance(cid, str) or not cid.strip():
+            raise ValueError("Invalid CID provided: Expected a non-empty string.")
+
+        cid_clean = cid.strip()
         url = f"{self.gateway_url}/api/v1/renew"
-        payload = {"cid": cid}
+        payload = {"cid": cid_clean}
         resp = requests.post(url, json=payload)
         if resp.status_code == 402:
             return self._handle_payment_flow(url, payload, resp, max_price_usdc=max_price_usdc)
         resp.raise_for_status()
         data = resp.json()
         return PinResponse(
-            cid=data.get("cid", cid),
+            cid=data.get("cid", cid_clean),
             status=data.get("status", "pinned"),
             pin_expires_at=data.get("expires_at") or data.get("pin_expires_at", ""),
             size_bytes=data.get("size_bytes", 0),
@@ -84,10 +99,15 @@ class IpfsPayToPinClient:
         filename: str = "file.bin",
         max_price_usdc: float | None = None,
     ) -> PinResponse:
+        if not isinstance(data, (bytes, bytearray)):
+            raise TypeError(f"Expected data to be bytes or bytearray, got {type(data).__name__}")
+        if not filename or not isinstance(filename, str) or not filename.strip():
+            raise ValueError("Expected filename to be a non-empty string.")
+
         b64_content = base64.b64encode(data).decode("utf-8")
         payload = {
             "data": b64_content,
-            "filename": filename,
+            "filename": filename.strip(),
         }
         url = f"{self.gateway_url}/api/v1/pin"
         resp = requests.post(url, json=payload)
@@ -111,7 +131,10 @@ class IpfsPayToPinClient:
         file_path: str,
         max_price_usdc: float | None = None,
     ) -> PinResponse:
-        filename = os.path.basename(file_path)
+        if not file_path or not isinstance(file_path, str) or not file_path.strip():
+            raise ValueError("Expected file_path to be a non-empty string.")
+
+        filename = os.path.basename(file_path.strip())
         with open(file_path, "rb") as f:
             content = f.read()
         return self.pin_bytes(content, filename=filename, max_price_usdc=max_price_usdc)
@@ -254,4 +277,3 @@ class IpfsPayToPinClient:
 
         err_hdr = paid_resp.headers.get("payment-required") or paid_resp.headers.get("PAYMENT-REQUIRED") or ""
         raise PinningFailedError(f"Post-payment request failed with status {paid_resp.status_code}: {paid_resp.text} | Header: {err_hdr}")
-

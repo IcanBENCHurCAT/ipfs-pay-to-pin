@@ -67,16 +67,84 @@ class TestIpfsPayToPinClient(unittest.TestCase):
     @patch("ipfs_pay_to_pin_client.client.requests.get")
     @patch("algosdk.v2client.algod.AlgodClient")
     @patch("algosdk.mnemonic.to_private_key")
+    def test_get_status_url_encoding(self, mock_to_priv, mock_algod, mock_get):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"cid": "QmTest/path space", "status": "pinned"}
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+        res = client.get_status("  QmTest/path space  ")
+        self.assertEqual(res["cid"], "QmTest/path space")
+        mock_get.assert_called_once_with(f"{self.gateway_url}/api/v1/pin/QmTest%2Fpath%20space")
+
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_get_status_invalid_cid(self, mock_to_priv, mock_algod):
+        mock_to_priv.return_value = self.private_key
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        for invalid_cid in ["", "   ", None, 123]:
+            with self.assertRaises(ValueError) as ctx:
+                client.get_status(invalid_cid)  # type: ignore
+            self.assertIn("Invalid CID provided", str(ctx.exception))
+
+    @patch("ipfs_pay_to_pin_client.client.requests.get")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
     def test_get_status_http_error(self, mock_to_priv, mock_algod, mock_get):
         mock_to_priv.return_value = self.private_key
         mock_response = MagicMock()
         mock_response.status_code = 404
-        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Not Found")
+        mock_response.text = "CID Not Found"
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Not Found", response=mock_response)
         mock_get.return_value = mock_response
 
         client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
-        with self.assertRaises(requests.exceptions.HTTPError):
+        with self.assertRaises(PinningFailedError) as ctx:
             client.get_status("QmNotFound")
+
+        self.assertIn("Status lookup failed for CID QmNotFound: CID Not Found", str(ctx.exception))
+
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_renew_pin_invalid_cid(self, mock_to_priv, mock_algod):
+        mock_to_priv.return_value = self.private_key
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        for invalid_cid in ["", "   ", None, 123]:
+            with self.assertRaises(ValueError) as ctx:
+                client.renew_pin(invalid_cid)  # type: ignore
+            self.assertIn("Invalid CID provided", str(ctx.exception))
+
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_bytes_invalid_input(self, mock_to_priv, mock_algod):
+        mock_to_priv.return_value = self.private_key
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        # Invalid data type
+        with self.assertRaises(TypeError) as ctx:
+            client.pin_bytes("not bytes")  # type: ignore
+        self.assertIn("Expected data to be bytes or bytearray", str(ctx.exception))
+
+        # Invalid filename
+        for invalid_filename in ["", "   ", None, 123]:
+            with self.assertRaises(ValueError) as ctx:
+                client.pin_bytes(b"hello", filename=invalid_filename)  # type: ignore
+            self.assertIn("Expected filename to be a non-empty string", str(ctx.exception))
+
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_file_invalid_path(self, mock_to_priv, mock_algod):
+        mock_to_priv.return_value = self.private_key
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        for invalid_path in ["", "   ", None, 123]:
+            with self.assertRaises(ValueError) as ctx:
+                client.pin_file(invalid_path)  # type: ignore
+            self.assertIn("Expected file_path to be a non-empty string", str(ctx.exception))
 
     @patch("ipfs_pay_to_pin_client.client.requests.post")
     @patch("algosdk.v2client.algod.AlgodClient")
