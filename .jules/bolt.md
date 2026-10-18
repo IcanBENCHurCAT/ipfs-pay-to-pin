@@ -143,3 +143,7 @@
 ## 2026-11-22 - [Avoid chained array allocations in hot paths like CORS origin validation]
 **Learning:** Using chained array methods like `.split(',').map().filter().map().filter()` inside per-request functions such as `getCorsOrigin` dynamically allocates multiple intermediate arrays on the V8 event loop. For high-frequency validation logic, this significantly increases garbage collection pressure.
 **Action:** Replaced the chained `.map().filter()` arrays with a single-pass `for` loop and a pre-allocated array strategy, manually populating the allowed origins.
+
+## 2026-11-23 - [Avoid dynamic array allocations in batch loop pushing]
+**Learning:** In `src/webhook.ts` `processPending` function, accumulating promises for outgoing HTTP requests by continuously calling `Array.prototype.push()` inside a loop dynamically allocates memory on the V8 event loop. When processing batches of high-frequency background worker jobs, this hidden allocation pattern spikes garbage collection overhead and CPU latency.
+**Action:** Replaced the empty array declaration and `.push()` strategy with a pre-allocated array (`new Array(pending.length)`) and a direct index assignment `deliveryPromises[promiseIndex++]`. Finally, slice the populated portion of the array `deliveryPromises.slice(0, promiseIndex)` before passing it to `Promise.all` to ensure only the valid promises are executed. This eliminates the dynamic allocation penalty.
