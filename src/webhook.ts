@@ -346,9 +346,12 @@ export class WebhookDeliveryService {
     let skipped = 0;
 
     // ⚡ Bolt: Parallelized outgoing webhook HTTP requests using Promise.all to reduce sequential processing latency
-    const deliveryPromises: ReturnType<typeof this.deliver>[] = [];
+    // ⚡ Bolt: Pre-allocated array and single-pass for-loop to avoid dynamic array memory allocation with .push() during high-throughput webhook delivery
+    const deliveryPromises: ReturnType<typeof this.deliver>[] = new Array(pending.length);
+    let promiseIndex = 0;
 
-    for (const record of pending) {
+    for (let i = 0; i < pending.length; i++) {
+      const record = pending[i];
       if (record.status === 'DELIVERED') {
         skipped++;
         continue;
@@ -360,10 +363,10 @@ export class WebhookDeliveryService {
         continue;
       }
 
-      deliveryPromises.push(this.deliver(record));
+      deliveryPromises[promiseIndex++] = this.deliver(record);
     }
 
-    const results = await Promise.all(deliveryPromises);
+    const results = await Promise.all(deliveryPromises.slice(0, promiseIndex));
 
     for (const result of results) {
       if (result.status >= 200 && result.status < 300) {
