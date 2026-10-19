@@ -5,6 +5,10 @@ class PayToPinError(Exception):
     """Base exception for all IPFS Pay-to-Pin client errors."""
 
 
+class ConfigurationError(PayToPinError):
+    """Raised when the SDK is misconfigured or when invalid inputs are provided to client methods."""
+
+
 class PaymentRequiredError(PayToPinError):
     """Raised when 402 Payment Required response is returned or payment fails."""
     def __init__(self, message: str, challenge: dict | None = None):

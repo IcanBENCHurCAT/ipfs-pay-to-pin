@@ -8,6 +8,7 @@ from urllib.parse import quote
 import requests
 
 from .exceptions import (
+    ConfigurationError,
     ExceedsMaxPriceError,
     PaymentRequiredError,
     PinningFailedError,
@@ -28,7 +29,7 @@ class IpfsPayToPinClient:
         preferred_network: str | None = None,
     ):
         if not sender_mnemonic and not evm_private_key and not solana_private_key:
-            raise ValueError(
+            raise ConfigurationError(
                 "IpfsPayToPinClient requires at least one wallet key (sender_mnemonic, evm_private_key, or solana_private_key)."
             )
 
@@ -59,7 +60,7 @@ class IpfsPayToPinClient:
 
     def get_status(self, cid: str) -> dict:
         if not cid or not isinstance(cid, str) or not cid.strip():
-            raise ValueError("Invalid CID provided: Expected a non-empty string.")
+            raise ConfigurationError("Invalid CID provided: Expected a non-empty string.")
 
         encoded_cid = quote(cid.strip(), safe="")
         url = f"{self.gateway_url}/api/v1/pin/{encoded_cid}"
@@ -75,7 +76,7 @@ class IpfsPayToPinClient:
 
     def renew_pin(self, cid: str, max_price_usdc: float | None = None) -> PinResponse:
         if not cid or not isinstance(cid, str) or not cid.strip():
-            raise ValueError("Invalid CID provided: Expected a non-empty string.")
+            raise ConfigurationError("Invalid CID provided: Expected a non-empty string.")
 
         cid_clean = cid.strip()
         url = f"{self.gateway_url}/api/v1/renew"
@@ -100,9 +101,9 @@ class IpfsPayToPinClient:
         max_price_usdc: float | None = None,
     ) -> PinResponse:
         if not isinstance(data, (bytes, bytearray)):
-            raise TypeError(f"Expected data to be bytes or bytearray, got {type(data).__name__}")
+            raise ConfigurationError(f"Expected data to be bytes or bytearray, got {type(data).__name__}")
         if not filename or not isinstance(filename, str) or not filename.strip():
-            raise ValueError("Expected filename to be a non-empty string.")
+            raise ConfigurationError("Expected filename to be a non-empty string.")
 
         b64_content = base64.b64encode(data).decode("utf-8")
         payload = {
@@ -132,7 +133,7 @@ class IpfsPayToPinClient:
         max_price_usdc: float | None = None,
     ) -> PinResponse:
         if not file_path or not isinstance(file_path, str) or not file_path.strip():
-            raise ValueError("Expected file_path to be a non-empty string.")
+            raise ConfigurationError("Expected file_path to be a non-empty string.")
 
         filename = os.path.basename(file_path.strip())
         with open(file_path, "rb") as f:

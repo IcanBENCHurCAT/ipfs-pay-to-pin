@@ -9,6 +9,7 @@ from algosdk.transaction import SuggestedParams
 
 from ipfs_pay_to_pin_client.client import IpfsPayToPinClient
 from ipfs_pay_to_pin_client.exceptions import (
+    ConfigurationError,
     ExceedsMaxPriceError,
     PaymentRequiredError,
     PinningFailedError,
@@ -33,6 +34,11 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         )
         self.assertEqual(client.gateway_url, "http://localhost:4021")
         self.assertEqual(client.sender_address, self.sender_address)
+
+    def test_init_missing_keys(self):
+        with self.assertRaises(ConfigurationError) as ctx:
+            IpfsPayToPinClient(gateway_url=self.gateway_url)
+        self.assertIn("requires at least one wallet key", str(ctx.exception))
 
     def test_init_algosdk_import_error(self):
         real_import = __import__
@@ -86,7 +92,7 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
 
         for invalid_cid in ["", "   ", None, 123]:
-            with self.assertRaises(ValueError) as ctx:
+            with self.assertRaises(ConfigurationError) as ctx:
                 client.get_status(invalid_cid)  # type: ignore
             self.assertIn("Invalid CID provided", str(ctx.exception))
 
@@ -114,7 +120,7 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
 
         for invalid_cid in ["", "   ", None, 123]:
-            with self.assertRaises(ValueError) as ctx:
+            with self.assertRaises(ConfigurationError) as ctx:
                 client.renew_pin(invalid_cid)  # type: ignore
             self.assertIn("Invalid CID provided", str(ctx.exception))
 
@@ -125,13 +131,13 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
 
         # Invalid data type
-        with self.assertRaises(TypeError) as ctx:
+        with self.assertRaises(ConfigurationError) as ctx:
             client.pin_bytes("not bytes")  # type: ignore
         self.assertIn("Expected data to be bytes or bytearray", str(ctx.exception))
 
         # Invalid filename
         for invalid_filename in ["", "   ", None, 123]:
-            with self.assertRaises(ValueError) as ctx:
+            with self.assertRaises(ConfigurationError) as ctx:
                 client.pin_bytes(b"hello", filename=invalid_filename)  # type: ignore
             self.assertIn("Expected filename to be a non-empty string", str(ctx.exception))
 
@@ -142,7 +148,7 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
 
         for invalid_path in ["", "   ", None, 123]:
-            with self.assertRaises(ValueError) as ctx:
+            with self.assertRaises(ConfigurationError) as ctx:
                 client.pin_file(invalid_path)  # type: ignore
             self.assertIn("Expected file_path to be a non-empty string", str(ctx.exception))
 
