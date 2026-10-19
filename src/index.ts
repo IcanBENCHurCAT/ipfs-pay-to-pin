@@ -130,9 +130,13 @@ const pinDiscovery = declareDiscoveryExtension({
 
 const app = new Hono();
 
-// 🛡️ Sentinel: Restrict CORS origin to trusted domains and strictly validate origin URLs
-// to prevent unauthorized web applications or misconfigured substring entries from making cross-origin requests.
-const getCorsOrigin = (reqOrigin: string): string | null => {
+// ⚡ Bolt: Pre-calculate CORS origins once on startup instead of parsing per-request
+// to eliminate O(N) array allocation and URL parsing overhead on the event loop.
+let cachedAllowedOrigins: string[] = [];
+let isCorsWildcard = false;
+let lastCorsOriginConfig = config.corsOrigin;
+
+const initCorsOrigins = () => {
     const rawOrigin = config.corsOrigin;
     const defaultOrigins = [
         "https://pay-to-pin.duckdns.org",
@@ -140,35 +144,48 @@ const getCorsOrigin = (reqOrigin: string): string | null => {
         "http://localhost:4021"
     ];
 
-    let allowedOrigins: string[];
+    cachedAllowedOrigins = [];
+    isCorsWildcard = false;
+
     if (!rawOrigin || !rawOrigin.trim()) {
-        allowedOrigins = defaultOrigins;
+        cachedAllowedOrigins = defaultOrigins;
     } else {
         const parts = rawOrigin.split(',');
-        allowedOrigins = [];
         for (let i = 0; i < parts.length; i++) {
             const o = parts[i].trim();
             if (!o) continue;
             if (o === '*') {
-                allowedOrigins.push('*');
+                isCorsWildcard = true;
                 continue;
             }
             try {
                 const u = new URL(o);
                 if (u.protocol === 'http:' || u.protocol === 'https:') {
-                    allowedOrigins.push(u.origin);
+                    cachedAllowedOrigins.push(u.origin);
                 }
             } catch {
                 // Discard malformed URL entries securely
             }
         }
     }
+};
 
-    if (allowedOrigins.includes('*')) {
+initCorsOrigins();
+
+// 🛡️ Sentinel: Restrict CORS origin to trusted domains and strictly validate origin URLs
+// to prevent unauthorized web applications or misconfigured substring entries from making cross-origin requests.
+const getCorsOrigin = (reqOrigin: string): string | null => {
+    // ⚡ Bolt: allow config hot-reloading for tests without rebuilding
+    if (config.corsOrigin !== lastCorsOriginConfig) {
+        initCorsOrigins();
+        lastCorsOriginConfig = config.corsOrigin;
+    }
+
+    if (isCorsWildcard) {
         return '*';
     }
 
-    if (allowedOrigins.includes(reqOrigin)) {
+    if (cachedAllowedOrigins.includes(reqOrigin)) {
         return reqOrigin;
     }
 
