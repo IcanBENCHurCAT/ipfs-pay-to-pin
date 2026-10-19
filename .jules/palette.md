@@ -31,3 +31,7 @@
 ## 2025-08-23 - Exported Utility Types and Internal Boundaries
 **Learning:** Hardcoding protocol boundaries (like JSON payload overhead) and keeping useful callback types inline makes it difficult for consuming agents to predict failures or implement type-safe configurations without redundant code.
 **Action:** Always extract and export utility types (e.g. `ConfirmPriceCallback`) and magic number protocol limits (e.g. `DEFAULT_MAX_PRICE_USDC`, `PAYLOAD_JSON_OVERHEAD_BYTES`) as named constants to improve discoverability and predictability.
+
+## 2025-10-19 - Strict Python SDK Input Validation
+**Learning:** Relying on built-in `ValueError` or `TypeError` for invalid inputs makes it difficult for consumers to distinctively catch and recover from SDK-specific misconfigurations without catching broad system errors.
+**Action:** Always provide explicit, custom error types (e.g. `ConfigurationError`) across all SDK languages for input boundary validations, ensuring consistent and catchable error handling behavior for consuming agents.

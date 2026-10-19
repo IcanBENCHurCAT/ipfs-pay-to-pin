@@ -1,5 +1,6 @@
 from .client import IpfsPayToPinClient
 from .exceptions import (
+    ConfigurationError,
     ExceedsMaxPriceError,
     InsufficientFundsError,
     PaymentRequiredError,
@@ -10,6 +11,7 @@ from .exceptions import (
 from .models import PinResponse
 
 __all__ = [
+    "ConfigurationError",
     "ExceedsMaxPriceError",
     "InsufficientFundsError",
     "IpfsPayToPinClient",
