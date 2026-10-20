@@ -133,12 +133,29 @@ jobs:
           echo "Previous running image: $OLD_IMG"
 
           # 2. Pull new image and restart container in unified services stack
+          # Bounded retry: the host also runs Watchtower on a 120s cycle, and
+          # a concurrent container recreate can make `docker compose up` fail
+          # transiently with a Docker daemon "No such container" error
+          # (deploy run 39359773128). Pull/tag/up are idempotent, so retrying
+          # the whole remote command is safe.
           PULL_IMG=$(echo "ghcr.io/${{ env.IMAGE_NAME }}:${NEW_TAG}" | tr '[:upper:]' '[:lower:]')
           echo "Deploying new image tag: $PULL_IMG"
-          $SSH_CMD "docker pull $PULL_IMG && \
+          DEPLOY_OK=false
+          for attempt in 1 2 3; do
+            if $SSH_CMD "docker pull $PULL_IMG && \
                     docker tag $PULL_IMG ghcr.io/${{ env.IMAGE_NAME }}:latest && \
                     cd /opt/services && \
-                    docker compose up -d gateway"
+                    docker compose up -d gateway"; then
+              DEPLOY_OK=true
+              break
+            fi
+            echo "Deploy attempt $attempt failed; retrying in 10s..."
+            sleep 10
+          done
+          if [ "$DEPLOY_OK" != "true" ]; then
+            echo "::error::Deploy failed after 3 attempts."
+            exit 1
+          fi
 
           # 3. Active health probing (up to 60s)
           echo "Probing gateway health endpoint..."
@@ -156,9 +173,20 @@ jobs:
           # 4. Automatic Rollback on failure
           if [ "$HEALTHY" != "true" ]; then
             echo "::error::Post-deploy health check failed! Triggering automatic rollback to $OLD_IMG..."
-            $SSH_CMD "docker tag $OLD_IMG ghcr.io/${{ env.IMAGE_NAME }}:latest && \
+            ROLLBACK_OK=false
+            for attempt in 1 2 3; do
+              if $SSH_CMD "docker tag $OLD_IMG ghcr.io/${{ env.IMAGE_NAME }}:latest && \
                       cd /opt/services && \
-                      docker compose up -d gateway"
+                      docker compose up -d gateway"; then
+                ROLLBACK_OK=true
+                break
+              fi
+              echo "Rollback attempt $attempt failed; retrying in 10s..."
+              sleep 10
+            done
+            if [ "$ROLLBACK_OK" != "true" ]; then
+              echo "::error::Rollback failed after 3 attempts."
+            fi
             echo "Rollback executed. Exiting with failure."
             exit 1
           fi
