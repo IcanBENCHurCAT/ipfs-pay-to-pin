@@ -53,3 +53,8 @@
 
 **Learning:** Adding `ruff` as a development dependency in `pyproject.toml` and executing `ruff check .` in GitHub Actions CI ensures automated style and type annotation enforcement across Python packages.
 **Action:** Always include `ruff check` in CI workflows for Python subpackages to catch unused imports, unformatted code, and type annotation issues automatically before merging.
+
+## 2026-10-28 - Standardize Workflow Node Versions & Enforce Release Test Guards
+
+**Learning:** Release workflows (`post-release.yml`) must run unit test suites prior to package publication to prevent publishing broken build artifacts. In addition, `pnpm/action-setup` must precede `actions/setup-node` with `cache: 'pnpm'` and `node-version-file: '.node-version'` to guarantee single-source-of-truth Node versioning and fast CI caching.
+**Action:** Always verify that release actions execute test suites (`pnpm test` / `pytest`) before build/publish steps and use `.node-version` for Node.js setup across all GitHub Actions workflows.
