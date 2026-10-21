@@ -58,3 +58,8 @@
 
 **Learning:** Release workflows (`post-release.yml`) must run unit test suites prior to package publication to prevent publishing broken build artifacts. In addition, `pnpm/action-setup` must precede `actions/setup-node` with `cache: 'pnpm'` and `node-version-file: '.node-version'` to guarantee single-source-of-truth Node versioning and fast CI caching.
 **Action:** Always verify that release actions execute test suites (`pnpm test` / `pytest`) before build/publish steps and use `.node-version` for Node.js setup across all GitHub Actions workflows.
+
+## 2026-11-01 - Parallelize CI Jobs & Add Multi-Python Version Matrix Testing
+
+**Learning:** Splitting multi-language CI workflows into distinct parallel jobs (e.g. `test-ts` and `test-python`) optimizes CI pipeline execution speed by running Node and Python test suites in parallel without setting up redundant language environments in each job. Using GitHub Actions `strategy.matrix` for Python allows continuous automated verification across supported Python runtimes (3.11, 3.12, 3.13).
+**Action:** When configuring multi-language CI pipelines in GitHub Actions, create separate parallel jobs for each language ecosystem and leverage matrix strategies for all supported runtime versions.
