@@ -17,8 +17,8 @@ permissions:
   contents: read
 
 jobs:
-  test:
-    name: Run Test Suites (TS & Python)
+  test-ts:
+    name: Run TypeScript Test Suite
     runs-on: ubuntu-latest
 
     steps:
@@ -36,11 +36,6 @@ jobs:
           node-version-file: '.node-version'
           cache: 'pnpm'
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
       - name: Install Node dependencies
         run: pnpm install --frozen-lockfile
 
@@ -49,6 +44,23 @@ jobs:
 
       - name: Run TypeScript build & test suite
         run: pnpm run -r --include-workspace-root build && pnpm run -r --include-workspace-root test
+
+  test-python:
+    name: Run Python SDK Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.12', '3.13']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
       - name: Install Python dependencies & run Python SDK unit tests
         run: |
