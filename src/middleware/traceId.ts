@@ -16,11 +16,22 @@ import crypto from 'crypto';
 import type { Context, Next } from 'hono';
 import { logger } from '../observability.js';
 import { config } from '../config.js';
+import { getConnInfo } from '@hono/node-server/conninfo';
+
 
 /**
  * Safely extracts the native IP address from Node/Hono request objects.
  */
 function getNativeIp(c: Context): string | undefined {
+  try {
+    const info = getConnInfo(c);
+    if (info.remote.address) {
+      return info.remote.address;
+    }
+  } catch (e) {
+    // Ignore error and fallback
+  }
+
   const rawObj = c.req.raw as unknown as Record<string, unknown> | undefined;
   if (typeof rawObj?.ip === 'string') {
     return rawObj.ip;
