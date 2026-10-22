@@ -274,13 +274,15 @@ export class FileQueue {
 
   private filterPendingItems(items: QueueItem[]): QueueItem[] {
     // Off-by-one fix: retryCount < maxRetries ensures exactly maxRetries (5) attempts
-    const pendingItems: QueueItem[] = [];
+    // ⚡ Bolt: Use a pre-allocated array to avoid dynamic array allocations from .push()
+    const pendingItems: QueueItem[] = new Array(items.length);
+    let count = 0;
     for (let i = 0; i < items.length; i++) {
       if (items[i].status === 'PENDING' && items[i].retryCount < this.maxRetries) {
-        pendingItems.push(items[i]);
+        pendingItems[count++] = items[i];
       }
     }
-    return pendingItems;
+    return pendingItems.slice(0, count);
   }
 
   private async processSingleJob(item: QueueItem): Promise<void> {
@@ -428,23 +430,25 @@ export class FileQueue {
       const items = await this.getItems();
       const now = Date.now();
 
-      const expiredItems: QueueItem[] = [];
+      // ⚡ Bolt: Use a pre-allocated array to avoid dynamic array allocations from .push()
+      const expiredItems: QueueItem[] = new Array(items.length);
+      let expiredCount = 0;
       for (let i = 0; i < items.length; i++) {
         const item = items[i];
         if (item.status === 'PINNED') {
           const gracePeriodEnd = item.expires_at + 30 * 24 * 60 * 60 * 1000;
           if (now > gracePeriodEnd) {
-            expiredItems.push(item);
+            expiredItems[expiredCount++] = item;
           }
         }
       }
 
-      if (expiredItems.length === 0) return;
+      if (expiredCount === 0) return;
 
       // ⚡ Bolt: Parallelize IPFS storage unpin calls with Promise.all to prevent sequential loop blocking
       // ⚡ Bolt: Avoid .map() and use pre-allocated array for unpin promises
-      const unpinPromises = new Array(expiredItems.length);
-      for (let i = 0; i < expiredItems.length; i++) {
+      const unpinPromises = new Array(expiredCount);
+      for (let i = 0; i < expiredCount; i++) {
         const item = expiredItems[i];
         unpinPromises[i] = (async () => {
           console.log(`[Queue Worker] CID ${item.cid} has exceeded grace period. Unpinning...`);
