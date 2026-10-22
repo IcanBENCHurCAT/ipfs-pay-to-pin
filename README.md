@@ -64,10 +64,10 @@ cd python-sdk && pip install -e ".[dev]" && python3 -m pytest
 
 ## Production Deployment (Unified Always-Free VM)
 
-IPFS Pay-to-Pin is deployed to a persistent **Oracle Cloud Infrastructure (OCI) Always-Free VM** (`VM.Standard.E2.1.Micro`) at `157.151.148.61`, co-located with InkPanel in `/opt/services`:
+IPFS Pay-to-Pin is deployed to a persistent **Oracle Cloud Infrastructure (OCI) Always-Free VM** (`VM.Standard.E2.1.Micro`) at `<DEPLOY_HOST_IP>`, co-located with InkPanel in `/opt/services`:
 
 - **Unified Ingress**: A single shared Caddy 2 reverse proxy terminates TLS on ports 80/443 and routes traffic by Host header (`pay-to-pin.duckdns.org` -> `gateway:4021`).
-- **Direct DNS**: DNS A records map directly to the static host IP `157.151.148.61` (no background DuckDNS updater container needed).
+- **Direct DNS**: DNS A records map directly to the static host IP `<DEPLOY_HOST_IP>` (no background DuckDNS updater container needed).
 - **Volume Persistence**: Upload queue buffers and registry state persist across container restarts via the `gateway_queue` Docker volume (`/app/queue`).
 - **Resource Boundaries**: Enforced 160M memory limit protects host RAM.
 - **CI/CD Pipeline**: GitHub Actions (`.github/workflows/deploy.yml`) builds multi-arch images (`linux/amd64`, `linux/arm64`) and pushes to `ghcr.io/icanbenchurcat/pay-to-pin-gateway`. The on-host Watchtower daemon detects image updates every 120s and rolls the container with automatic layer cleanup.
