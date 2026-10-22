@@ -57,7 +57,7 @@ graph TD
 
 ## 3. Compartment & Tagging Model
 
-* **Compartment**: `production-apps` (`ocid1.compartment.oc1..aaaaaaaajs6nvfpie7q6vqgokutusjbj4lip4cnvd7fvtxmer3sgflg44zvq`).
+* **Compartment**: `production-apps` (`ocid1.compartment.oc1..example...`).
 * **Design Justification**:
   * Cross-compartment VCN peering and subnet routing in OCI adds unnecessary policy overhead and complex IAM statement proliferation.
   * A single unified compartment with strict freeform tags (`Project: inkpanel`, `Project: pay-to-pin`, `Role: edge-proxy`, `Role: docker-apps`) allows:
@@ -95,6 +95,6 @@ graph TD
 
 ## 6. Remote State & Object Storage
 
-* **Bucket**: `terraform-remote-state` in namespace `id1fbfmorrpo`.
+* **Bucket**: `terraform-remote-state` in namespace `<OCI_NAMESPACE>`.
 * **Access**: Pre-Authenticated Request (PAR) read/write endpoints with TLS 1.3 encryption and object versioning enabled.
 * **Isolation**: Separate object keys (`inkpanel.tfstate` and `pay-to-pin.tfstate`) prevent cross-project state corruption.
