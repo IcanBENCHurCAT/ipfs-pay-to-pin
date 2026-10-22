@@ -87,7 +87,8 @@ function validateBatchPayload(
     return { error: `Batch exceeds maximum file count of ${config.maxFiles}.` };
   }
 
-  const decoded: BatchPinItem[] = [];
+  // ⚡ Bolt: Use a pre-allocated array to avoid dynamic array allocations from .push()
+  const decoded: BatchPinItem[] = new Array(files.length);
   let totalBytes = 0;
 
   for (let i = 0; i < files.length; i++) {
@@ -119,10 +120,10 @@ function validateBatchPayload(
     const parsedBinaryBytes = Math.floor(((dataLen - padding) * 3) / 4);
     totalBytes += parsedBinaryBytes;
 
-    decoded.push({
+    decoded[i] = {
       filename: obj.filename,
       data: obj.data,
-    });
+    };
 
     if (totalBytes > config.maxBytes) {
       return { error: `Total batch size (${totalBytes} bytes) exceeds maximum of ${config.maxBytes} bytes.` };
@@ -187,7 +188,8 @@ export async function handleBatchPin(files: unknown[], config: BatchPinConfig, w
   }
   const results = await Promise.allSettled(batchPromises);
 
-  const pins: (BatchPinResult | BatchPinError)[] = [];
+  // ⚡ Bolt: Use a pre-allocated array to avoid dynamic array allocations from .push()
+  const pins: (BatchPinResult | BatchPinError)[] = new Array(results.length);
   let succeeded = 0;
   let failed = 0;
 
@@ -197,18 +199,18 @@ export async function handleBatchPin(files: unknown[], config: BatchPinConfig, w
       // Could be success or error from processSingleFile
       const item = result.value;
       if ('cid' in item) {
-        pins.push(item);
+        pins[i] = item;
         succeeded++;
       } else {
-        pins.push(item);
+        pins[i] = item;
         failed++;
       }
     } else {
       // Unexpected crash in processing — report as error for this item
-      pins.push({
+      pins[i] = {
         filename: decodedFiles[i].filename,
         error: result.reason?.message || 'Unexpected processing failure.',
-      });
+      };
       failed++;
       logger.error({ index: i, error: result.reason }, '[Batch] Unexpected processing crash');
     }

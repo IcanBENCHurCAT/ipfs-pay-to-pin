@@ -150,3 +150,7 @@
 ## 2026-11-23 - [Avoid dynamic array allocations and parsing in hot paths like CORS origin validation]
 **Learning:** Calculating CORS origins dynamically on every request by parsing a configuration string blocks the event loop and increases garbage collection overhead. Pre-calculating this once at startup eliminates hidden per-request O(N) overhead.
 **Action:** Pre-calculate the configured CORS origins string during application startup instead of running URL parsing code inside the `getCorsOrigin` method which gets executed on every request.
+
+## 2023-10-22 - Avoid `Array.prototype.push()` in hot paths
+**Learning:** Accumulating items via `.push()` in loops triggers repeated V8 array memory reallocations, significantly increasing garbage collection overhead and latency during high-throughput execution (e.g. background workers and batch endpoints).
+**Action:** Always use pre-allocated arrays (`new Array(length)`) with direct index assignment (`array[i] = value`) inside standard `for` loops. If the final length is dynamic/smaller, use an index counter (`count++`) and `.slice(0, count)` at the end to trim the array without triggering intermediate reallocations.
