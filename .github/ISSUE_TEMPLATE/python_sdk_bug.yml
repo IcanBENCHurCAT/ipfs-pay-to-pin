@@ -1,0 +1,60 @@
+name: Python SDK Bug Report
+description: Report an issue or unexpected behavior in the Python SDK (`ipfs-pay-to-pin-client`)
+title: '[Python SDK BUG] '
+labels: ['bug', 'python-sdk']
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: Describe the bug or unexpected behavior when using the Python SDK.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Provide code snippet or steps to reproduce the issue.
+      placeholder: |
+        ```python
+        from ipfs_pay_to_pin_client import IpfsPayToPinClient
+
+        client = IpfsPayToPinClient(...)
+        client.pin_file(...)
+        ```
+    validations:
+      required: true
+  - type: input
+    id: python_version
+    attributes:
+      label: Python Version
+      description: What version of Python are you using? (e.g. 3.11, 3.12, 3.13)
+    validations:
+      required: true
+  - type: input
+    id: sdk_version
+    attributes:
+      label: Python SDK Version
+      description: Which version of `ipfs-pay-to-pin-client` is installed? (e.g. 2.1.2)
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network / Chain
+      options:
+        - Base L2
+        - Solana Mainnet
+        - Algorand Mainnet
+        - Ethereum L1
+        - N/A
+  - type: textarea
+    id: additional
+    attributes:
+      label: Exception Traceback & Context
+      description: Paste full Python stack trace, logs, or error details if available.
