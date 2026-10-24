@@ -205,4 +205,36 @@ describe('API Integration Tests', () => {
             message: 'File payload exceeds 20MB maximum limit.'
         });
     });
+
+    it('T028: GET /openapi.json returns complete OpenAPI 3.0 specification with schemas', async () => {
+        const res = await app.request('/openapi.json');
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toContain('application/json');
+
+        const spec = await res.json();
+        expect(spec.openapi).toBe('3.0.2');
+        expect(spec.info.title).toBe('IPFS Pay-to-Pin Gateway API');
+        expect(spec.info.version).toBe('2.1.2');
+        expect(spec.paths['/api/v1/pin']).toBeDefined();
+        expect(spec.paths['/api/v1/renew']).toBeDefined();
+        expect(spec.paths['/api/v1/pin/{cid}']).toBeDefined();
+        expect(spec.paths['/health']).toBeDefined();
+        expect(spec.components.schemas.PinRequest).toBeDefined();
+        expect(spec.components.schemas.PinResponse).toBeDefined();
+        expect(spec.components.schemas.RenewRequest).toBeDefined();
+        expect(spec.components.schemas.RenewResponse).toBeDefined();
+        expect(spec.components.schemas.PinStatusResponse).toBeDefined();
+        expect(spec.components.schemas.HealthResponse).toBeDefined();
+        expect(spec.components.schemas.ErrorResponse).toBeDefined();
+        expect(spec.components.schemas.ErrorPinResponse).toBeDefined();
+        expect(spec['x-x402']).toBeDefined();
+    });
+
+    it('T029: GET /docs serves Swagger UI documentation', async () => {
+        const res = await app.request('/docs');
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toContain('text/html');
+        const html = await res.text();
+        expect(html.toLowerCase()).toContain('swagger');
+    });
 });

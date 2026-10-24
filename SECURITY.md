@@ -55,6 +55,6 @@ If you discover a security vulnerability in this project, please disclose it res
 
 ---
 
-## Postmortem
+## Infrastructure Secrets & Security Reference
 
-See [POSTMORTEM_SUPABASE_LEAK.md](./POSTMORTEM_SUPABASE_LEAK.md) for the most recent credential leak postmortem and the no-repeat prevention plan.
+See [SECRETS.md](./SECRETS.md) for the complete reference on repository secrets, credential policies, and GitHub Actions environment configuration.

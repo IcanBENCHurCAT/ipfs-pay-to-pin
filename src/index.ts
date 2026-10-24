@@ -392,149 +392,554 @@ app.get("/llms.txt", (c) => {
 app.get("/openapi.json", (c) => {
     c.header("Cache-Control", "public, max-age=3600, s-maxage=86400");
     return c.json({
-        openapi: "3.0.0",
+        openapi: "3.0.2",
         info: {
-            title: "IPFS Pay-to-Pin Gateway",
-            version: "1.0.0",
-            description: "Pay-per-request API that pins files to IPFS for 365 days via Algorand microUSDC x402 payments."
+            title: "IPFS Pay-to-Pin Gateway API",
+            version: "2.1.2",
+            description: "Pay-per-request infrastructure API that solves one of the biggest bottlenecks in the AI industry: giving autonomous agents reliable access to decentralized IPFS storage. Each payment provides 365 days of pinning retention via Algorand, Base, Solana, or Ethereum L1 microUSDC x402 micropayments.",
+            contact: {
+                name: "IPFS Pay-to-Pin Gateway",
+                email: "garretparker@gmail.com"
+            },
+            license: {
+                name: "MIT",
+                url: "https://opensource.org/licenses/MIT"
+            }
         },
         servers: [
-            { url: "https://pay-to-pin.duckdns.org" },
-            { url: "http://localhost:4021" }
+            { url: "https://pay-to-pin.duckdns.org", description: "Production (DuckDNS)" },
+            { url: "http://localhost:4021", description: "Local development" }
         ],
+        "x-x402": {
+            resourceServer: true,
+            schemes: [
+                {
+                    name: "exact",
+                    description: "Exact payment scheme — sender must pay exact amount on specified network"
+                }
+            ],
+            supportedNetworks: [
+                "algorand:mainnet (algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=)",
+                "algorand:testnet",
+                "base:8453 (eip155:8453) — gasless EIP-3009 USDC",
+                "arbitrum:42161 (eip155:42161) — gasless EIP-3009 USDC",
+                "ethereum:1 (eip155:1) — gasless EIP-3009 USDC",
+                "solana:mainnet (solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp)"
+            ],
+            paymentHeader: {
+                request: "PAYMENT-SIGNATURE",
+                response: "PAYMENT-REQUIRED"
+            }
+        },
         paths: {
             "/api/v1/pin": {
                 post: {
-                    summary: "Upload and Pin File",
-                    description: "Uploads a Base64-encoded file via JSON payload. Returns a 402 Payment Required challenge. Upon payment verification, pins the file to IPFS and returns the CID.",
+                    operationId: "pinFile",
+                    summary: "Upload and pin a file to IPFS for 365 days",
+                    description: "Upload a Base64-encoded file via JSON payload. Returns a 402 Payment Required challenge with an x402 payment header. Upon payment verification, pins the file to IPFS and returns the CID, gateway URL, and expiration data. Supports automatic refunds via x402 on processing failure.\n\n**Pricing:** $0.01 base (10,000 microUSDC) + $0.02/byte ($20/MB). A $2.50 Ethereum L1 gas floor surcharge applies if paying on Ethereum L1.",
+                    tags: ["Pins"],
+                    security: [{ x402Challenge: [] }],
                     requestBody: {
+                        required: true,
+                        description: "JSON object with filename (string) and data (Base64-encoded string). Maximum payload: 20 MB.",
                         content: {
                             "application/json": {
-                                schema: {
-                                    type: "object",
-                                    properties: {
-                                        filename: {
-                                            type: "string",
-                                            description: "The name of the file"
-                                        },
-                                        data: {
-                                            type: "string",
-                                            description: "Base64-encoded file data"
-                                        }
-                                    },
-                                    required: ["filename", "data"]
+                                schema: { $ref: "#/components/schemas/PinRequest" },
+                                example: {
+                                    filename: "document.pdf",
+                                    data: "base64_encoded_file_data_here"
                                 }
                             }
                         }
                     },
                     responses: {
                         "201": {
-                            description: "File successfully pinned",
+                            description: "File successfully pinned to IPFS.",
                             content: {
                                 "application/json": {
-                                    schema: {
-                                        type: "object",
-                                        properties: {
-                                            status: { type: "string" },
-                                            message: { type: "string" },
-                                            filename: { type: "string" },
-                                            ipfs_cid: { type: "string" },
-                                            cid: { type: "string" },
-                                            gateway_url: { type: "string" }
-                                        }
+                                    schema: { $ref: "#/components/schemas/PinResponse" },
+                                    example: {
+                                        status: "success",
+                                        message: "Payment verified. File successfully pinned to IPFS for 365 days.",
+                                        filename: "document.pdf",
+                                        ipfs_cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+                                        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+                                        gateway_url: "https://gateway.pinata.cloud/ipfs/bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+                                        pinned_at: "2026-09-20T05:00:00.000Z",
+                                        expires_at: "2027-09-20T05:00:00.000Z",
+                                        ttl_days: 365,
+                                        renewal_url: "/api/v1/renew?cid=bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
                                     }
                                 }
                             }
                         },
+                        "400": {
+                            description: "Missing or invalid filename or data parameter.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/ErrorResponse" },
+                                    example: { error: "Missing or invalid filename or data parameter in JSON payload" }
+                                }
+                            }
+                        },
                         "402": {
-                            description: "Payment Required - Returns x402 payment challenge"
+                            description: "Payment Required. Returns 402 with a PAYMENT-REQUIRED header. Re-submit request with PAYMENT-SIGNATURE header.",
+                            headers: {
+                                "PAYMENT-REQUIRED": {
+                                    description: "Base64-encoded x402 challenge containing accepts array with payment options and validity period.",
+                                    schema: { type: "string" }
+                                },
+                                "Retry-After": {
+                                    description: "Max timeout for the x402 challenge window in seconds.",
+                                    schema: { type: "integer", example: 300 }
+                                }
+                            }
+                        },
+                        "413": {
+                            description: "Payload Too Large. File payload exceeds 20 MB maximum limit.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/ErrorResponse" },
+                                    example: {
+                                        error: "Payload Too Large",
+                                        message: "File payload exceeds 20MB maximum limit."
+                                    }
+                                }
+                            }
+                        },
+                        "500": {
+                            description: "Pinning failed after payment verification. Includes refund transaction ID if automatic refunds are enabled.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/ErrorPinResponse" },
+                                    example: {
+                                        error: "Pinning failed",
+                                        message: "Failed to process file upload. Please try again later.",
+                                        refund_initiated: true,
+                                        refund_tx_id: "TXID1234567890abcdef"
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             },
             "/api/v1/renew": {
                 post: {
-                    summary: "Renew IPFS Pin",
-                    description: "Renews an existing IPFS pin for another 365 days. Returns a 402 Payment Required challenge. 50% early renewal discount applies if renewed before expiration.",
+                    operationId: "renewPin",
+                    summary: "Renew an IPFS pin for another 365 days",
+                    description: "Renew an existing IPFS pin for another 365 days. Returns a 402 Payment Required challenge. A 50% early renewal discount applies if renewed before expiration. After 30 days grace period post-expiration, the pin is permanently removed and re-renewal is not possible (410 Gone).",
+                    tags: ["Pins"],
+                    security: [{ x402Challenge: [] }],
                     requestBody: {
+                        required: true,
+                        description: "JSON object with the CID to renew.",
                         content: {
                             "application/json": {
-                                schema: {
-                                    type: "object",
-                                    properties: {
-                                        cid: {
-                                            type: "string",
-                                            description: "The CID of the file to renew"
-                                        }
-                                    },
-                                    required: ["cid"]
-                                }
+                                schema: { $ref: "#/components/schemas/RenewRequest" },
+                                example: { cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi" }
                             }
                         }
                     },
                     responses: {
                         "200": {
-                            description: "Pin successfully renewed",
+                            description: "Pin successfully renewed.",
                             content: {
                                 "application/json": {
-                                    schema: {
-                                        type: "object",
-                                        properties: {
-                                            status: { type: "string" },
-                                            message: { type: "string" },
-                                            cid: { type: "string" },
-                                            expires_at: { type: "string" },
-                                            renewals_count: { type: "number" }
-                                        }
+                                    schema: { $ref: "#/components/schemas/RenewResponse" },
+                                    example: {
+                                        status: "success",
+                                        message: "Payment verified. Pin extended for 365 days.",
+                                        cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+                                        expires_at: "2028-09-20T05:00:00.000Z",
+                                        renewals_count: 2
                                     }
                                 }
                             }
                         },
+                        "400": {
+                            description: "Missing or invalid cid parameter.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/ErrorResponse" },
+                                    example: { error: "Missing cid parameter in JSON payload" }
+                                }
+                            }
+                        },
                         "402": {
-                            description: "Payment Required - Returns x402 payment challenge"
+                            description: "Payment Required. Re-submit with PAYMENT-SIGNATURE header.",
+                            headers: {
+                                "PAYMENT-REQUIRED": {
+                                    description: "Base64-encoded x402 challenge with renewal pricing.",
+                                    schema: { type: "string" }
+                                },
+                                "Retry-After": {
+                                    schema: { type: "integer", example: 300 }
+                                }
+                            }
+                        },
+                        "404": {
+                            description: "CID not found — the pin has no record.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/ErrorResponse" },
+                                    example: { error: "CID not found" }
+                                }
+                            }
+                        },
+                        "410": {
+                            description: "Pin expired and permanently removed.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/ErrorResponse" },
+                                    example: { error: "Pin expired and permanently removed" }
+                                }
+                            }
+                        },
+                        "500": {
+                            description: "Failed to process pin renewal.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/ErrorResponse" },
+                                    example: { error: "Failed to process pin renewal. Please try again later." }
+                                }
+                            }
                         }
                     }
                 }
             },
             "/api/v1/pin/{cid}": {
                 get: {
-                    summary: "Check Pin Status",
-                    description: "Free status lookup endpoint to check the retention status of an IPFS pin.",
+                    operationId: "getPinStatus",
+                    summary: "Check pin status (free, no payment required)",
+                    description: "Free status lookup for a pinned CID. Returns retention dates, days remaining, and active state. No x402 payment is required for this endpoint.",
+                    tags: ["Pins"],
+                    security: [],
                     parameters: [
                         {
                             name: "cid",
                             in: "path",
                             required: true,
-                            schema: {
-                                type: "string"
-                            },
-                            description: "The CID of the pinned file"
+                            description: "The IPFS CID to check (e.g., bafybeig...)",
+                            schema: { type: "string", format: "ipfs-cid", example: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi" }
                         }
                     ],
                     responses: {
                         "200": {
-                            description: "Status successfully retrieved",
+                            description: "Pin status returned.",
                             content: {
                                 "application/json": {
-                                    schema: {
-                                        type: "object",
-                                        properties: {
-                                            pinned_at: { type: "string" },
-                                            expires_at: { type: "string" },
-                                            days_remaining: { type: "number" },
-                                            is_active: { type: "boolean" }
-                                        }
+                                    schema: { $ref: "#/components/schemas/PinStatusResponse" },
+                                    example: {
+                                        pinned_at: "2026-09-20T05:00:00.000Z",
+                                        expires_at: "2027-09-20T05:00:00.000Z",
+                                        days_remaining: 365,
+                                        is_active: true,
+                                        ttl_days: 365,
+                                        renewals_count: 0,
+                                        renewal_url: "/api/v1/renew?cid=bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
                                     }
                                 }
                             }
                         },
                         "404": {
-                            description: "Pin not found"
+                            description: "Pin not found.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/ErrorResponse" },
+                                    example: { error: "Pin not found" }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "/health": {
+                get: {
+                    operationId: "healthCheck",
+                    summary: "Health check (alias: /healthz, /ready)",
+                    description: "Returns the gateway health status. 200 OK if healthy, 503 Service Unavailable if degraded. Includes queue metrics.",
+                    tags: ["System"],
+                    security: [],
+                    responses: {
+                        "200": {
+                            description: "Gateway is healthy.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/HealthResponse" },
+                                    example: {
+                                        status: "ok",
+                                        ready: true,
+                                        uptime: 3600,
+                                        queue: { size: 12, max_size: 1000, is_healthy: true },
+                                        timestamp: "2026-09-20T05:00:00.000Z"
+                                    }
+                                }
+                            }
+                        },
+                        "503": {
+                            description: "Service degraded.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/HealthResponse" },
+                                    example: {
+                                        status: "degraded",
+                                        ready: false,
+                                        uptime: 3600,
+                                        queue: { size: 1001, max_size: 1000, is_healthy: false },
+                                        timestamp: "2026-09-20T05:00:00.000Z"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "/healthz": {
+                get: {
+                    operationId: "healthCheckZ",
+                    summary: "Health check (alias of /health)",
+                    description: "Same as /health. Kubernetes-style healthz endpoint.",
+                    tags: ["System"],
+                    security: [],
+                    responses: {
+                        "200": {
+                            description: "Gateway is healthy.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/HealthResponse" }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "/ready": {
+                get: {
+                    operationId: "healthCheckReady",
+                    summary: "Readiness check (alias of /health)",
+                    description: "Same as /health. Kubernetes-style readiness probe endpoint.",
+                    tags: ["System"],
+                    security: [],
+                    responses: {
+                        "200": {
+                            description: "Gateway is ready.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/HealthResponse" }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "/.well-known/x402.json": {
+                get: {
+                    operationId: "getX402Metadata",
+                    summary: "x402 merchant metadata",
+                    description: "Returns the x402 merchant metadata required by x402 resource server implementations to discover supported payment schemes, networks, and prices.",
+                    tags: ["x402"],
+                    security: [],
+                    responses: {
+                        "200": {
+                            description: "x402 merchant metadata.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/X402MetadataResponse" }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "/.well-known/agent-card.json": {
+                get: {
+                    operationId: "getAgentCard",
+                    summary: "Agent Card specification (W3C Agent-Cards)",
+                    description: "Returns the W3C Agent Card specification for this gateway.",
+                    tags: ["x402"],
+                    security: [],
+                    responses: {
+                        "200": {
+                            description: "W3C Agent Card.",
+                            content: {
+                                "application/json": {
+                                    schema: { $ref: "#/components/schemas/AgentCardResponse" }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "/openapi.json": {
+                get: {
+                    operationId: "getOpenApiSpec",
+                    summary: "OpenAPI specification document (self-describing)",
+                    description: "Returns this OpenAPI specification in JSON format.",
+                    tags: ["System"],
+                    security: [],
+                    responses: {
+                        "200": {
+                            description: "OpenAPI 3.0.2 specification document.",
+                            content: {
+                                "application/json": {
+                                    schema: { type: "object", description: "Full OpenAPI specification document" }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            "/docs": {
+                get: {
+                    operationId: "getSwaggerUI",
+                    summary: "Swagger UI interactive documentation",
+                    description: "Renders Swagger UI for interactive API testing. Uses /openapi.json as source.",
+                    tags: ["System"],
+                    security: [],
+                    responses: {
+                        "200": {
+                            description: "Swagger UI HTML page.",
+                            content: {
+                                "text/html": {
+                                    schema: { type: "string" }
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
+        },
+        components: {
+            schemas: {
+                PinRequest: {
+                    type: "object",
+                    required: ["filename", "data"],
+                    properties: {
+                        filename: { type: "string", description: "The name of the file to pin (e.g., \"document.pdf\").", minLength: 1, maxLength: 255 },
+                        data: { type: "string", description: "Base64-encoded file data. Maximum payload size: 20 MB before encoding.", maxLength: 20971520 }
+                    },
+                    example: { filename: "document.pdf", data: "base64_encoded_file_data_here" }
+                },
+                PinResponse: {
+                    type: "object",
+                    properties: {
+                        cid: { type: "string", description: "The IPFS CID for the pinned file." },
+                        ipfs_cid: { type: "string", description: "Alias for cid." },
+                        gateway_url: { type: "string", format: "uri", description: "Public gateway URL to access the file." },
+                        pinned_at: { type: "string", format: "date-time", description: "ISO timestamp when file was pinned." },
+                        expires_at: { type: "string", format: "date-time", description: "ISO timestamp when retention expires." },
+                        ttl_days: { type: "integer", example: 365, description: "TTL length in days." },
+                        status: { type: "string", description: "Status descriptor." },
+                        message: { type: "string", description: "Detailed result message." },
+                        filename: { type: "string", description: "Original filename." },
+                        renewal_url: { type: "string", description: "API path to renew pin." }
+                    }
+                },
+                RenewRequest: {
+                    type: "object",
+                    required: ["cid"],
+                    properties: {
+                        cid: { type: "string", description: "The IPFS CID of the pin to renew.", minLength: 1 }
+                    },
+                    example: { cid: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi" }
+                },
+                RenewResponse: {
+                    type: "object",
+                    properties: {
+                        status: { type: "string", description: "Status descriptor." },
+                        message: { type: "string", description: "Result message confirming renewal." },
+                        cid: { type: "string", description: "The IPFS CID that was renewed." },
+                        expires_at: { type: "string", format: "date-time", description: "New expiration timestamp." },
+                        renewals_count: { type: "integer", description: "Total number of renewals applied." }
+                    }
+                },
+                PinStatusResponse: {
+                    type: "object",
+                    properties: {
+                        pinned_at: { type: "string", format: "date-time" },
+                        expires_at: { type: "string", format: "date-time" },
+                        days_remaining: { type: "integer", example: 365 },
+                        is_active: { type: "boolean" },
+                        ttl_days: { type: "integer", example: 365 },
+                        renewals_count: { type: "integer" },
+                        renewal_url: { type: "string" }
+                    }
+                },
+                HealthResponse: {
+                    type: "object",
+                    properties: {
+                        status: { type: "string", enum: ["ok", "degraded"] },
+                        ready: { type: "boolean" },
+                        uptime: { type: "integer" },
+                        queue: { $ref: "#/components/schemas/QueueMetrics" },
+                        timestamp: { type: "string", format: "date-time" }
+                    }
+                },
+                QueueMetrics: {
+                    type: "object",
+                    properties: {
+                        size: { type: "integer" },
+                        max_size: { type: "integer" },
+                        is_healthy: { type: "boolean" }
+                    }
+                },
+                ErrorResponse: {
+                    type: "object",
+                    properties: {
+                        error: { type: "string" },
+                        message: { type: "string" }
+                    }
+                },
+                ErrorPinResponse: {
+                    allOf: [
+                        { $ref: "#/components/schemas/ErrorResponse" },
+                        {
+                            type: "object",
+                            properties: {
+                                refund_initiated: { type: "boolean" },
+                                refund_tx_id: { type: "string" }
+                            }
+                        }
+                    ]
+                },
+                X402MetadataResponse: {
+                    type: "object",
+                    properties: {
+                        merchant: { type: "object" },
+                        image: { type: "string", format: "uri" },
+                        icon: { type: "string", format: "uri" },
+                        resources: { type: "array", items: { type: "object" } }
+                    }
+                },
+                AgentCardResponse: {
+                    type: "object",
+                    properties: {
+                        name: { type: "string" },
+                        description: { type: "string" },
+                        version: { type: "string" },
+                        capabilities: { type: "object" },
+                        defaultInputModes: { type: "array", items: { type: "string" } },
+                        defaultOutputModes: { type: "array", items: { type: "string" } },
+                        skills: { type: "array", items: { type: "object" } },
+                        supportedInterfaces: { type: "array", items: { type: "object" } }
+                    }
+                }
+            },
+            securitySchemes: {
+                x402Challenge: {
+                    type: "apiKey",
+                    in: "header",
+                    name: "PAYMENT-SIGNATURE",
+                    description: "x402 payment signature header."
+                }
+            }
+        },
+        tags: [
+            { name: "Pins", description: "Pin, unpin, renew, and check file pin status on IPFS." },
+            { name: "System", description: "Health, documentation, and OpenAPI endpoints." },
+            { name: "x402", description: "x402 payment protocol metadata and merchant discovery." }
+        ]
     });
 });
 

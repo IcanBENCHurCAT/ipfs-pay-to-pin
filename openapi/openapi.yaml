@@ -6,7 +6,7 @@ info:
     in the AI industry: giving autonomous agents reliable access to decentralized
     IPFS storage. Each payment provides 365 days of pinning retention via Algorand,
     Base, Solana, or Ethereum L1 microUSDC x402 micropayments.
-  version: 2.0.2
+  version: 2.1.2
   contact:
     name: IPFS Pay-to-Pin Gateway
     email: garretparker@gmail.com
@@ -17,8 +17,6 @@ info:
 servers:
   - url: https://pay-to-pin.duckdns.org
     description: Production (DuckDNS)
-  - url: https://ipfs-pay-to-pin-mainnet-c55e3346b752.herokuapp.com
-    description: Production (Heroku)
   - url: http://localhost:4021
     description: Local development
 
