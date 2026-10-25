@@ -11,7 +11,24 @@ vi.mock('crypto', () => ({
 }));
 
 // Mock fetch globally
-global.fetch = vi.fn();
+// Mock http and https
+import http from "node:http";
+import https from "node:https";
+import dns from "node:dns";
+
+vi.mock("node:http", () => ({
+  default: { request: vi.fn() },
+  request: vi.fn()
+}));
+vi.mock("node:https", () => ({
+  default: { request: vi.fn() },
+  request: vi.fn()
+}));
+vi.mock("node:dns", () => ({
+  default: { promises: { lookup: vi.fn() } },
+  promises: { lookup: vi.fn() }
+}));
+
 
 // Mock Supabase client
 const mockSupabase = {
@@ -55,6 +72,7 @@ describe('WebhookDeliveryService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     service = new WebhookDeliveryService(undefined, 'https://test.supabase.co', 'test-key');
+    vi.mocked(dns.promises.lookup).mockResolvedValue({ address: '142.250.190.46', family: 4 } as any);
   });
 
   afterEach(() => {
@@ -214,11 +232,10 @@ describe('WebhookDeliveryService', () => {
 
   describe('deliver()', () => {
     it('should deliver successfully and mark as DELIVERED', async () => {
-      vi.mocked(global.fetch).mockResolvedValue({
-        ok: true,
-        status: 200,
-        text: vi.fn().mockResolvedValue(''),
-      } as Response);
+      vi.mocked(https.request).mockImplementation((options, cb) => {
+        if (cb) cb({ statusCode: 200, on: vi.fn((event, handler) => { if (event === 'end') handler(); }) } as any);
+        return { on: vi.fn(), write: vi.fn(), end: vi.fn() } as any;
+      });
 
       const record = {
         id: 'wh_test_001',
@@ -243,23 +260,26 @@ describe('WebhookDeliveryService', () => {
       const result = await service.deliver(record);
 
       expect(result.status).toBe(200);
-      expect(global.fetch).toHaveBeenCalledWith(
-        'https://example.com/webhook',
+      expect(https.request).toHaveBeenCalledWith(
         expect.objectContaining({
+          hostname: '142.250.190.46',
           method: 'POST',
           headers: expect.objectContaining({
             'X-Webhook-Event': 'pin.completed',
           }),
-        })
+        }),
+        expect.any(Function)
       );
     });
 
     it('should handle HTTP error responses', async () => {
-      vi.mocked(global.fetch).mockResolvedValue({
-        ok: false,
-        status: 500,
-        text: vi.fn().mockResolvedValue('Internal Server Error'),
-      } as Response);
+      vi.mocked(https.request).mockImplementation((options, cb) => {
+        if (cb) cb({ statusCode: 500, on: vi.fn((event, handler) => {
+          if (event === 'data') handler('Internal Server Error');
+          if (event === 'end') handler();
+        }) } as any);
+        return { on: vi.fn(), write: vi.fn(), end: vi.fn() } as any;
+      });
 
       const record = {
         id: 'wh_test_002',
@@ -287,11 +307,10 @@ describe('WebhookDeliveryService', () => {
     });
 
     it('should retry on 429 rate limit', async () => {
-      vi.mocked(global.fetch).mockResolvedValue({
-        ok: false,
-        status: 429,
-        text: vi.fn().mockResolvedValue('Rate limit exceeded'),
-      } as Response);
+      vi.mocked(https.request).mockImplementation((options, cb: any) => {
+          if (cb) cb({ statusCode: 429, on: vi.fn((event, handler) => { if (event === 'data') handler('Rate Limit'); if (event === 'end') handler(); }) });
+          return { on: vi.fn(), write: vi.fn(), end: vi.fn() } as any;
+        });
 
       const record = {
         id: 'wh_test_003',
@@ -322,7 +341,15 @@ describe('WebhookDeliveryService', () => {
     });
 
     it('should retry on network errors up to maxRetries', async () => {
-      vi.mocked(global.fetch).mockRejectedValue(new Error('Network Error'));
+      vi.mocked(https.request).mockImplementation((options, cb) => {
+        return {
+          on: vi.fn((event, handler) => {
+            if (event === 'error') handler(new Error('Network Error'));
+          }),
+          write: vi.fn(),
+          end: vi.fn()
+        } as any;
+      });
 
       const record = {
         id: 'wh_test_004',
@@ -355,7 +382,15 @@ describe('WebhookDeliveryService', () => {
     });
 
     it('should mark as FAILED after maxRetries exceeded', async () => {
-      vi.mocked(global.fetch).mockRejectedValue(new Error('Network Error'));
+      vi.mocked(https.request).mockImplementation((options, cb) => {
+        return {
+          on: vi.fn((event, handler) => {
+            if (event === 'error') handler(new Error('Network Error'));
+          }),
+          write: vi.fn(),
+          end: vi.fn()
+        } as any;
+      });
 
       const record = {
         id: 'wh_test_005',
@@ -391,7 +426,9 @@ describe('WebhookDeliveryService', () => {
         'test-key'
       );
 
-      vi.mocked(global.fetch).mockReturnValue(new Promise(() => {})); // never resolves
+      vi.mocked(https.request).mockImplementation((options, cb) => {
+        return { on: vi.fn(), write: vi.fn(), end: vi.fn() } as any; // never resolves
+      });
 
       const record = {
         id: 'wh_test_006',
@@ -424,7 +461,7 @@ describe('WebhookDeliveryService', () => {
       // The important thing is that the fetch was called with abort signal
       if (raceResult && !('error' in raceResult) || raceResult?.error?.includes('Timeout')) {
         // Test completed via the race timeout, which is expected for timeout tests
-        expect(global.fetch).toHaveBeenCalled();
+        expect(https.request).toHaveBeenCalled();
       }
     });
   });
@@ -472,11 +509,10 @@ describe('WebhookDeliveryService', () => {
       ];
 
       vi.spyOn(service, 'getPendingDeliveries').mockResolvedValue(mockPending);
-      vi.mocked(global.fetch).mockResolvedValue({
-        ok: true,
-        status: 200,
-        text: vi.fn().mockResolvedValue(''),
-      } as Response);
+      vi.mocked(https.request).mockImplementation((options, cb) => {
+        if (cb) cb({ statusCode: 200, on: vi.fn((event, handler) => { if (event === 'end') handler(); }) } as any);
+        return { on: vi.fn(), write: vi.fn(), end: vi.fn() } as any;
+      });
 
       const result = await service.processPending();
 
@@ -515,7 +551,7 @@ describe('WebhookDeliveryService', () => {
       expect(result.delivered).toBe(0);
       expect(result.failed).toBe(0);
       // Verify fetch was never called
-      expect(global.fetch).not.toHaveBeenCalled();
+      expect(https.request).not.toHaveBeenCalled();
     });
   });
 

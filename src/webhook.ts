@@ -1,6 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { randomBytes } from 'node:crypto';
 import { logger } from './observability.js';
+import dns from 'node:dns';
+import http from 'node:http';
+import https from 'node:https';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -87,37 +90,56 @@ function isTerminalStatus(status: WebhookDeliveryStatus): boolean {
   return status === 'DELIVERED' || status === 'FAILED';
 }
 
+function isSafeIp(hostname: string): boolean {
+  // Block localhost, loopback, link-local, private ranges
+  if (hostname === 'localhost' || hostname === 'localhost.') {
+    return false;
+  }
+  // 🛡️ Sentinel: Fix SSRF bypasses via 127.x.x.x block and properly handle IPv6 brackets
+  if (/^127\./.test(hostname)) return false;
+  if (hostname === '::1' || hostname === '[::1]' || hostname === '[::]' || hostname.startsWith('[::ffff:') || hostname.startsWith('::ffff:')) {
+    return false;
+  }
+  // 🛡️ Sentinel: Block IPv6 Unique Local (fc00::/7) and Link-Local (fe80::/10) ranges
+  if (/^\[?f[cd][0-9a-f]{2}:/i.test(hostname) || /^\[?fe[89ab][0-9a-f]:/i.test(hostname)) {
+    return false;
+  }
+  if (/^10\./.test(hostname)) return false;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)) return false;
+  if (/^192\.168\./.test(hostname)) return false;
+  if (/^169\.254\./.test(hostname)) return false;
+  if (/^0\.0\.0\.0/.test(hostname)) return false;
+  return true;
+}
+
 /**
  * Validate that a URL is safe to deliver to (no localhost/internal).
+ * Returns the resolved IP address if safe, or null if unsafe.
  */
-function isSafeUrl(url: string): boolean {
+async function getSafeResolvedIp(url: string): Promise<string | null> {
   try {
     const parsed = new URL(url);
     if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
-      return false;
+      return null;
     }
     const hostname = parsed.hostname;
-    // Block localhost, loopback, link-local, private ranges
-    if (hostname === 'localhost' || hostname === 'localhost.') {
-      return false;
+
+    if (!isSafeIp(hostname)) {
+      return null;
     }
-    // 🛡️ Sentinel: Fix SSRF bypasses via 127.x.x.x block and properly handle IPv6 brackets
-    if (/^127\./.test(hostname)) return false;
-    if (hostname === '[::1]' || hostname === '[::]' || hostname.startsWith('[::ffff:')) {
-      return false;
+
+    try {
+      const resolved = await dns.promises.lookup(hostname);
+      if (!isSafeIp(resolved.address)) {
+        return null;
+      }
+      return resolved.address;
+    } catch {
+      // If DNS resolution fails, it is not safe to connect
+      return null;
     }
-    // 🛡️ Sentinel: Block IPv6 Unique Local (fc00::/7) and Link-Local (fe80::/10) ranges
-    if (/^\[f[cd][0-9a-f]{2}:/i.test(hostname) || /^\[fe[89ab][0-9a-f]:/i.test(hostname)) {
-      return false;
-    }
-    if (/^10\./.test(hostname)) return false;
-    if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)) return false;
-    if (/^192\.168\./.test(hostname)) return false;
-    if (/^169\.254\./.test(hostname)) return false;
-    if (/^0\.0\.0\.0/.test(hostname)) return false;
-    return true;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -238,7 +260,8 @@ export class WebhookDeliveryService {
    * Returns the HTTP status code or 0 on network error.
    */
   async deliver(record: WebhookDeliveryRecord): Promise<{ status: number; error?: string }> {
-    if (!isSafeUrl(record.webhook_url)) {
+    const safeIp = await getSafeResolvedIp(record.webhook_url);
+    if (!safeIp) {
       await this.trackDelivery({
         ...record,
         status: 'FAILED',
@@ -253,16 +276,42 @@ export class WebhookDeliveryService {
     const timeoutId = setTimeout(() => controller.abort(), this.config.timeoutMs);
 
     try {
-      const res = await fetch(record.webhook_url, {
+      const parsedUrl = new URL(record.webhook_url);
+      const isHttps = parsedUrl.protocol === 'https:';
+      const lib = isHttps ? https : http;
+
+      const reqOptions = {
+        hostname: safeIp,
+        port: parsedUrl.port || (isHttps ? 443 : 80),
+        path: parsedUrl.pathname + parsedUrl.search,
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-Webhook-Event': record.event,
           'X-Webhook-Attempt': String(record.attempts + 1),
           'X-Webhook-Id': record.id,
+          'Host': parsedUrl.hostname, // Maintain original hostname for routing
         },
-        body: JSON.stringify(record.payload),
+        servername: parsedUrl.hostname, // Crucial for TLS SNI
         signal: controller.signal,
+      };
+
+      const res = await new Promise<{ ok: boolean, status: number, text: () => Promise<string> }>((resolve, reject) => {
+        const req = lib.request(reqOptions, (res) => {
+          let body = '';
+          res.on('data', chunk => body += chunk);
+          res.on('end', () => {
+            resolve({
+              ok: res.statusCode !== undefined && res.statusCode >= 200 && res.statusCode < 300,
+              status: res.statusCode || 0,
+              text: async () => body
+            });
+          });
+        });
+
+        req.on('error', reject);
+        req.write(JSON.stringify(record.payload));
+        req.end();
       });
 
       clearTimeout(timeoutId);
@@ -396,7 +445,7 @@ export class WebhookDeliveryService {
       return false;
     }
 
-    if (!isSafeUrl(webhookUrl)) {
+    if (!(await getSafeResolvedIp(webhookUrl))) {
       logger.warn({ eventType, url: webhookUrl }, '[Webhook] Blocked unsafe URL.');
       return false;
     }
