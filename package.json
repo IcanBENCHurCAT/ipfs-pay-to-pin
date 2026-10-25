@@ -38,11 +38,11 @@
     "ws": "^8.22.0"
   },
   "devDependencies": {
-    "@types/pg": "^8.20.0",
+    "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.1",
     "@types/ws": "^8.18.2",
     "gitleaks": "^1.0.0",
-    "pg": "^8.22.0",
+    "pg": "^8.23.1",
     "supertest": "^7.3.1",
     "vitest": "^5.0.4"
   }
