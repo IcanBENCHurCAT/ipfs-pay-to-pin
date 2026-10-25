@@ -155,6 +155,88 @@ class TestIpfsPayToPinClient(unittest.TestCase):
     @patch("ipfs_pay_to_pin_client.client.requests.post")
     @patch("algosdk.v2client.algod.AlgodClient")
     @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_bytes_success_direct(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.status_code = 201
+        mock_response.json.return_value = {
+            "cid": "QmBytesDirect123",
+            "status": "success",
+            "expires_at": "2027-10-25T12:00:00Z",
+            "gateway_url": "https://gateway.pinata.cloud/ipfs/QmBytesDirect123",
+            "tx_id": "tx_bytes_123",
+        }
+        mock_post.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+        data = b"hello direct pin"
+        res = client.pin_bytes(data, filename="sample.txt")
+
+        self.assertIsInstance(res, PinResponse)
+        self.assertEqual(res.cid, "QmBytesDirect123")
+        self.assertEqual(res.status, "success")
+        self.assertEqual(res.pin_expires_at, "2027-10-25T12:00:00Z")
+        self.assertEqual(res.gateway_url, "https://gateway.pinata.cloud/ipfs/QmBytesDirect123")
+        self.assertEqual(res.size_bytes, len(data))
+        self.assertEqual(res.tx_id, "tx_bytes_123")
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_bytes_success_402_payment_flow(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_algod_inst = MagicMock()
+        mock_algod_inst.suggested_params.return_value = SuggestedParams(
+            fee=1000,
+            first=1,
+            last=1000,
+            gh=base64.b64encode(b"a" * 32).decode(),
+            gen="mainnet-v1.0",
+        )
+        mock_algod.return_value = mock_algod_inst
+
+        mock_402 = MagicMock()
+        mock_402.status_code = 402
+        challenge_data = {
+            "accepts": [
+                {
+                    "scheme": "exact",
+                    "network": "algorand:mainnet",
+                    "assetId": 31566704,
+                    "amount": 10000,
+                    "payTo": self.sender_address,
+                }
+            ]
+        }
+        mock_402.headers = {"PAYMENT-REQUIRED": base64.b64encode(json.dumps(challenge_data).encode()).decode()}
+
+        mock_201 = MagicMock()
+        mock_201.status_code = 201
+        mock_201.json.return_value = {
+            "cid": "QmBytes402Paid",
+            "status": "success",
+            "expires_at": "2027-10-25T12:00:00Z",
+            "gateway_url": "https://gateway.pinata.cloud/ipfs/QmBytes402Paid",
+            "tx_id": "tx_bytes_paid_402",
+        }
+
+        mock_post.side_effect = [mock_402, mock_201]
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic", algod_server="http://localhost:4001")
+        data = b"hello paid pin"
+        res = client.pin_bytes(data, filename="paid.txt", max_price_usdc=0.10)
+
+        self.assertIsInstance(res, PinResponse)
+        self.assertEqual(res.cid, "QmBytes402Paid")
+        self.assertEqual(res.status, "success")
+        self.assertEqual(res.pin_expires_at, "2027-10-25T12:00:00Z")
+        self.assertEqual(res.gateway_url, "https://gateway.pinata.cloud/ipfs/QmBytes402Paid")
+        self.assertEqual(res.tx_id, "tx_bytes_paid_402")
+        self.assertEqual(mock_post.call_count, 2)
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
     def test_pin_bytes_pinning_failed(self, mock_to_priv, mock_algod, mock_post):
         mock_to_priv.return_value = self.private_key
         mock_response = MagicMock()
@@ -208,6 +290,7 @@ class TestIpfsPayToPinClient(unittest.TestCase):
             "cid": "QmRenew123",
             "status": "pinned",
             "expires_at": "2026-12-31T23:59:59Z",
+            "gateway_url": "https://gateway.pinata.cloud/ipfs/QmRenew123",
             "size_bytes": 1024,
             "tx_id": "tx_renew_abc",
         }
@@ -221,6 +304,7 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         self.assertEqual(res.cid, "QmRenew123")
         self.assertEqual(res.status, "pinned")
         self.assertEqual(res.pin_expires_at, "2026-12-31T23:59:59Z")
+        self.assertEqual(res.gateway_url, "https://gateway.pinata.cloud/ipfs/QmRenew123")
         self.assertEqual(res.size_bytes, 1024)
         self.assertEqual(res.tx_id, "tx_renew_abc")
         mock_post.assert_called_once_with(
@@ -264,6 +348,7 @@ class TestIpfsPayToPinClient(unittest.TestCase):
             "cid": "QmRenew402",
             "status": "pinned",
             "pin_expires_at": "2026-12-31T23:59:59Z",
+            "gateway_url": "https://gateway.pinata.cloud/ipfs/QmRenew402",
             "size_bytes": 2048,
             "tx_id": "tx_paid_renew",
         }
@@ -277,6 +362,7 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         self.assertEqual(res.cid, "QmRenew402")
         self.assertEqual(res.status, "pinned")
         self.assertEqual(res.pin_expires_at, "2026-12-31T23:59:59Z")
+        self.assertEqual(res.gateway_url, "https://gateway.pinata.cloud/ipfs/QmRenew402")
         self.assertEqual(res.size_bytes, 2048)
         self.assertEqual(res.tx_id, "tx_paid_renew")
         self.assertEqual(mock_post.call_count, 2)

@@ -63,3 +63,8 @@
 
 **Learning:** Splitting multi-language CI workflows into distinct parallel jobs (e.g. `test-ts` and `test-python`) optimizes CI pipeline execution speed by running Node and Python test suites in parallel without setting up redundant language environments in each job. Using GitHub Actions `strategy.matrix` for Python allows continuous automated verification across supported Python runtimes (3.11, 3.12, 3.13).
 **Action:** When configuring multi-language CI pipelines in GitHub Actions, create separate parallel jobs for each language ecosystem and leverage matrix strategies for all supported runtime versions.
+
+## 2026-11-05 - Ensure Python SDK PinResponse Exposes gateway_url and Normalizes Expiration Keys
+
+**Learning:** When client SDKs map response dictionaries to model dataclasses (e.g. `PinResponse`), ensure all key fields documented in gateway responses (such as `gateway_url` and `expires_at`) are supported with safe fallbacks (`res_json.get("expires_at") or res_json.get("pin_expires_at", "")`). Omitting `gateway_url` or using strict single-key lookups causes empty strings or attribute errors for consuming agents.
+**Action:** Always verify client SDK model dataclasses against gateway API responses and maintain fallback key lookups for response field variations across direct and payment-flow routes.
