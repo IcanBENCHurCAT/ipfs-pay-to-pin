@@ -10,3 +10,4 @@ class PinResponse:
     pin_expires_at: str
     size_bytes: int
     tx_id: str | None = None
+    gateway_url: str | None = None

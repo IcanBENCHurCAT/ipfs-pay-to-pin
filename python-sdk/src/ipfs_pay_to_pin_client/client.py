@@ -92,6 +92,7 @@ class IpfsPayToPinClient:
             pin_expires_at=data.get("expires_at") or data.get("pin_expires_at", ""),
             size_bytes=data.get("size_bytes", 0),
             tx_id=data.get("tx_id"),
+            gateway_url=data.get("gateway_url"),
         )
 
     def pin_bytes(
@@ -120,9 +121,10 @@ class IpfsPayToPinClient:
             return PinResponse(
                 cid=res_json["cid"],
                 status=res_json.get("status", "pinned"),
-                pin_expires_at=res_json.get("pin_expires_at", ""),
+                pin_expires_at=res_json.get("expires_at") or res_json.get("pin_expires_at", ""),
                 size_bytes=res_json.get("size_bytes", len(data)),
                 tx_id=res_json.get("tx_id"),
+                gateway_url=res_json.get("gateway_url"),
             )
 
         raise PinningFailedError(f"Pinning failed with status {resp.status_code}: {resp.text}")
@@ -274,6 +276,7 @@ class IpfsPayToPinClient:
                 pin_expires_at=res_json.get("expires_at") or res_json.get("pin_expires_at", ""),
                 size_bytes=res_json.get("size_bytes", 0),
                 tx_id=res_json.get("tx_id"),
+                gateway_url=res_json.get("gateway_url"),
             )
 
         err_hdr = paid_resp.headers.get("payment-required") or paid_resp.headers.get("PAYMENT-REQUIRED") or ""
