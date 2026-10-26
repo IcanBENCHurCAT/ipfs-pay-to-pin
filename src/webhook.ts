@@ -90,25 +90,29 @@ function isTerminalStatus(status: WebhookDeliveryStatus): boolean {
   return status === 'DELIVERED' || status === 'FAILED';
 }
 
-function isSafeIp(hostname: string): boolean {
+export function isSafeIp(hostname: string): boolean {
+  const cleanHost = hostname.toLowerCase().replace(/^\[/, '').replace(/\]$/, '');
+
   // Block localhost, loopback, link-local, private ranges
-  if (hostname === 'localhost' || hostname === 'localhost.') {
+  if (cleanHost === 'localhost' || cleanHost === 'localhost.') {
     return false;
   }
   // 🛡️ Sentinel: Fix SSRF bypasses via 127.x.x.x block and properly handle IPv6 brackets
-  if (/^127\./.test(hostname)) return false;
-  if (hostname === '::1' || hostname === '[::1]' || hostname === '[::]' || hostname.startsWith('[::ffff:') || hostname.startsWith('::ffff:')) {
+  if (/^127\./.test(cleanHost)) return false;
+
+  // 🛡️ Sentinel: Block bare IPv6 unspecified address (::) and loopback addresses
+  if (cleanHost === '::1' || cleanHost === '::' || cleanHost.startsWith('::ffff:') || cleanHost.startsWith('0:0:0:0:0:ffff:')) {
     return false;
   }
   // 🛡️ Sentinel: Block IPv6 Unique Local (fc00::/7) and Link-Local (fe80::/10) ranges
-  if (/^\[?f[cd][0-9a-f]{2}:/i.test(hostname) || /^\[?fe[89ab][0-9a-f]:/i.test(hostname)) {
+  if (/^f[cd][0-9a-f]{2}:/.test(cleanHost) || /^fe[89ab][0-9a-f]:/.test(cleanHost)) {
     return false;
   }
-  if (/^10\./.test(hostname)) return false;
-  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)) return false;
-  if (/^192\.168\./.test(hostname)) return false;
-  if (/^169\.254\./.test(hostname)) return false;
-  if (/^0\.0\.0\.0/.test(hostname)) return false;
+  if (/^10\./.test(cleanHost)) return false;
+  if (/^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(cleanHost)) return false;
+  if (/^192\.168\./.test(cleanHost)) return false;
+  if (/^169\.254\./.test(cleanHost)) return false;
+  if (/^0\.0\.0\.0/.test(cleanHost) || cleanHost === '0.0.0.0') return false;
   return true;
 }
 
