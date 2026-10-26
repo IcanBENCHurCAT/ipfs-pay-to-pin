@@ -35,3 +35,7 @@
 ## 2025-10-19 - Strict Python SDK Input Validation
 **Learning:** Relying on built-in `ValueError` or `TypeError` for invalid inputs makes it difficult for consumers to distinctively catch and recover from SDK-specific misconfigurations without catching broad system errors.
 **Action:** Always provide explicit, custom error types (e.g. `ConfigurationError`) across all SDK languages for input boundary validations, ensuring consistent and catchable error handling behavior for consuming agents.
+
+## 2025-08-24 - Explicit PinNotFoundError for Missing Resources
+**Learning:** Throwing a generic `GatewayError` for 404 responses makes it difficult for agents to programmatically detect when a pin has expired or never existed. Consumers have to inspect the internal HTTP status code or message string, which leads to fragile error handling.
+**Action:** Always provide explicit, custom error types (e.g. `PinNotFoundError`) extending base errors (like `GatewayError`) for clear resource state failure modes like 404s, so consuming agents can conditionally recover or adjust their logic immediately based on error names.

@@ -205,6 +205,22 @@ export class GatewayError extends Error {
 }
 
 /**
+ * Error thrown when a requested IPFS CID is not found (HTTP 404) on the Gateway.
+ * Useful for agents to programmatically detect when a pin has expired or never existed.
+ */
+export class PinNotFoundError extends GatewayError {
+  /**
+   * Constructs a PinNotFoundError.
+   * @param {string} message - The error message detailing the missing CID.
+   */
+  constructor(message: string) {
+    super(message, 404);
+    this.name = 'PinNotFoundError';
+    Object.setPrototypeOf(this, PinNotFoundError.prototype);
+  }
+}
+
+/**
  * 1-Line Multi-Chain Client SDK for IPFS Pay-to-Pin Gateway
  * Enables autonomous AI agents and applications to pin files to IPFS via Base L2, Solana, or Algorand microUSDC x402 payments.
  */
@@ -501,7 +517,12 @@ export class IpfsPayToPinClient {
       const res = await axios.get(`${this.gatewayUrl}/api/v1/pin/${encodeURIComponent(cid)}`);
       return res.data;
     } catch (err: any) {
-      throw new GatewayError(`Status lookup failed for CID ${cid} (${err?.response?.status || 'network error'}): ${err?.response?.data?.error || err?.response?.data?.message || err?.message}`, err?.response?.status);
+      const status = err?.response?.status;
+      const message = `Status lookup failed for CID ${cid} (${status || 'network error'}): ${err?.response?.data?.error || err?.response?.data?.message || err?.message}`;
+      if (status === 404) {
+        throw new PinNotFoundError(message);
+      }
+      throw new GatewayError(message, status);
     }
   }
 
@@ -535,7 +556,12 @@ export class IpfsPayToPinClient {
       if (err.response && err.response.status === 402) {
         res402 = err.response;
       } else {
-        throw new GatewayError(`Renewal request failed (${err?.response?.status}): ${err?.response?.data?.message || err?.message}`, err?.response?.status);
+        const status = err?.response?.status;
+        const message = `Renewal request failed (${status}): ${err?.response?.data?.message || err?.message}`;
+        if (status === 404) {
+          throw new PinNotFoundError(message);
+        }
+        throw new GatewayError(message, status);
       }
     }
 
