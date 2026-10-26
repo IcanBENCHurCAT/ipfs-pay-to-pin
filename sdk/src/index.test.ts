@@ -4,6 +4,7 @@ import {
   IpfsPayToPinClient,
   ConfigurationError,
   GatewayError,
+  PinNotFoundError,
   InsufficientBudgetError,
   PaymentDeclinedError,
 } from './index.js';
@@ -110,11 +111,26 @@ describe('IpfsPayToPinClient', () => {
       expect(status).toEqual(mockStatusData);
     });
 
-    it('throws GatewayError when API call fails', async () => {
+    it('throws PinNotFoundError when API call fails with 404', async () => {
       mockedAxios.get.mockRejectedValueOnce({
         response: {
           status: 404,
           data: { message: 'CID not found' },
+        },
+      });
+
+      const client = new IpfsPayToPinClient({
+        evmPrivateKey: MOCK_EVM_KEY,
+      });
+
+      await expect(client.getPinStatus(testCid)).rejects.toThrow(PinNotFoundError);
+    });
+
+    it('throws GatewayError when API call fails with non-404 status', async () => {
+      mockedAxios.get.mockRejectedValueOnce({
+        response: {
+          status: 500,
+          data: { message: 'Internal server error' },
         },
       });
 
@@ -246,6 +262,21 @@ describe('IpfsPayToPinClient', () => {
 
       await expect(client.renewPin('bafybeid...')).rejects.toThrow(GatewayError);
     });
+
+    it('throws PinNotFoundError when renewal fails with 404', async () => {
+      mockedAxios.post.mockRejectedValueOnce({
+        response: {
+          status: 404,
+          data: { message: 'CID not found' },
+        },
+      });
+
+      const client = new IpfsPayToPinClient({
+        evmPrivateKey: MOCK_EVM_KEY,
+      });
+
+      await expect(client.renewPin('bafybeid...')).rejects.toThrow(PinNotFoundError);
+    });
   });
 
   describe('Custom Error Classes', () => {
@@ -268,6 +299,12 @@ describe('IpfsPayToPinClient', () => {
       expect(err4).toBeInstanceOf(GatewayError);
       expect(err4.name).toBe('GatewayError');
       expect(err4.status).toBe(503);
+
+      const err5 = new PinNotFoundError('CID not found');
+      expect(err5).toBeInstanceOf(PinNotFoundError);
+      expect(err5).toBeInstanceOf(GatewayError);
+      expect(err5.name).toBe('PinNotFoundError');
+      expect(err5.status).toBe(404);
     });
   });
 });
