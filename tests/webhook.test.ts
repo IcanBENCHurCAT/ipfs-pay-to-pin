@@ -644,6 +644,30 @@ describe('WebhookDeliveryService', () => {
 
   describe('isSafeUrl()', () => {
     // isSafeUrl is a module-level function, test via fire() and deliver() blocking
+    it('should block unspecified IPv6 address (::)', async () => {
+      // Test bare :: in URL (wrapped in brackets for valid URL format)
+      const result = await service.fire(
+        'pin.completed',
+        'bafybeitest',
+        'test.txt',
+        'https://ipfs.io/ipfs/bafybeitest',
+        'http://[::]/admin'
+      );
+      expect(result).toBe(false);
+
+      // Test URL that resolves to ::
+      vi.mocked(dns.promises.lookup).mockResolvedValueOnce({ address: '::', family: 6 } as any);
+
+      const resolveResult = await service.fire(
+        'pin.completed',
+        'bafybeitest',
+        'test.txt',
+        'https://ipfs.io/ipfs/bafybeitest',
+        'http://example-resolving-to-unspecified.test'
+      );
+      expect(resolveResult).toBe(false);
+    });
+
     it('should block link-local addresses (169.254.x.x)', async () => {
       const result = await service.fire(
         'pin.completed',
