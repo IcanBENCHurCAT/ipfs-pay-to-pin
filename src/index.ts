@@ -132,7 +132,7 @@ const app = new Hono();
 
 // ⚡ Bolt: Pre-calculate CORS origins once on startup instead of parsing per-request
 // to eliminate O(N) array allocation and URL parsing overhead on the event loop.
-let cachedAllowedOrigins: string[] = [];
+let cachedAllowedOrigins: Set<string> = new Set();
 let isCorsWildcard = false;
 let lastCorsOriginConfig = config.corsOrigin;
 
@@ -144,11 +144,11 @@ const initCorsOrigins = () => {
         "http://localhost:4021"
     ];
 
-    cachedAllowedOrigins = [];
+    cachedAllowedOrigins = new Set();
     isCorsWildcard = false;
 
     if (!rawOrigin || !rawOrigin.trim()) {
-        cachedAllowedOrigins = defaultOrigins;
+        cachedAllowedOrigins = new Set(defaultOrigins);
     } else {
         const parts = rawOrigin.split(',');
         for (let i = 0; i < parts.length; i++) {
@@ -161,7 +161,7 @@ const initCorsOrigins = () => {
             try {
                 const u = new URL(o);
                 if (u.protocol === 'http:' || u.protocol === 'https:') {
-                    cachedAllowedOrigins.push(u.origin);
+                    cachedAllowedOrigins.add(u.origin);
                 }
             } catch {
                 // Discard malformed URL entries securely
@@ -185,7 +185,7 @@ const getCorsOrigin = (reqOrigin: string): string | null => {
         return '*';
     }
 
-    if (cachedAllowedOrigins.includes(reqOrigin)) {
+    if (cachedAllowedOrigins.has(reqOrigin)) {
         return reqOrigin;
     }
 
