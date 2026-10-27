@@ -61,8 +61,19 @@ export async function webhookRateLimiterMiddleware(c: Context, next: Next) {
   if (!ip && trustProxy) {
     // Security: Standard reverse proxies append the client/downstream IP to the end of X-Forwarded-For.
     // Taking the first element allows attackers to spoof their IP by sending custom X-Forwarded-For headers.
-    ip = c.req.header('x-forwarded-for')?.split(',').pop()?.trim()
-      || c.req.header('x-real-ip');
+    const forwardedFor = c.req.header('x-forwarded-for');
+    let extractedIp: string | undefined;
+    if (forwardedFor) {
+      const parts = forwardedFor.split(',');
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const trimmed = parts[i].trim();
+        if (trimmed) {
+          extractedIp = trimmed;
+          break;
+        }
+      }
+    }
+    ip = extractedIp || c.req.header('x-real-ip');
   }
 
   ip = ip || 'unknown-ip';
