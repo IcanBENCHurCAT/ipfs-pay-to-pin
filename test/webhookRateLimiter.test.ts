@@ -189,4 +189,24 @@ describe('Webhook Rate Limiter Middleware', () => {
     });
     expect(res.status).toBe(429);
   });
+
+  it('should ignore empty trailing segments in X-Forwarded-For to prevent rate limit bypass', async () => {
+    const app = new Hono();
+    app.use('/api/v1/webhooks', webhookRateLimiterMiddleware);
+    app.get('/api/v1/webhooks', (c) => c.json({ ok: true }));
+
+    // Send max requests with a trailing comma in the header
+    for (let i = 0; i < MAX_REQUESTS; i++) {
+      const res = await app.request('/api/v1/webhooks', {
+        headers: { 'X-Forwarded-For': '192.168.1.1, ' },
+      });
+      expect(res.status).toBe(200);
+    }
+
+    // The next request from the same IP (with or without trailing comma) should be rate limited
+    const resBlock = await app.request('/api/v1/webhooks', {
+      headers: { 'X-Forwarded-For': '192.168.1.1, ' },
+    });
+    expect(resBlock.status).toBe(429);
+  });
 });
