@@ -68,3 +68,8 @@
 
 **Learning:** When client SDKs map response dictionaries to model dataclasses (e.g. `PinResponse`), ensure all key fields documented in gateway responses (such as `gateway_url` and `expires_at`) are supported with safe fallbacks (`res_json.get("expires_at") or res_json.get("pin_expires_at", "")`). Omitting `gateway_url` or using strict single-key lookups causes empty strings or attribute errors for consuming agents.
 **Action:** Always verify client SDK model dataclasses against gateway API responses and maintain fallback key lookups for response field variations across direct and payment-flow routes.
+
+## 2026-11-10 - Fix Invalid Actions Version in GitHub Workflows
+
+**Learning:** Hardcoding future or non-existent action versions like `actions/checkout@v7` breaks GitHub Actions workflow runners immediately at setup time. Standardizing on stable major versions (e.g. `actions/checkout@v4`) prevents workflow initialization failures.
+**Action:** Periodically verify GitHub Actions action version tags against official releases and ensure workflows use valid, published action tags across all CI/CD pipeline definitions.
