@@ -29,15 +29,20 @@ import { getTraceId, getContextLogger } from './traceId.js';
  * /api/v1/renew/abc123 → /api/v1/renew/:id (parametric)
  */
 function normalizeRoute(path: string): string {
-  // Match known parametric routes (e.g., /renew/:id, /pins/:id, etc.)
-  return path
-    .replace(/\/api\/v\d+\/\w+\/[a-zA-Z0-9_-]+/g, (match) => {
-      // Keep the route pattern but replace the actual ID with :id
-      return match.replace(/[a-zA-Z0-9_-]+$/, ':id');
-    })
-    .replace(/\/api\/v\d+\/\w+\/\d+/g, (match) => {
-      return match.replace(/\/\d+$/, '/:id');
-    });
+  if (!path.startsWith('/api/v')) {
+    return path;
+  }
+  const versionEnd = path.indexOf('/', 6);
+  if (versionEnd === -1) return path;
+
+  const resourceEnd = path.indexOf('/', versionEnd + 1);
+  if (resourceEnd === -1 || resourceEnd === path.length - 1) return path;
+
+  const idEnd = path.indexOf('/', resourceEnd + 1);
+  if (idEnd === -1) {
+    return path.substring(0, resourceEnd + 1) + ':id';
+  }
+  return path.substring(0, resourceEnd + 1) + ':id' + path.substring(idEnd);
 }
 
 /**
