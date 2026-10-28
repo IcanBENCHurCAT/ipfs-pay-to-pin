@@ -73,3 +73,8 @@
 
 **Learning:** Hardcoding future or non-existent action versions like `actions/checkout@v7` breaks GitHub Actions workflow runners immediately at setup time. Standardizing on stable major versions (e.g. `actions/checkout@v4`) prevents workflow initialization failures.
 **Action:** Periodically verify GitHub Actions action version tags against official releases and ensure workflows use valid, published action tags across all CI/CD pipeline definitions.
+
+## 2026-11-15 - Connect Python CLI Test Suite and Dependencies in CI Workflows
+
+**Learning:** Standalone CLI tools and scripts outside subpackage roots (e.g., `scripts/cli.py` and `tests/test_cli.py`) can easily become orphaned from CI pipelines if `pytest` is invoked strictly inside a subpackage subdirectory (e.g. `cd python-sdk && pytest`). In addition, optional CLI dependencies like `click` and `keyring` must be declared in package manifests (`pyproject.toml`) and environment variables like `PYTHONPATH=..` must be explicitly passed in CI steps so top-level imports resolve reliably.
+**Action:** Always declare optional CLI dependencies under `[project.optional-dependencies]` in `pyproject.toml`, include them in `dev`, and pass `PYTHONPATH=..` when running top-level script test suites alongside subpackage test suites in GitHub Actions workflows.
