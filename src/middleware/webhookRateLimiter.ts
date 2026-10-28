@@ -54,11 +54,14 @@ function getNativeIp(c: Context): string | undefined {
  * Stricter limit (20 req/min) to prevent webhook management abuse.
  */
 export async function webhookRateLimiterMiddleware(c: Context, next: Next) {
+  // Priority: 1. Proxy headers (ONLY if proxy trust is explicitly enabled via config). 2. Native IP (fallback).
+  // Why: When behind a proxy (trustProxy=true), nativeIp is the proxy's IP. If we prioritize nativeIp,
+  // ALL requests share a single global rate limit bucket, causing a severe Denial of Service.
   const nativeIp = getNativeIp(c);
   const trustProxy = config.trustProxy || process.env.TRUST_PROXY === 'true';
 
-  let ip = nativeIp;
-  if (!ip && trustProxy) {
+  let ip: string | undefined;
+  if (trustProxy) {
     // Security: Standard reverse proxies append the client/downstream IP to the end of X-Forwarded-For.
     // Taking the first element allows attackers to spoof their IP by sending custom X-Forwarded-For headers.
     const forwardedFor = c.req.header('x-forwarded-for');
@@ -76,7 +79,8 @@ export async function webhookRateLimiterMiddleware(c: Context, next: Next) {
     ip = extractedIp || c.req.header('x-real-ip');
   }
 
-  ip = ip || 'unknown-ip';
+  // Fallback to native IP if proxy headers are not present or not trusted.
+  ip = ip || nativeIp || 'unknown-ip';
 
   const now = Date.now();
 
