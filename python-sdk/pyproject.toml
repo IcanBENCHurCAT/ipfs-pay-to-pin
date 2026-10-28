@@ -45,14 +45,22 @@ evm = [
 solana = [
   "solders>=0.18.0"
 ]
+cli = [
+  "click>=8.0.0",
+  "keyring>=23.0.0"
+]
 all = [
   "py-algorand-sdk>=2.0.0",
   "eth-account>=0.8.0",
-  "solders>=0.18.0"
+  "solders>=0.18.0",
+  "click>=8.0.0",
+  "keyring>=23.0.0"
 ]
 dev = [
   "pytest>=7.0.0",
   "ruff>=0.1.0",
+  "click>=8.0.0",
+  "keyring>=23.0.0",
   "py-algorand-sdk>=2.0.0",
   "eth-account>=0.8.0",
   "solders>=0.18.0"

@@ -16,12 +16,9 @@ Usage examples:
     ipfs-pin config set mnemonic <mnemonic>    # Set wallet mnemonic
 """
 
-import base64
 import os
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
 
 try:
     import click
@@ -55,7 +52,7 @@ def _load_config() -> dict:
             import json
             with open(CONFIG_FILE, "r") as f:
                 return json.load(f)
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             return {}
     return {}
 
@@ -90,7 +87,7 @@ def _store_secret(label: str, secret: str) -> bool:
         return False
 
 
-def _retrieve_secret(label: str) -> Optional[str]:
+def _retrieve_secret(label: str) -> str | None:
     """Retrieve a secret from OS keyring if available."""
     if not HAS_KEYRING:
         return None
@@ -146,10 +143,10 @@ class _Colors:
 # ---------------------------------------------------------------------------
 
 def _resolve_client(
-    gateway: Optional[str] = None,
-    mnemonic: Optional[str] = None,
-    evm_pk: Optional[str] = None,
-    solana_pk: Optional[str] = None,
+    gateway: str | None = None,
+    mnemonic: str | None = None,
+    evm_pk: str | None = None,
+    solana_pk: str | None = None,
     **kwargs,
 ) -> "IpfsPayToPinClient | None":
     """Build an IpfsPayToPinClient from CLI args and config.
@@ -204,9 +201,9 @@ def _resolve_client(
     )
 
 
-def _print_success(cid: str, status: str, expires: str, tx_id: Optional[str] = None) -> None:
+def _print_success(cid: str, status: str, expires: str, tx_id: str | None = None) -> None:
     """Print a successful pin result in colored format."""
-    click.echo(_Colors.success(f"✅ Pin successful!"))
+    click.echo(_Colors.success("✅ Pin successful!"))
     click.echo(_Colors.info(f"   CID:     {cid}"))
     click.echo(_Colors.info(f"   Status:  {status}"))
     if expires:
@@ -452,7 +449,6 @@ def list_pins(ctx):
 @cli.group()
 def config():
     """Configure CLI settings (gateway, wallet keys)."""
-    pass
 
 
 @config.command("set")
@@ -575,8 +571,7 @@ def completion(shell):
         click.echo("Error: click package not installed")
         return
     try:
-        from click.shell_completion import BashComplete, ZshComplete, FishComplete
-        from click.core import Command
+        from click.shell_completion import BashComplete, FishComplete, ZshComplete
 
         shell_class = {
             "bash": BashComplete,

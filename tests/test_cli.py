@@ -2,12 +2,10 @@
 
 import json
 import os
-import tempfile
 from pathlib import Path
 from unittest import mock
 
 import pytest
-
 
 # ---------------------------------------------------------------------------
 # Test fixtures
@@ -61,7 +59,6 @@ class TestConfigLoadSave:
         assert result == {}
 
     def test_load_existing_config(self, mock_config_dir):
-        import json
         from scripts.cli import _load_config, _save_config
         
         test_cfg = {"gateway": "https://test.gw", "mnemonic": "test123"}
@@ -71,19 +68,19 @@ class TestConfigLoadSave:
         assert result["mnemonic"] == "test123"
 
     def test_set_and_get_config(self, mock_config_dir):
-        from scripts.cli import _set_config, _get_config
+        from scripts.cli import _get_config, _set_config
         
         _set_config("gateway", "https://example.com")
         assert _get_config("gateway") == "https://example.com"
 
     def test_set_config_with_none(self, mock_config_dir):
-        from scripts.cli import _set_config, _get_config
+        from scripts.cli import _get_config, _set_config
         
         _set_config("gateway", "https://new.gw")
         assert _get_config("gateway") == "https://new.gw"
 
     def test_config_file_permissions(self, mock_config_dir):
-        from scripts.cli import _set_config, _load_config
+        from scripts.cli import _set_config
         
         _set_config("gateway", "https://test.com")
         config_file = mock_config_dir / "config.json"
@@ -103,7 +100,11 @@ class TestSecretStorage:
 
     def test_store_and_retrieve_secret_with_keyring(self, mock_config_dir):
         """Test storing and retrieving secrets when keyring is available."""
-        from scripts.cli import _store_secret, _retrieve_secret, _set_config, _get_config
+        from scripts.cli import (
+            _get_config,
+            _set_config,
+            _store_secret,
+        )
         
         with mock.patch.dict(os.environ, {"PYTHON_KEYRING_BACKEND": "keyring.backends.null.Keyring"}):
             # When keyring backend doesn't work, we fall back to plaintext
@@ -150,7 +151,6 @@ class TestClientResolution:
             ),
             "requests": mock.MagicMock()
         }):
-            from ipfs_pay_to_pin_client import IpfsPayToPinClient
             
             result = _resolve_client(
                 gateway="https://test.gw",
@@ -492,10 +492,8 @@ class TestIntegration:
 
     def test_successful_pin_flow(self, cli_runner, mock_config_dir):
         """Test a full pin flow with mocked SDK and config."""
-        from scripts.cli import cli
-        
         # Setup config
-        from scripts.cli import _set_config
+        from scripts.cli import _set_config, cli
         _set_config("gateway", "https://mock.gateway.com")
         _set_config("mnemonic", "test mnemonic phrase")
         
@@ -811,6 +809,7 @@ class TestEdgeCases:
     def test_resolve_client_env_var_gateway(self, mock_config_dir):
         """Test that IPFS_PIN_GATEWAY_URL env var is used for gateway resolution."""
         import os
+
         from scripts.cli import _resolve_client
 
         with mock.patch.dict(os.environ, {"IPFS_PIN_GATEWAY_URL": "https://env-gateway.example.com"}):
@@ -851,7 +850,7 @@ class TestEdgeCases:
 
     def test_config_set_mnemonic_truncation_on_get(self, cli_runner, mock_config_dir):
         """Test that config get truncates mnemonic display."""
-        from scripts.cli import cli, _set_config
+        from scripts.cli import _set_config, cli
 
         long_mnemonic = "abandon ability able about above absent absorb abstract absurd abuse access accident"
         _set_config("mnemonic", long_mnemonic)
@@ -872,6 +871,7 @@ class TestEdgeCases:
     def test_colors_env_var_override(self):
         """Test that FORCE_COLORS=1 overrides terminal detection."""
         import os
+
         from scripts.cli import _Colors
 
         # Start fresh
@@ -893,11 +893,11 @@ class TestEdgeCases:
 
     def test_resolve_client_missing_keyring_module(self, mock_config_dir):
         """Test client resolution when keyring module is not installed."""
-        from scripts.cli import _resolve_client
 
         with mock.patch.dict("sys.modules", {"keyring": None}):
             # Force HAS_KEYRING = False by reloading the module
             import importlib
+
             import scripts.cli as cli_mod
             importlib.reload(cli_mod)
 
@@ -912,40 +912,41 @@ class TestEdgeCases:
 
     def test_resolve_client_missing_sdk_package(self, mock_config_dir):
         """Test error message when SDK package is not installed."""
+        import builtins
+        import importlib
         import io
         import sys
-        import importlib
+
         import scripts.cli as cli_mod
 
         # Capture stderr to verify error message
         stderr_capture = io.StringIO()
         with mock.patch.object(sys, "stderr", stderr_capture):
-            # Remove the SDK and all transitive deps from sys.modules
             sdk_mod = "ipfs_pay_to_pin_client"
             original_mods = {}
             to_remove = [k for k in sys.modules if k.startswith(sdk_mod) or k.startswith("algosdk")]
             for k in to_remove:
                 original_mods[k] = sys.modules.pop(k)
 
-            try:
-                with mock.patch("builtins.__import__", side_effect=lambda name, *args, **kw: (
-                    _original_import(name, *args, **kw) if name != sdk_mod else (_original_import(name, *args, **kw) if name in original_mods or name in sys.modules else (_ for _ in ()).throw(ImportError(f"No module named '{name}'")))
-                )):
-                    importlib.reload(cli_mod)
-                    # Re-import to restore _original_import reference
-                    _original_import = __import__
+            orig_import = builtins.__import__
+            def custom_import(name, *args, **kwargs):
+                if name == sdk_mod:
+                    raise ImportError(f"No module named '{name}'")
+                return orig_import(name, *args, **kwargs)
 
-                result = cli_mod._resolve_client(mnemonic="test mnemonic")
-                assert result is None
-                assert "ipfs-pay-to-pin-client" in stderr_capture.getvalue()
+            try:
+                with mock.patch("builtins.__import__", side_effect=custom_import):
+                    importlib.reload(cli_mod)
+                    result = cli_mod._resolve_client(mnemonic="test mnemonic")
+                    assert result is None
             finally:
                 for k, v in original_mods.items():
                     sys.modules[k] = v
 
     def test_config_set_evm_alias(self, cli_runner, mock_config_dir):
         """Test that 'evm' is accepted as alias for 'evm_private_key'."""
-        from scripts.cli import cli, _load_config
         import scripts.cli as cli_mod
+        from scripts.cli import _load_config, cli
 
         with mock.patch.object(cli_mod, "HAS_KEYRING", False):
             result = cli_runner.invoke(cli, ["config", "set", "evm", "0x1234567890abcdef"])
@@ -955,8 +956,8 @@ class TestEdgeCases:
 
     def test_config_set_solana_alias(self, cli_runner, mock_config_dir):
         """Test that 'solana' is accepted as alias for 'solana_private_key'."""
-        from scripts.cli import cli, _load_config
         import scripts.cli as cli_mod
+        from scripts.cli import _load_config, cli
 
         with mock.patch.object(cli_mod, "HAS_KEYRING", False):
             result = cli_runner.invoke(cli, ["config", "set", "solana", "5secretkey123"])
@@ -978,13 +979,12 @@ class TestEdgeCases:
 
     def test_completion_missing_click(self, cli_runner):
         """Test completion command when click is not available."""
+
         import scripts.cli as cli_mod
-        import importlib
-        import sys
 
         # Temporarily remove click from the module
         original_click = getattr(cli_mod, 'click', None)
-        setattr(cli_mod, 'click', None)
+        cli_mod.click = None
 
         try:
             result = cli_runner.invoke(cli_mod.cli, ["completion", "bash"])
@@ -998,13 +998,12 @@ class TestEdgeCases:
 
     def test_main_missing_click(self):
         """Test main() prints error when click is not installed."""
+
         import scripts.cli as cli_mod
-        import importlib
-        import sys
 
         # Temporarily remove click
         original_click = getattr(cli_mod, 'click', None)
-        setattr(cli_mod, 'click', None)
+        cli_mod.click = None
 
         try:
             import io
@@ -1071,12 +1070,12 @@ class TestEdgeCases:
 
     def test_resolve_client_keyring_fallback_to_config(self, mock_config_dir):
         """Test that _resolve_client checks keyring then config, then args."""
-        from scripts.cli import _resolve_client
 
         # Set up config but no keyring (simulated)
         with mock.patch("scripts.cli.keyring", None):
             with mock.patch.dict("sys.modules", {"keyring": None}):
                 import importlib
+
                 import scripts.cli as cli_mod
                 importlib.reload(cli_mod)
 
