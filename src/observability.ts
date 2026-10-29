@@ -54,14 +54,37 @@ const gauges = new Map<string, number>();
 
 function metricKey(name: string, labels: MetricLabels): string {
   const keys = Object.keys(labels);
-  if (keys.length === 0) return name;
-  keys.sort();
-  const parts = new Array(keys.length);
-  for (let i = 0; i < keys.length; i++) {
-    const k = keys[i];
-    parts[i] = `${k}="${labels[k]}"`;
+  const len = keys.length;
+  if (len === 0) return name;
+
+  // ⚡ Bolt: Fast paths for 1-3 labels to avoid dynamic array allocation and .sort() overhead
+  if (len === 3) {
+    let k0 = keys[0], k1 = keys[1], k2 = keys[2];
+    if (k0 > k1) { const t = k0; k0 = k1; k1 = t; }
+    if (k1 > k2) { const t = k1; k1 = k2; k2 = t; }
+    if (k0 > k1) { const t = k0; k0 = k1; k1 = t; }
+    return name + '{' + k0 + '="' + labels[k0] + '",' + k1 + '="' + labels[k1] + '",' + k2 + '="' + labels[k2] + '"}';
   }
-  return `${name}{${parts.join(",")}}`;
+
+  if (len === 1) {
+    const k = keys[0];
+    return name + '{' + k + '="' + labels[k] + '"}';
+  }
+
+  if (len === 2) {
+    let k0 = keys[0], k1 = keys[1];
+    if (k0 > k1) { const t = k0; k0 = k1; k1 = t; }
+    return name + '{' + k0 + '="' + labels[k0] + '",' + k1 + '="' + labels[k1] + '"}';
+  }
+
+  keys.sort();
+  let result = name + '{';
+  for (let i = 0; i < len; i++) {
+    const k = keys[i];
+    if (i > 0) result += ',';
+    result += k + '="' + labels[k] + '"';
+  }
+  return result + '}';
 }
 
 export function incrementCounter(name: string, labels: MetricLabels = {}, by = 1): void {
