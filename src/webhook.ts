@@ -303,7 +303,15 @@ export class WebhookDeliveryService {
       const res = await new Promise<{ ok: boolean, status: number, text: () => Promise<string> }>((resolve, reject) => {
         const req = lib.request(reqOptions, (res) => {
           let body = '';
-          res.on('data', chunk => body += chunk);
+          res.on('data', chunk => {
+            body += chunk;
+            // 🛡️ Sentinel: Enforce a 1MB limit on webhook response bodies to prevent DoS via memory exhaustion
+            if (body.length > 1024 * 1024) {
+              res.destroy();
+              req.destroy();
+              reject(new Error('Response body too large (exceeds 1MB)'));
+            }
+          });
           res.on('end', () => {
             resolve({
               ok: res.statusCode !== undefined && res.statusCode >= 200 && res.statusCode < 300,
