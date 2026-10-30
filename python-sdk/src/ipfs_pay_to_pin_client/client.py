@@ -12,6 +12,7 @@ from .exceptions import (
     ExceedsMaxPriceError,
     PaymentRequiredError,
     PinningFailedError,
+    PinNotFoundError,
 )
 from .models import PinResponse
 
@@ -69,6 +70,8 @@ class IpfsPayToPinClient:
             resp.raise_for_status()
             return resp.json()
         except requests.RequestException as e:
+            if e.response is not None and e.response.status_code == 404:
+                raise PinNotFoundError(f"Status lookup failed for CID {cid}: 404 Not Found") from e
             err_msg = str(e)
             if e.response is not None and getattr(e.response, "text", None):
                 err_msg = e.response.text or err_msg
@@ -81,10 +84,24 @@ class IpfsPayToPinClient:
         cid_clean = cid.strip()
         url = f"{self.gateway_url}/api/v1/renew"
         payload = {"cid": cid_clean}
-        resp = requests.post(url, json=payload)
+        try:
+            resp = requests.post(url, json=payload)
+        except requests.RequestException as e:
+            raise PinningFailedError(f"Renewal request failed for CID {cid_clean}: {e}") from e
+
         if resp.status_code == 402:
             return self._handle_payment_flow(url, payload, resp, max_price_usdc=max_price_usdc)
-        resp.raise_for_status()
+        if resp.status_code == 404:
+            raise PinNotFoundError(f"Renewal failed for CID {cid_clean}: 404 Not Found")
+
+        try:
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            err_msg = str(e)
+            if resp.text:
+                err_msg = resp.text or err_msg
+            raise PinningFailedError(f"Renewal failed for CID {cid_clean}: {err_msg}") from e
+
         data = resp.json()
         return PinResponse(
             cid=data.get("cid", cid_clean),
@@ -278,6 +295,9 @@ class IpfsPayToPinClient:
                 tx_id=res_json.get("tx_id"),
                 gateway_url=res_json.get("gateway_url"),
             )
+
+        if paid_resp.status_code == 404:
+            raise PinNotFoundError(f"Post-payment request failed for CID {payload.get('cid', '')}: 404 Not Found")
 
         err_hdr = paid_resp.headers.get("payment-required") or paid_resp.headers.get("PAYMENT-REQUIRED") or ""
         raise PinningFailedError(f"Post-payment request failed with status {paid_resp.status_code}: {paid_resp.text} | Header: {err_hdr}")

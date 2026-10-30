@@ -6,6 +6,7 @@ from .exceptions import (
     PaymentRequiredError,
     PayToPinError,
     PinningFailedError,
+    PinNotFoundError,
     RekeyDetectedError,
 )
 from .models import PinResponse
@@ -17,6 +18,7 @@ __all__ = [
     "IpfsPayToPinClient",
     "PayToPinError",
     "PaymentRequiredError",
+    "PinNotFoundError",
     "PinResponse",
     "PinningFailedError",
     "RekeyDetectedError",

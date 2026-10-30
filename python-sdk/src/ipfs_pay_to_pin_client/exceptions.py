@@ -11,6 +11,7 @@ class ConfigurationError(PayToPinError):
 
 class PaymentRequiredError(PayToPinError):
     """Raised when 402 Payment Required response is returned or payment fails."""
+
     def __init__(self, message: str, challenge: dict | None = None):
         super().__init__(message)
         self.challenge = challenge or {}
@@ -30,3 +31,11 @@ class ExceedsMaxPriceError(PayToPinError):
 
 class PinningFailedError(PayToPinError):
     """Raised when upstream pinning fails after settlement."""
+
+
+class PinNotFoundError(PinningFailedError):
+    """Raised when a requested IPFS CID is not found (HTTP 404) on the Gateway."""
+
+    def __init__(self, message: str):
+        super().__init__(message)
+        self.status_code = 404

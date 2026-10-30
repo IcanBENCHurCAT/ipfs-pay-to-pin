@@ -13,6 +13,7 @@ from ipfs_pay_to_pin_client.exceptions import (
     ExceedsMaxPriceError,
     PaymentRequiredError,
     PinningFailedError,
+    PinNotFoundError,
 )
 from ipfs_pay_to_pin_client.models import PinResponse
 
@@ -99,7 +100,7 @@ class TestIpfsPayToPinClient(unittest.TestCase):
     @patch("ipfs_pay_to_pin_client.client.requests.get")
     @patch("algosdk.v2client.algod.AlgodClient")
     @patch("algosdk.mnemonic.to_private_key")
-    def test_get_status_http_error(self, mock_to_priv, mock_algod, mock_get):
+    def test_get_status_404_raises_pin_not_found_error(self, mock_to_priv, mock_algod, mock_get):
         mock_to_priv.return_value = self.private_key
         mock_response = MagicMock()
         mock_response.status_code = 404
@@ -108,10 +109,28 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         mock_get.return_value = mock_response
 
         client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
-        with self.assertRaises(PinningFailedError) as ctx:
+        with self.assertRaises(PinNotFoundError) as ctx:
             client.get_status("QmNotFound")
 
-        self.assertIn("Status lookup failed for CID QmNotFound: CID Not Found", str(ctx.exception))
+        self.assertEqual(ctx.exception.status_code, 404)
+        self.assertIn("Status lookup failed for CID QmNotFound: 404 Not Found", str(ctx.exception))
+
+    @patch("ipfs_pay_to_pin_client.client.requests.get")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_get_status_500_raises_pinning_failed_error(self, mock_to_priv, mock_algod, mock_get):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("500 Server Error", response=mock_response)
+        mock_get.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+        with self.assertRaises(PinningFailedError) as ctx:
+            client.get_status("QmError")
+
+        self.assertIn("Status lookup failed for CID QmError: Internal Server Error", str(ctx.exception))
 
     @patch("algosdk.v2client.algod.AlgodClient")
     @patch("algosdk.mnemonic.to_private_key")
@@ -398,16 +417,35 @@ class TestIpfsPayToPinClient(unittest.TestCase):
     @patch("ipfs_pay_to_pin_client.client.requests.post")
     @patch("algosdk.v2client.algod.AlgodClient")
     @patch("algosdk.mnemonic.to_private_key")
-    def test_renew_pin_http_error(self, mock_to_priv, mock_algod, mock_post):
+    def test_renew_pin_404_raises_pin_not_found_error(self, mock_to_priv, mock_algod, mock_post):
         mock_to_priv.return_value = self.private_key
         mock_response = MagicMock()
         mock_response.status_code = 404
-        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Not Found")
         mock_post.return_value = mock_response
 
         client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
-        with self.assertRaises(requests.exceptions.HTTPError):
+        with self.assertRaises(PinNotFoundError) as ctx:
             client.renew_pin("QmNotFound")
+
+        self.assertEqual(ctx.exception.status_code, 404)
+        self.assertIn("Renewal failed for CID QmNotFound: 404 Not Found", str(ctx.exception))
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_renew_pin_500_raises_pinning_failed_error(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.status_code = 500
+        mock_response.text = "Internal Gateway Error"
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("500 Server Error")
+        mock_post.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+        with self.assertRaises(PinningFailedError) as ctx:
+            client.renew_pin("QmServerError")
+
+        self.assertIn("Renewal failed for CID QmServerError: Internal Gateway Error", str(ctx.exception))
 
     @patch.object(IpfsPayToPinClient, "pin_bytes")
     @patch("algosdk.v2client.algod.AlgodClient")
