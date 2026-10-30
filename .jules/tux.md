@@ -83,3 +83,8 @@
 
 **Learning:** When using `actions/setup-python@v5` in GitHub Actions CI across multi-version matrix jobs (e.g. Python 3.11, 3.12, 3.13), configuring `cache: 'pip'` alongside `cache-dependency-path: 'python-sdk/pyproject.toml'` allows GitHub Actions to automatically restore cached pip wheels and packages across workflow runs, avoiding redundant package downloads and accelerating pipeline execution.
 **Action:** Always specify `cache: 'pip'` and `cache-dependency-path` in `actions/setup-python@v5` steps when testing or building Python subpackages with `pyproject.toml` or `requirements.txt`.
+
+## 2026-11-25 - Implement PinNotFoundError in Python SDK to Align with TS SDK Error Hierarchy
+
+**Learning:** The TypeScript SDK defines `PinNotFoundError` extending `GatewayError` (status 404) for programmatic handling of missing/expired CIDs. In multi-language client SDKs, mirroring error class hierarchies (e.g., `PinNotFoundError` extending `PinningFailedError` with `status_code = 404`) enables autonomous agents using Python to detect resource non-existence programmatically without regex pattern matching on error strings or catching uncaught HTTP exceptions.
+**Action:** Always export `PinNotFoundError` in `__init__.py` and catch HTTP 404 status codes in client methods (`get_status`, `renew_pin`) to throw `PinNotFoundError` consistently across SDK runtimes.
