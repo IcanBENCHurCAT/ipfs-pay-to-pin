@@ -31,6 +31,18 @@ const FACILITATOR_SUPPORTED = {
     {
       x402Version: 2,
       scheme: 'exact',
+      network: 'algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73k',
+      extra: { feePayer: 'ZMFK2OI7ZBD2U27ISERZC4S6LKM6WMFJPZQ4MYNJDZ2VNBNMBA67RA22AA' }
+    },
+    {
+      x402Version: 2,
+      scheme: 'exact',
+      network: 'algorand:SGO1GKSzyE7IEPItTxCByw9x8FmnrCDe',
+      extra: { feePayer: 'ZMFK2OI7ZBD2U27ISERZC4S6LKM6WMFJPZQ4MYNJDZ2VNBNMBA67RA22AA' }
+    },
+    {
+      x402Version: 2,
+      scheme: 'exact',
       network: 'algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=',
       extra: { feePayer: 'ZMFK2OI7ZBD2U27ISERZC4S6LKM6WMFJPZQ4MYNJDZ2VNBNMBA67RA22AA' }
     },

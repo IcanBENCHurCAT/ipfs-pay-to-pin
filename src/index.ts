@@ -53,7 +53,7 @@ const facilitatorUrl = process.env.FACILITATOR_URL || "https://facilitator.gopla
 const networkEnv = (process.env.ALGORAND_NETWORK || "mainnet").toLowerCase();
 
 const ALGORAND_MAINNET_FULL_CAIP2 = "algorand:wGHE2Pwdvd7S12BL5FaOP20EGYesN73ktiC1qzkkit8=";
-const networkCaip2 = networkEnv === "mainnet" ? ALGORAND_MAINNET_FULL_CAIP2 : ALGORAND_TESTNET_CAIP2;
+const networkCaip2 = networkEnv === "mainnet" ? ALGORAND_MAINNET_CAIP2 : ALGORAND_TESTNET_CAIP2;
 const usdcAsaId = networkEnv === "mainnet" ? USDC_MAINNET_ASA_ID : USDC_TESTNET_ASA_ID;
 
 import { ExactEvmScheme } from "@x402/evm/exact/server";
