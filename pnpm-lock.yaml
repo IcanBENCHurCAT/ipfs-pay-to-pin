@@ -25,8 +25,8 @@ importers:
         specifier: ^26.6.6
         version: 26.6.6
       '@x402/avm':
-        specifier: ^2.28.0
-        version: 2.28.0
+        specifier: ^2.29.0
+        version: 2.29.0
       '@x402/core':
         specifier: ^2.28.0
         version: 2.28.0
@@ -96,8 +96,8 @@ importers:
         version: 1.21.0
     devDependencies:
       '@x402/avm':
-        specifier: ^2.28.0
-        version: 2.28.0
+        specifier: ^2.29.0
+        version: 2.29.0
       '@x402/core':
         specifier: ^2.28.0
         version: 2.28.0
@@ -1425,8 +1425,8 @@ packages:
   '@vitest/spy@5.0.5':
     resolution: {integrity: sha512-lwJRExuH417257Q5wv9QYugN9IMJkoxcrKrYxGPQkBzl7wlNpTUxD/5yNX4ESKVUIShKPgkGchYPFMWOOk0wzw==}
 
-  '@x402/avm@2.28.0':
-    resolution: {integrity: sha512-ww6EPNQvWKsQdjDFzAA2w15rGDFo+5sRZk9iFerLIMM0URa/A70nPoh4FerH9Bss/lBjUcKG01wYI+i6HBK8/g==}
+  '@x402/avm@2.29.0':
+    resolution: {integrity: sha512-psUuBq4x2ndIsrWgtq/MWbNyHrAakudFcveKPqTgMDh9d69gZeYx7bOxrutCqnn+ymt2pjJNibdOKZaake0ZIw==}
 
   '@x402/core@2.28.0':
     resolution: {integrity: sha512-Da/7zKxCKqpBoB4Msc9tFgkAv7tJTD8nG+DSSm+QdXAyJS4PQsmgVSKe17rDJTtlu0pwNbLcOje6MyQ6kaDkig==}
@@ -3481,10 +3481,10 @@ snapshots:
 
   '@vitest/spy@5.0.5': {}
 
-  '@x402/avm@2.28.0':
+  '@x402/avm@2.29.0':
     dependencies:
       '@algorandfoundation/algokit-utils': 10.0.0-alpha.46
-      '@x402/core': 2.28.0
+      '@x402/core': 2.29.0
 
   '@x402/core@2.28.0':
     dependencies:
