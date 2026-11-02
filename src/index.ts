@@ -236,14 +236,13 @@ app.use("*", bodyLimit({
 // Caching the result prevents repeatedly parsing 20MB JSON payloads which blocks the event loop.
 app.use("*", async (c, next) => {
     const originalJson = c.req.json.bind(c.req);
-    let cachedJson: any;
-    let hasCached = false;
+    let jsonPromise: Promise<any> | null = null;
 
-    c.req.json = async function<T = any>(): Promise<T> {
-        if (hasCached) return cachedJson;
-        cachedJson = await originalJson();
-        hasCached = true;
-        return cachedJson;
+    c.req.json = function<T = any>(): Promise<T> {
+        if (!jsonPromise) {
+            jsonPromise = originalJson();
+        }
+        return jsonPromise as Promise<T>;
     };
 
     await next();

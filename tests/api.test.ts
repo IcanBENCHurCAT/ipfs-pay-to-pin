@@ -237,4 +237,34 @@ describe('API Integration Tests', () => {
         const html = await res.text();
         expect(html.toLowerCase()).toContain('swagger');
     });
+
+    it('T030: memoizes c.req.json() and synchronously caches the promise', async () => {
+        let parseCount = 0;
+
+        const mockContext = {
+            req: {
+                json: async function() {
+                    parseCount++;
+                    return { data: 'test' };
+                }
+            }
+        };
+
+        const middleware = (app as any).routes.find((r: any) => r.path === '/*' && r.handler.toString().includes('originalJson')).handler;
+
+        await middleware(mockContext, async () => {});
+
+        const promise1 = mockContext.req.json();
+        const promise2 = mockContext.req.json();
+
+        expect(promise1).toBe(promise2);
+
+        const res1 = await promise1;
+        const res2 = await promise2;
+
+        expect(res1).toEqual({ data: 'test' });
+        expect(res2).toEqual({ data: 'test' });
+
+        expect(parseCount).toBe(1);
+    });
 });
