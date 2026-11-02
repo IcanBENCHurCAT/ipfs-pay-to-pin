@@ -19,7 +19,7 @@ vi.mock('@x402/hono', async (importOriginal) => {
 });
 
 // Import app after mocks
-import app from '../src/index.js';
+import app, { jsonMemoizationMiddleware } from '../src/index.js';
 
 describe('API Integration Tests', () => {
     beforeEach(() => {
@@ -236,5 +236,36 @@ describe('API Integration Tests', () => {
         expect(res.headers.get('content-type')).toContain('text/html');
         const html = await res.text();
         expect(html.toLowerCase()).toContain('swagger');
+    });
+
+    it('T030: memoizes c.req.json() and synchronously caches the promise', async () => {
+        let parseCount = 0;
+        const fakeContext = {
+            req: {
+                json: vi.fn().mockImplementation(async () => {
+                    parseCount++;
+                    return { hello: 'world' };
+                })
+            }
+        } as any;
+
+        let nextCalled = false;
+        await jsonMemoizationMiddleware(fakeContext, async () => {
+            nextCalled = true;
+        });
+
+        expect(nextCalled).toBe(true);
+
+        const call1Promise = fakeContext.req.json();
+        const call2Promise = fakeContext.req.json();
+
+        expect(call1Promise).not.toBeNull();
+        expect(call1Promise).toBe(call2Promise);
+
+        const data1 = await call1Promise;
+        const data2 = await call2Promise;
+        expect(data1).toEqual({ hello: 'world' });
+        expect(data2).toEqual({ hello: 'world' });
+        expect(parseCount).toBe(1);
     });
 });
