@@ -234,20 +234,21 @@ app.use("*", bodyLimit({
 // Hono parses the body on every call to req.json(). The @x402/hono middleware checks the
 // body multiple times to calculate dynamic prices across different payment networks.
 // Caching the result prevents repeatedly parsing 20MB JSON payloads which blocks the event loop.
-app.use("*", async (c, next) => {
+export const jsonMemoizationMiddleware = async (c: any, next: () => Promise<void>) => {
     const originalJson = c.req.json.bind(c.req);
-    let cachedJson: any;
-    let hasCached = false;
+    let jsonPromise: Promise<any> | null = null;
 
-    c.req.json = async function<T = any>(): Promise<T> {
-        if (hasCached) return cachedJson;
-        cachedJson = await originalJson();
-        hasCached = true;
-        return cachedJson;
+    c.req.json = function<T = any>(): Promise<T> {
+        if (!jsonPromise) {
+            jsonPromise = originalJson();
+        }
+        return jsonPromise as Promise<T>;
     };
 
     await next();
-});
+};
+
+app.use("*", jsonMemoizationMiddleware);
 
 const logoUrl = "https://gateway.pinata.cloud/ipfs/QmU9AgYdnWXHYqwsan75kJB8JPudY7kxfiguNHyn69BTiy";
 
