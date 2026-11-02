@@ -65,7 +65,7 @@ console.log('Gateway URL:', result.gateway_url);
 console.log('Expires At:', result.expires_at);
 ```
 
-### 2. Renew an Existing Pin (50% Early Renewal Discount)
+### 3. Renew an Existing Pin (50% Early Renewal Discount)
 
 ```typescript
 const renewalResult = await client.renewPin('bafkreiewws62ozsuqdylwhlj2ylu7hxauxygofmiuiezncvmjg2gofg2hq');
@@ -73,7 +73,7 @@ const renewalResult = await client.renewPin('bafkreiewws62ozsuqdylwhlj2ylu7hxaux
 console.log('New Expiration Date:', renewalResult.expires_at);
 ```
 
-### 3. Check Pin Retention Status (Free)
+### 4. Check Pin Retention Status (Free)
 
 ```typescript
 const status = await client.getPinStatus('bafkreiewws62ozsuqdylwhlj2ylu7hxauxygofmiuiezncvmjg2gofg2hq');
@@ -100,11 +100,18 @@ The SDK provides specific error classes to help autonomous agents and applicatio
 - `InsufficientBudgetError`: Thrown when the gateway requests a price that exceeds your configured `maxPriceUsdc` cap.
 - `PaymentDeclinedError`: Thrown when a custom `confirmPrice` callback function returns `false`, rejecting the payment.
 - `ConfigurationError`: Thrown when the SDK is misconfigured (e.g. missing required private keys or mnemonics, or invalid inputs to client methods).
-- `GatewayError`: Thrown when the IPFS Pay-to-Pin gateway returns an HTTP error (e.g. 503 Service Unavailable if the queue is full, 404 if the pin is not found, or 400 Bad Request). Contains an optional `status` property for the HTTP status code.
+- `PinNotFoundError`: Extends `GatewayError` (status code 404). Thrown when a requested IPFS CID is not found or has expired during `getPinStatus` or `renewPin`. Allows autonomous agents to detect missing resources programmatically.
+- `GatewayError`: Thrown when the IPFS Pay-to-Pin gateway returns an HTTP error (e.g. 503 Service Unavailable if the queue is full, or 400 Bad Request). Contains an optional `status` property for the HTTP status code.
 
 Example:
 ```typescript
-import { InsufficientBudgetError, PaymentDeclinedError, ConfigurationError, GatewayError } from 'ipfs-pay-to-pin-client';
+import {
+  InsufficientBudgetError,
+  PaymentDeclinedError,
+  ConfigurationError,
+  PinNotFoundError,
+  GatewayError
+} from 'ipfs-pay-to-pin-client';
 
 try {
   await client.pinFile({ filename: 'test.png', data: myData });
@@ -115,6 +122,8 @@ try {
     console.error('Payment manually declined:', error.message);
   } else if (error instanceof ConfigurationError) {
     console.error('Client misconfigured:', error.message);
+  } else if (error instanceof PinNotFoundError) {
+    console.error('CID not found or expired:', error.message);
   } else if (error instanceof GatewayError) {
     console.error(`Gateway error (${error.status || 'Network'}):`, error.message);
   } else {

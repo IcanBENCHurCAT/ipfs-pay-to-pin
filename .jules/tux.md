@@ -93,3 +93,8 @@
 
 **Learning:** Testing the complete client SDK payment orchestration pipeline (`selectBestAcceptOption`, `maxPriceUsdc` cap checks, `confirmPrice` approval/rejection callbacks, `preferredNetwork` routing, and header encoding) requires mocking HTTP 402 responses with valid `PAYMENT-REQUIRED` headers. However, executing `x402ClientInstance.createPaymentPayload` during unit tests introduces deep dependencies on specific multi-chain signing schemes and EIP-712 / AVM payload schemas. Spying on `(client as any).x402ClientInstance.createPaymentPayload` allows comprehensive unit verification of the entire client control flow and budget guardrails in isolation without coupling tests to external chain cryptographic signers.
 **Action:** When adding unit tests for x402 client SDK payment lifecycles, isolate protocol payload signing with `vi.spyOn(client.x402ClientInstance, 'createPaymentPayload')` while using real base64 challenge headers to thoroughly test challenge parsing, price validation, callbacks, and header assembly.
+
+## 2026-11-01 - Document PinNotFoundError in TypeScript and Python SDK READMEs
+
+**Learning:** Autonomous agents and developers relying on SDK documentation need explicit documentation and examples for resource-not-found error classes (`PinNotFoundError`). Without documentation in READMEs and quickstarts, consuming agents fall back to generic error handling instead of taking advantage of typed 404 error classes for automated recovery and diagnostics.
+**Action:** Ensure all exported custom error classes (such as `PinNotFoundError`) are documented with code examples in both TypeScript and Python SDK README files.
