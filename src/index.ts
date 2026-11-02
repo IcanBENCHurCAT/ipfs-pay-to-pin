@@ -1134,6 +1134,12 @@ app.post("/api/v1/pin", async (c) => {
             return c.json({ error: "Missing or invalid filename or data parameter in JSON payload" }, 400);
         }
 
+        // 🛡️ Sentinel: Strict Base64 validation to prevent invalid characters bypassing size logic.
+        // Node's Buffer.from ignores invalid characters, which breaks the mathematical size estimation.
+        if (!/^[A-Za-z0-9+/=\-_]+$/.test(data)) {
+            return c.json({ error: "Invalid base64 encoding in file data." }, 400);
+        }
+
         let padding = 0;
         const dataLen = data.length;
         if (dataLen > 1) {
