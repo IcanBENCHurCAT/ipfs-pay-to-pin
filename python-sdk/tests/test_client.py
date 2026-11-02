@@ -174,6 +174,26 @@ class TestIpfsPayToPinClient(unittest.TestCase):
     @patch("ipfs_pay_to_pin_client.client.requests.post")
     @patch("algosdk.v2client.algod.AlgodClient")
     @patch("algosdk.mnemonic.to_private_key")
+    def test_pin_bytes_exceeds_max_payload(self, mock_to_priv, mock_algod, mock_post):
+        mock_to_priv.return_value = self.private_key
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        # Instead of mocking builtins.len which causes recursion issues in unittest,
+        # we can pass a dummy byte-like object with a large length.
+        class LargeBytes(bytes):
+            def __len__(self):
+                return 20 * 1024 * 1024
+
+        large_payload = LargeBytes(b"hello")
+
+        with self.assertRaises(ConfigurationError) as cm:
+            client.pin_bytes(large_payload)
+
+        self.assertIn("exceeds the 20MB gateway limit", str(cm.exception))
+
+    @patch("ipfs_pay_to_pin_client.client.requests.post")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
     def test_pin_bytes_success_direct(self, mock_to_priv, mock_algod, mock_post):
         mock_to_priv.return_value = self.private_key
         mock_response = MagicMock()

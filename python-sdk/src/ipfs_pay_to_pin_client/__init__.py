@@ -1,4 +1,8 @@
-from .client import IpfsPayToPinClient
+from .client import (
+    MAX_PAYLOAD_SIZE_BYTES,
+    PAYLOAD_JSON_OVERHEAD_BYTES,
+    IpfsPayToPinClient,
+)
 from .exceptions import (
     ConfigurationError,
     ExceedsMaxPriceError,
@@ -12,6 +16,8 @@ from .exceptions import (
 from .models import PinResponse
 
 __all__ = [
+    "MAX_PAYLOAD_SIZE_BYTES",
+    "PAYLOAD_JSON_OVERHEAD_BYTES",
     "ConfigurationError",
     "ExceedsMaxPriceError",
     "InsufficientFundsError",
