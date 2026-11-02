@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 import os
 from urllib.parse import quote
 
@@ -15,6 +16,9 @@ from .exceptions import (
     PinNotFoundError,
 )
 from .models import PinResponse
+
+MAX_PAYLOAD_SIZE_BYTES = 20 * 1024 * 1024
+PAYLOAD_JSON_OVERHEAD_BYTES = 10240
 
 
 class IpfsPayToPinClient:
@@ -122,6 +126,12 @@ class IpfsPayToPinClient:
             raise ConfigurationError(f"Expected data to be bytes or bytearray, got {type(data).__name__}")
         if not filename or not isinstance(filename, str) or not filename.strip():
             raise ConfigurationError("Expected filename to be a non-empty string.")
+
+        estimated_size = math.ceil(len(data) * 4 / 3)
+        if estimated_size > MAX_PAYLOAD_SIZE_BYTES - PAYLOAD_JSON_OVERHEAD_BYTES:
+            raise ConfigurationError(
+                f"File payload size ({estimated_size} bytes) exceeds the 20MB gateway limit."
+            )
 
         b64_content = base64.b64encode(data).decode("utf-8")
         payload = {
