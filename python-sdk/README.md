@@ -97,6 +97,7 @@ print(f"Is Active: {status.get('is_active')}")
 
 The SDK defines specialized exception classes in `ipfs_pay_to_pin_client.exceptions` to allow autonomous agents and applications to handle payment and gateway edge cases cleanly:
 
+- `PinNotFoundError`: Inherits from `PinningFailedError` (status code 404). Raised when a requested IPFS CID is not found or has expired during `get_status` or `renew_pin`. Allows autonomous agents to detect missing resources programmatically.
 - `ExceedsMaxPriceError`: Raised when the payment requested by the gateway exceeds your specified `max_price_usdc` ceiling.
 - `PaymentRequiredError`: Raised when an HTTP 402 challenge occurs without valid header data or no wallet is configured for the required network.
 - `PinningFailedError`: Raised when the gateway returns an error (e.g. 500, 503 Service Unavailable, or 400 Bad Request) or when settlement fails.
@@ -110,6 +111,7 @@ from ipfs_pay_to_pin_client import IpfsPayToPinClient
 from ipfs_pay_to_pin_client.exceptions import (
     ExceedsMaxPriceError,
     PaymentRequiredError,
+    PinNotFoundError,
     PinningFailedError,
     PayToPinError,
 )
@@ -120,6 +122,8 @@ except ExceedsMaxPriceError as e:
     print(f"Price ceiling exceeded: {e}")
 except PaymentRequiredError as e:
     print(f"Payment challenge error: {e}")
+except PinNotFoundError as e:
+    print(f"CID not found or expired (404): {e}")
 except PinningFailedError as e:
     print(f"Gateway or pinning failed: {e}")
 except PayToPinError as e:
