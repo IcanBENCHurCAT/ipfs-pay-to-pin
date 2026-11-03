@@ -76,8 +76,8 @@ print(f"New Expiration Date: {renewal.pin_expires_at}")
 ### 4. Check Retention Status (Free)
 
 ```python
-# Public status lookup (no payment required)
-status = client.get_status("bafkreiewws62ozsuqdylwhlj2ylu7hxauxygofmiuiezncvmjg2gofg2hq")
+# Public status lookup (no payment required) via get_pin_status (or get_status)
+status = client.get_pin_status("bafkreiewws62ozsuqdylwhlj2ylu7hxauxygofmiuiezncvmjg2gofg2hq")
 print(f"Days Remaining: {status.get('days_remaining')}")
 print(f"Is Active: {status.get('is_active')}")
 ```
@@ -97,7 +97,7 @@ print(f"Is Active: {status.get('is_active')}")
 
 The SDK defines specialized exception classes in `ipfs_pay_to_pin_client.exceptions` to allow autonomous agents and applications to handle payment and gateway edge cases cleanly:
 
-- `PinNotFoundError`: Inherits from `PinningFailedError` (status code 404). Raised when a requested IPFS CID is not found or has expired during `get_status` or `renew_pin`. Allows autonomous agents to detect missing resources programmatically.
+- `PinNotFoundError`: Inherits from `PinningFailedError` (status code 404). Raised when a requested IPFS CID is not found or has expired during `get_status` (`get_pin_status`) or `renew_pin`. Allows autonomous agents to detect missing resources programmatically.
 - `ExceedsMaxPriceError`: Raised when the payment requested by the gateway exceeds your specified `max_price_usdc` ceiling.
 - `PaymentRequiredError`: Raised when an HTTP 402 challenge occurs without valid header data or no wallet is configured for the required network.
 - `PinningFailedError`: Raised when the gateway returns an error (e.g. 500, 503 Service Unavailable, or 400 Bad Request) or when settlement fails.

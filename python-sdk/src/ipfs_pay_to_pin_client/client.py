@@ -64,6 +64,19 @@ class IpfsPayToPinClient:
                 pass
 
     def get_status(self, cid: str) -> dict:
+        """Free retention status lookup for a pinned CID.
+
+        Args:
+            cid: The IPFS CID to check.
+
+        Returns:
+            Dict containing pin status details (pinned_at, expires_at, days_remaining, is_active, etc.).
+
+        Raises:
+            ConfigurationError: If CID is empty or invalid.
+            PinNotFoundError: If CID is not found (404).
+            PinningFailedError: If network fails or gateway returns unexpected status.
+        """
         if not cid or not isinstance(cid, str) or not cid.strip():
             raise ConfigurationError("Invalid CID provided: Expected a non-empty string.")
 
@@ -80,6 +93,10 @@ class IpfsPayToPinClient:
             if e.response is not None and getattr(e.response, "text", None):
                 err_msg = e.response.text or err_msg
             raise PinningFailedError(f"Status lookup failed for CID {cid}: {err_msg}") from e
+
+    def get_pin_status(self, cid: str) -> dict:
+        """Alias for `get_status(cid)` to provide multi-SDK method naming consistency with TypeScript SDK."""
+        return self.get_status(cid)
 
     def renew_pin(self, cid: str, max_price_usdc: float | None = None) -> PinResponse:
         if not cid or not isinstance(cid, str) or not cid.strip():
