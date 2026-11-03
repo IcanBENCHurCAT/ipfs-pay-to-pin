@@ -15,7 +15,7 @@ from ipfs_pay_to_pin_client.exceptions import (
     PinningFailedError,
     PinNotFoundError,
 )
-from ipfs_pay_to_pin_client.models import PinResponse
+from ipfs_pay_to_pin_client.models import PinResponse, PinStatusResponse
 
 
 class TestIpfsPayToPinClient(unittest.TestCase):
@@ -70,6 +70,77 @@ class TestIpfsPayToPinClient(unittest.TestCase):
         client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
         res = client.get_status("QmTest")
         self.assertEqual(res["cid"], "QmTest")
+
+    @patch("ipfs_pay_to_pin_client.client.requests.get")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_get_pin_status_alias(self, mock_to_priv, mock_algod, mock_get):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "pinned_at": "2026-01-01T00:00:00Z",
+            "expires_at": "2027-01-01T00:00:00Z",
+            "days_remaining": 365,
+            "is_active": True,
+            "ttl_days": 365,
+            "renewals_count": 0,
+            "renewal_url": "https://pay-to-pin.duckdns.org/api/v1/renew",
+        }
+        mock_response.raise_for_status.return_value = None
+        mock_get.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+        res = client.get_pin_status("QmTestAlias")
+        self.assertEqual(res["days_remaining"], 365)
+        self.assertTrue(res["is_active"])
+
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_get_pin_status_invalid_cid(self, mock_to_priv, mock_algod):
+        mock_to_priv.return_value = self.private_key
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+
+        for invalid_cid in ["", "   ", None, 123]:
+            with self.assertRaises(ConfigurationError) as ctx:
+                client.get_pin_status(invalid_cid)  # type: ignore
+            self.assertIn("Invalid CID provided", str(ctx.exception))
+
+    @patch("ipfs_pay_to_pin_client.client.requests.get")
+    @patch("algosdk.v2client.algod.AlgodClient")
+    @patch("algosdk.mnemonic.to_private_key")
+    def test_get_pin_status_404_raises_pin_not_found_error(self, mock_to_priv, mock_algod, mock_get):
+        mock_to_priv.return_value = self.private_key
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_response.text = "CID Not Found"
+        mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError("404 Not Found", response=mock_response)
+        mock_get.return_value = mock_response
+
+        client = IpfsPayToPinClient(gateway_url=self.gateway_url, sender_mnemonic="fake mnemonic")
+        with self.assertRaises(PinNotFoundError) as ctx:
+            client.get_pin_status("QmNotFoundAlias")
+
+        self.assertEqual(ctx.exception.status_code, 404)
+        self.assertIn("Status lookup failed for CID QmNotFoundAlias: 404 Not Found", str(ctx.exception))
+
+    def test_pin_status_response_model(self):
+        data = {
+            "pinned_at": "2026-01-01T00:00:00Z",
+            "expires_at": "2027-01-01T00:00:00Z",
+            "days_remaining": 365,
+            "is_active": True,
+            "ttl_days": 365,
+            "renewals_count": 1,
+            "renewal_url": "https://pay-to-pin.duckdns.org/api/v1/renew",
+        }
+        status_model = PinStatusResponse(**data)
+        self.assertEqual(status_model.pinned_at, "2026-01-01T00:00:00Z")
+        self.assertEqual(status_model.expires_at, "2027-01-01T00:00:00Z")
+        self.assertEqual(status_model.days_remaining, 365)
+        self.assertTrue(status_model.is_active)
+        self.assertEqual(status_model.ttl_days, 365)
+        self.assertEqual(status_model.renewals_count, 1)
+        self.assertEqual(status_model.renewal_url, "https://pay-to-pin.duckdns.org/api/v1/renew")
 
     @patch("ipfs_pay_to_pin_client.client.requests.get")
     @patch("algosdk.v2client.algod.AlgodClient")

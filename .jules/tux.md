@@ -98,3 +98,8 @@
 
 **Learning:** Autonomous agents and developers relying on SDK documentation need explicit documentation and examples for resource-not-found error classes (`PinNotFoundError`). Without documentation in READMEs and quickstarts, consuming agents fall back to generic error handling instead of taking advantage of typed 404 error classes for automated recovery and diagnostics.
 **Action:** Ensure all exported custom error classes (such as `PinNotFoundError`) are documented with code examples in both TypeScript and Python SDK README files.
+
+## 2026-11-02 - Expose get_pin_status and PinStatusResponse Model in Python SDK
+
+**Learning:** In multi-SDK codebases, maintaining consistent method naming across language ecosystems prevents friction for cross-language AI agents and developers. While TypeScript SDK uses `getPinStatus`, Python SDK only provided `get_status` without a typed dataclass for the status return value. Exposing `get_pin_status` as an alias alongside `PinStatusResponse` enables seamless agent tool interoperability and type-safe status deserialization.
+**Action:** In multi-language client SDKs, provide snake_case method aliases that match camelCase SDK methods (`get_pin_status` for `getPinStatus`) and export dataclass models representing all structured gateway responses.

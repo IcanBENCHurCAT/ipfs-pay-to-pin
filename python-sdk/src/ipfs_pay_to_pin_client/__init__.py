@@ -13,7 +13,7 @@ from .exceptions import (
     PinNotFoundError,
     RekeyDetectedError,
 )
-from .models import PinResponse
+from .models import PinResponse, PinStatusResponse
 
 __all__ = [
     "MAX_PAYLOAD_SIZE_BYTES",
@@ -26,6 +26,7 @@ __all__ = [
     "PaymentRequiredError",
     "PinNotFoundError",
     "PinResponse",
+    "PinStatusResponse",
     "PinningFailedError",
     "RekeyDetectedError",
 ]
