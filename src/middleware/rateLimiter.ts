@@ -65,13 +65,20 @@ export async function rateLimiterMiddleware(c: Context, next: Next) {
     const forwardedFor = c.req.header('x-forwarded-for');
     let extractedIp: string | undefined;
     if (forwardedFor) {
-      const parts = forwardedFor.split(',');
-      for (let i = parts.length - 1; i >= 0; i--) {
-        const trimmed = parts[i].trim();
-        if (trimmed) {
-          extractedIp = trimmed;
+      // ⚡ Bolt: Use allocation-free right-to-left string traversal instead of .split(',')
+      // to avoid dynamic array allocation and garbage collection overhead on every request.
+      let end = forwardedFor.length;
+      while (end > 0) {
+        let start = forwardedFor.lastIndexOf(',', end - 1);
+        if (start === -1) start = 0;
+        else start += 1; // Skip the comma
+
+        const segment = forwardedFor.substring(start, end).trim();
+        if (segment) {
+          extractedIp = segment;
           break;
         }
+        end = start - 1; // Move past the comma
       }
     }
     ip = extractedIp || c.req.header('x-real-ip');
