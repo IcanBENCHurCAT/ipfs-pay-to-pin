@@ -108,16 +108,20 @@ export function traceIdMiddleware() {
     if (trustProxy) {
       // Security: Standard reverse proxies append the client/downstream IP to the end of X-Forwarded-For.
       // Taking the first element allows attackers to spoof their IP by sending custom X-Forwarded-For headers.
+      // ⚡ Bolt: Use allocation-free string traversal instead of .split(',') to avoid V8 array creation overhead
       const forwardedFor = c.req.header('x-forwarded-for');
       let extractedIp: string | undefined;
       if (forwardedFor) {
-        const parts = forwardedFor.split(',');
-        for (let i = parts.length - 1; i >= 0; i--) {
-          const trimmed = parts[i].trim();
+        let end = forwardedFor.length;
+        while (end > 0) {
+          const lastComma = forwardedFor.lastIndexOf(',', end - 1);
+          const startIndex = lastComma === -1 ? 0 : lastComma + 1;
+          const trimmed = forwardedFor.substring(startIndex, end).trim();
           if (trimmed) {
             extractedIp = trimmed;
             break;
           }
+          end = lastComma;
         }
       }
       ip = extractedIp || c.req.header('x-real-ip');

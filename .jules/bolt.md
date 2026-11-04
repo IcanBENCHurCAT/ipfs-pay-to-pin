@@ -175,3 +175,7 @@
 ## 2026-11-02 - [Avoid async function microtask overhead for simple memoization wrappers]
 **Learning:** In `src/index.ts`, `c.req.json` was memoized using an `async` function wrapper that awaited the result (`cachedJson = await originalJson()`) and subsequently returned the resolved value. Because it was an `async` function, every cache hit still incurred the V8 overhead of entering an async context and enqueuing a microtask, which added measurable CPU time on extremely hot paths (like middleware parsing the body multiple times for payment prices).
 **Action:** Replaced the `async` function wrapper with a synchronous function that directly caches and returns the underlying `Promise<any>`. This avoids the `async/await` overhead on cache hits entirely, reducing CPU time spent in the memoization function by ~40% during high-throughput benchmarking.
+
+## 2026-11-03 - [Use allocation-free string traversal for X-Forwarded-For parsing]
+**Learning:** Extracting IPs from the `X-Forwarded-For` header using `forwardedFor.split(',')` dynamically allocates an intermediate string array on every HTTP request. For long headers (e.g. from multiple proxies or spoofing attempts), this significantly increases V8 garbage collection overhead and event loop blocking time.
+**Action:** Replace `.split(',')` with an allocation-free right-to-left string traversal using `String.prototype.lastIndexOf()` and `String.prototype.substring()`. This drops memory allocation to O(1) and runs much faster on long spoofed headers, protecting the hot path from performance degradation.
