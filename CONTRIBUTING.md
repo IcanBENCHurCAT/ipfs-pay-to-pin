@@ -26,9 +26,9 @@ Thank you for your interest in contributing to the IPFS Pay-to-Pin Gateway and C
    ```bash
    pnpm run -r --include-workspace-root test
    ```
-6. Run Python SDK unit tests:
+6. Run Python SDK lint & unit tests (including CLI tests):
    ```bash
-   cd python-sdk && pip install -e ".[dev]" && python3 -m pytest
+   cd python-sdk && pip install -e ".[dev]" && ruff check . && PYTHONPATH=.. python3 -m pytest tests/ ../tests/
    ```
 
 ## Pull Request Guidelines
