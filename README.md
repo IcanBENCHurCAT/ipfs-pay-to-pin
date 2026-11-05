@@ -58,8 +58,8 @@ pnpm run dev
 pnpm test
 pnpm run -r --include-workspace-root test
 
-# Run Python SDK unit tests
-cd python-sdk && pip install -e ".[dev]" && python3 -m pytest
+# Run Python SDK lint & unit tests (including CLI tests)
+cd python-sdk && pip install -e ".[dev]" && ruff check . && PYTHONPATH=.. python3 -m pytest tests/ ../tests/
 ```
 
 ## Production Deployment (Unified Always-Free VM)

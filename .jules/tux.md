@@ -103,3 +103,8 @@
 
 **Learning:** In multi-SDK codebases, maintaining consistent method naming across language ecosystems prevents friction for cross-language AI agents and developers. While TypeScript SDK uses `getPinStatus`, Python SDK only provided `get_status` without a typed dataclass for the status return value. Exposing `get_pin_status` as an alias alongside `PinStatusResponse` enables seamless agent tool interoperability and type-safe status deserialization.
 **Action:** In multi-language client SDKs, provide snake_case method aliases that match camelCase SDK methods (`get_pin_status` for `getPinStatus`) and export dataclass models representing all structured gateway responses.
+
+## 2026-11-05 - Align Python SDK Verification Commands in Documentation with CI
+
+**Learning:** Developer and contributor documentation (such as `CONTRIBUTING.md` and `README.md`) can drift from automated CI pipeline definitions. When CI workflows require linting checks (`ruff check .`) and top-level CLI integration tests (`PYTHONPATH=.. python -m pytest tests/ ../tests/`), documenting only subpackage `pytest` execution leads to unexpected CI failures for contributors and autonomous agents.
+**Action:** Always cross-reference local development test commands in `CONTRIBUTING.md` and `README.md` against `.github/workflows/ci.yml` so contributors run the exact test and lint matrix that runs in CI.
