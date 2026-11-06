@@ -142,6 +142,26 @@ except PayToPinError as e:
 
 ---
 
+## Development & Testing
+
+To set up the Python SDK locally for development, install development dependencies and run the lint and test suite matching the CI workflow:
+
+```bash
+# Navigate to the python-sdk directory
+cd python-sdk
+
+# Install in editable mode with development and optional CLI dependencies
+pip install -e ".[dev]"
+
+# Run ruff lint checks
+ruff check .
+
+# Run SDK and CLI unit tests with top-level package resolution
+PYTHONPATH=.. python3 -m pytest tests/ ../tests/
+```
+
+---
+
 ## License
 
 MIT License. See [LICENSE](../LICENSE) for full text.
