@@ -134,6 +134,36 @@ try {
 
 ---
 
+## Development & Testing
+
+The TypeScript client SDK is managed as a `pnpm` workspace package. To install dependencies, build bundles, run type checks, and execute unit tests:
+
+```bash
+# From repository root:
+# Install all workspace dependencies
+pnpm install
+
+# Run unit tests for the SDK
+pnpm --filter ipfs-pay-to-pin-client run test
+
+# Run TypeScript type check / lint
+pnpm --filter ipfs-pay-to-pin-client run lint
+
+# Build ESM & CJS distribution bundles with TypeScript declarations
+pnpm --filter ipfs-pay-to-pin-client run build
+```
+
+Alternatively, from the `sdk/` directory:
+
+```bash
+cd sdk
+pnpm run test
+pnpm run lint
+pnpm run build
+```
+
+---
+
 ## License
 
 MIT License. See [LICENSE](../LICENSE) for the full text.

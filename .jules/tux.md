@@ -108,3 +108,8 @@
 
 **Learning:** Developer and contributor documentation (such as `CONTRIBUTING.md` and `README.md`) can drift from automated CI pipeline definitions. When CI workflows require linting checks (`ruff check .`) and top-level CLI integration tests (`PYTHONPATH=.. python -m pytest tests/ ../tests/`), documenting only subpackage `pytest` execution leads to unexpected CI failures for contributors and autonomous agents.
 **Action:** Always cross-reference local development test commands in `CONTRIBUTING.md` and `README.md` against `.github/workflows/ci.yml` so contributors run the exact test and lint matrix that runs in CI.
+
+## 2026-11-05 - Standardize Development & Testing Instructions in AGENTS.md and SDK READMEs
+
+**Learning:** Agent guides (`AGENTS.md`) and subpackage READMEs (`sdk/README.md`, `python-sdk/README.md`) easily become out of sync with CI workflows if subpackage documentation omits development setup, build, linting, and testing workflows. Agents and external contributors working inside subdirectories need explicit instructions for `pnpm` workspace filters, package builds, `ruff` checks, and `PYTHONPATH=..` test execution to avoid CI discrepancies.
+**Action:** Always document package-level development, lint, build, and test steps in each SDK README and ensure `AGENTS.md` reflects the complete, verified commands executed in GitHub Actions CI workflows.

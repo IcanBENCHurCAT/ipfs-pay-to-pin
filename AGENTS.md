@@ -58,7 +58,7 @@ ipfs-pay-to-pin/
 ## 4. Coding Conventions & Guardrails
 
 - **Package Manager**: Use `pnpm` exclusively for Node workspace tasks (`pnpm install`, `pnpm test`, `pnpm run -r --include-workspace-root test`, `pnpm run -r --include-workspace-root build`).
-- **Python Testing**: Use `python3 -m pytest python-sdk/tests` for Python SDK testing.
+- **Python Testing**: Use `cd python-sdk && pip install -e ".[dev]" && ruff check . && PYTHONPATH=.. python3 -m pytest tests/ ../tests/` for Python SDK linting and unit testing (including CLI tests).
 - **No Hardcoded Secrets**: Access credentials (e.g., `PINATA_JWT`, `SUPABASE_KEY`, `ALGORAND_WALLET_PRIVATE_KEY`) strictly from `.env` or environment variables.
 - **x402 Compliance**: Always use standard `@x402/hono` middleware for generating `402 Payment Required` responses (`PAYMENT-REQUIRED` and `PAYMENT-SIGNATURE` headers).
 - **Pricing & Retention**: Micropayments are calculated in **microUSDC**. Pins are timeboxed for **up to 365 days** per payment, with a `/renew` endpoint for annual recurring retention payments (50% early renewal discount prior to expiration).
