@@ -62,31 +62,26 @@ export async function rateLimiterMiddleware(c: Context, next: Next) {
   if (trustProxy) {
     // Security: Standard reverse proxies append the client/downstream IP to the end of X-Forwarded-For.
     // Taking the first element allows attackers to spoof their IP by sending custom X-Forwarded-For headers.
-    // ⚡ Bolt: Use allocation-free string traversal instead of .split(',') to avoid V8 array creation overhead
-    // Avoid calling .substring() repeatedly on trailing empty/whitespace segments, as it causes memory allocation overhead.
-    // Instead, use right-to-left traversal by skipping structural characters (spaces, commas) via .charCodeAt(end).
+    // ⚡ Bolt: Use right-to-left traversal, avoids the intermediate array from .split(',')
     const forwardedFor = c.req.header('x-forwarded-for');
     let extractedIp: string | undefined;
     if (forwardedFor) {
       let end = forwardedFor.length;
       while (end > 0) {
-        let scanEnd = end - 1;
-        while (scanEnd >= 0) {
-          const code = forwardedFor.charCodeAt(scanEnd);
+        // Skip structural spaces and commas via charCodeAt
+        while (end > 0) {
+          const code = forwardedFor.charCodeAt(end - 1);
           if (code === 32 || code === 44) {
-            scanEnd--;
+            end--;
           } else {
             break;
           }
         }
+        if (end === 0) break;
 
-        if (scanEnd < 0) {
-          break;
-        }
-
-        const lastComma = forwardedFor.lastIndexOf(',', scanEnd);
+        const lastComma = forwardedFor.lastIndexOf(',', end - 1);
         const startIndex = lastComma === -1 ? 0 : lastComma + 1;
-        const trimmed = forwardedFor.substring(startIndex, scanEnd + 1).trim();
+        const trimmed = forwardedFor.substring(startIndex, end).trim();
         if (trimmed) {
           extractedIp = trimmed;
           break;
