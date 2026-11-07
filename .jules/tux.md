@@ -113,3 +113,8 @@
 
 **Learning:** Agent guides (`AGENTS.md`) and subpackage READMEs (`sdk/README.md`, `python-sdk/README.md`) easily become out of sync with CI workflows if subpackage documentation omits development setup, build, linting, and testing workflows. Agents and external contributors working inside subdirectories need explicit instructions for `pnpm` workspace filters, package builds, `ruff` checks, and `PYTHONPATH=..` test execution to avoid CI discrepancies.
 **Action:** Always document package-level development, lint, build, and test steps in each SDK README and ensure `AGENTS.md` reflects the complete, verified commands executed in GitHub Actions CI workflows.
+
+## 2026-11-06 - Upgrade actions/setup-python to v7 across CI and Release Pipelines
+
+**Learning:** Official GitHub Actions workflows modernize their core action runtime dependencies over time (e.g., migrating runner internals to Node 24 and ESM). While actions like `actions/checkout` and `actions/setup-node` were already standardized on `v7`, `actions/setup-python` was still pinned to `v5`. Upgrading `actions/setup-python` to major version `v7` maintains full backward compatibility for `pip` dependency caching while aligning runner action versions across TypeScript and Python CI jobs.
+**Action:** When auditing GitHub Actions workflows, keep first-party GitHub action suites (`checkout`, `setup-node`, `setup-python`) synchronized on their stable modern releases while ensuring all cache configuration parameters remain functional.
