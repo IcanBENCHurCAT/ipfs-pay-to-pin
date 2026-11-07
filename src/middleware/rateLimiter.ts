@@ -68,6 +68,17 @@ export async function rateLimiterMiddleware(c: Context, next: Next) {
     if (forwardedFor) {
       let end = forwardedFor.length;
       while (end > 0) {
+        // Skip structural spaces and commas via charCodeAt
+        while (end > 0) {
+          const code = forwardedFor.charCodeAt(end - 1);
+          if (code === 32 || code === 44) {
+            end--;
+          } else {
+            break;
+          }
+        }
+        if (end === 0) break;
+
         const lastComma = forwardedFor.lastIndexOf(',', end - 1);
         const startIndex = lastComma === -1 ? 0 : lastComma + 1;
         const trimmed = forwardedFor.substring(startIndex, end).trim();
