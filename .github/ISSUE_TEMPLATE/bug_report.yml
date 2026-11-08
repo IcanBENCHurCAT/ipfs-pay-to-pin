@@ -1,7 +1,7 @@
-name: Bug Report
-description: Create a report to help us improve the gateway or client SDK
-title: '[BUG] '
-labels: ['bug']
+name: Gateway Bug Report
+description: Report a bug or issue in the IPFS Pay-to-Pin Gateway API service
+title: '[GATEWAY BUG] '
+labels: ['bug', 'gateway']
 body:
   - type: textarea
     id: what

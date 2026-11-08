@@ -1,0 +1,61 @@
+name: TypeScript SDK Bug Report
+description: Report an issue or unexpected behavior in the TypeScript SDK (`ipfs-pay-to-pin-client`)
+title: '[TS SDK BUG] '
+labels: ['bug', 'sdk', 'typescript']
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: Describe the bug or unexpected behavior when using the TypeScript SDK.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen instead?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Provide code snippet or steps to reproduce the issue.
+      placeholder: |
+        ```typescript
+        import { IpfsPayToPinClient } from 'ipfs-pay-to-pin-client';
+
+        const client = new IpfsPayToPinClient({ ... });
+        await client.pinFile({ ... });
+        ```
+    validations:
+      required: true
+  - type: input
+    id: node_version
+    attributes:
+      label: Node / Runtime Version
+      description: What version of Node.js, Bun, or runtime are you using? (e.g. Node 22.x, Bun 1.2)
+    validations:
+      required: true
+  - type: input
+    id: sdk_version
+    attributes:
+      label: TypeScript SDK Version
+      description: Which version of `ipfs-pay-to-pin-client` is installed? (e.g. 2.1.2)
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network / Chain
+      options:
+        - Base L2 (eip155:8453)
+        - Arbitrum One (eip155:42161)
+        - Solana Mainnet
+        - Algorand Mainnet
+        - Ethereum L1 (eip155:1)
+        - N/A
+  - type: textarea
+    id: additional
+    attributes:
+      label: Stack Trace & Context
+      description: Paste full error messages, stack traces, or console output if available.
