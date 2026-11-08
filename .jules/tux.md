@@ -119,7 +119,7 @@
 **Learning:** Official GitHub Actions workflows modernize their core action runtime dependencies over time (e.g., migrating runner internals to Node 24 and ESM). While actions like `actions/checkout` and `actions/setup-node` were already standardized on `v7`, `actions/setup-python` was still pinned to `v5`. Upgrading `actions/setup-python` to major version `v7` maintains full backward compatibility for `pip` dependency caching while aligning runner action versions across TypeScript and Python CI jobs.
 **Action:** When auditing GitHub Actions workflows, keep first-party GitHub action suites (`checkout`, `setup-node`, `setup-python`) synchronized on their stable modern releases while ensuring all cache configuration parameters remain functional.
 
-## 2026-11-12 - Add Dedicated TypeScript SDK Issue Template for Issue Hygiene
+## 2026-11-08 - Add Dedicated TypeScript SDK Issue Template for Issue Hygiene
 
 **Learning:** In a multi-package mono-repository containing backend services, TypeScript SDKs, and Python SDKs, having only a dedicated Python SDK bug template (`python_sdk_bug.yml`) alongside a generic `bug_report.yml` creates reporting ambiguity. Contributors and autonomous agents submitting bug reports for the TypeScript SDK lack clear structured fields (such as runtime environments, Node/Bun versions, and multi-chain network selectors).
 **Action:** Provide dedicated GitHub Issue Form templates (`.github/ISSUE_TEMPLATE/`) for each client SDK ecosystem (TypeScript and Python) alongside the gateway service template to ensure consistent issue triage and structured bug reproductions.
