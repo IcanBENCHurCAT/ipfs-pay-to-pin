@@ -30,8 +30,8 @@ importers:
         specifier: ^2.29.0
         version: 2.29.0
       '@x402/core':
-        specifier: ^2.28.0
-        version: 2.28.0
+        specifier: ^2.30.0
+        version: 2.30.0
       '@x402/evm':
         specifier: ^2.28.0
         version: 2.28.0(typescript@7.0.2)
@@ -104,8 +104,8 @@ importers:
         specifier: ^2.29.0
         version: 2.29.0
       '@x402/core':
-        specifier: ^2.28.0
-        version: 2.28.0
+        specifier: ^2.30.0
+        version: 2.30.0
       '@x402/evm':
         specifier: ^2.28.0
         version: 2.28.0(typescript@7.0.2)
@@ -1439,6 +1439,9 @@ packages:
   '@x402/core@2.29.0':
     resolution: {integrity: sha512-fkS0JqVwHgczteDlwItLRipOlIzm28U9HWLvYnYpnNbfmepoBT/4ux7LjrR0xGD51JHoC8/r+Qo7uCfoAQYeuw==}
 
+  '@x402/core@2.30.0':
+    resolution: {integrity: sha512-gvMxCum2QlNI6jI/3NL1jdrmOgtX9sWEWxSIOmeI67/5ndOJvYOtP7JZLSO8o8af+O+A+Vhhjza1NCda0yVppg==}
+
   '@x402/evm@2.28.0':
     resolution: {integrity: sha512-BZuoaCKMoPQQuMTa4oibvoyI06WdCpgrzgdicUu8d+5NBMAfWb6LAmSQf1KkeiS8C+25/+2JGB4cHSL0VLGnSA==}
 
@@ -2149,8 +2152,8 @@ packages:
   ufo@1.6.4:
     resolution: {integrity: sha512-JFNbkD1Svwe0KvGi8GOeLcP4kAWQ609twvCdcHxq1oSL8svv39ZuSvajcD8B+5D0eL4+s1Is2D/O6KN3qcTeRA==}
 
-  undici-types@7.30.1:
-    resolution: {integrity: sha512-4CNTj7RmIepmiez9hX5pJzYLi5bv1ZBA6puqC3qYyqluB8zu5uygFc+4iG5Nmcx3fg+6bPFxuEbCrxTa7Yqy3A==}
+  undici-types@7.30.2:
+    resolution: {integrity: sha512-Vx15rZHtDo7X+sZVzcecz08ooRvEa0cjSs8z85v/jRRf81BT1m9eaoMI4gxvaNwgQg2IgkfjJ45dMpKrSl0zEQ==}
 
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
@@ -3149,7 +3152,7 @@ snapshots:
       '@solana/errors': 5.5.1(typescript@7.0.2)
       '@solana/rpc-spec': 5.5.1(typescript@7.0.2)
       '@solana/rpc-spec-types': 5.5.1(typescript@7.0.2)
-      undici-types: 7.30.1
+      undici-types: 7.30.2
     optionalDependencies:
       typescript: 7.0.2
 
@@ -3493,6 +3496,10 @@ snapshots:
       zod: 4.6.7
 
   '@x402/core@2.29.0':
+    dependencies:
+      zod: 4.6.7
+
+  '@x402/core@2.30.0':
     dependencies:
       zod: 4.6.7
 
@@ -4259,7 +4266,7 @@ snapshots:
 
   ufo@1.6.4: {}
 
-  undici-types@7.30.1: {}
+  undici-types@7.30.2: {}
 
   undici-types@8.9.0: {}
 
