@@ -68,10 +68,10 @@ export async function rateLimiterMiddleware(c: Context, next: Next) {
     if (forwardedFor) {
       let end = forwardedFor.length;
       while (end > 0) {
-        // Skip structural spaces and commas via charCodeAt
+        // Skip structural spaces, commas, and other whitespace via charCodeAt
         while (end > 0) {
           const code = forwardedFor.charCodeAt(end - 1);
-          if (code === 32 || code === 44) {
+          if (code === 32 || code === 44 || code === 9 || code === 10 || code === 13) {
             end--;
           } else {
             break;
