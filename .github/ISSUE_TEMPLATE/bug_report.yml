@@ -1,53 +1,56 @@
-name: Bug Report
-description: Create a report to help us improve the gateway or client SDK
-title: '[BUG] '
-labels: ['bug']
+name: Gateway Bug Report
+description: Report an issue or unexpected behavior with the IPFS Pay-to-Pin Gateway API service
+title: '[GATEWAY BUG] '
+labels: ['bug', 'gateway']
 body:
   - type: textarea
     id: what
     attributes:
       label: What
-      description: Describe the bug. What is the unexpected behavior?
+      description: Describe the bug or unexpected behavior in the Gateway API service.
     validations:
       required: true
   - type: textarea
     id: expected
     attributes:
       label: Expected Behavior
-      description: What did you expect to happen instead?
+      description: What did you expect the Gateway to return instead?
     validations:
       required: true
   - type: textarea
     id: steps
     attributes:
-      label: Steps to Reproduce
-      description: Steps to reproduce the behavior.
+      label: Steps to Reproduce / Request Payload
+      description: Steps or curl request to reproduce the issue against the gateway.
       placeholder: |
-        1.
-        2.
-        3.
+        curl -X POST https://pay-to-pin.duckdns.org/api/v1/pin \
+          -H "Content-Type: application/json" \
+          -d '{"filename": "test.txt", "data": "..."}'
     validations:
       required: true
   - type: input
-    id: node_version
+    id: endpoint
     attributes:
-      label: Node Version
-      description: What version of Node.js are you using?
-  - type: input
-    id: sdk_version
-    attributes:
-      label: SDK Version
-      description: Which version of the SDK are you using?
+      label: Affected Endpoint / Route
+      description: Which API route is failing? (e.g. POST /api/v1/pin, POST /api/v1/renew, GET /api/v1/pin/:cid)
   - type: dropdown
     id: network
     attributes:
-      label: Network
+      label: Network / Chain
       options:
-        - Mainnet
-        - Testnet
+        - Base L2 (eip155:8453)
+        - Solana Mainnet (solana:5ey...)
+        - Algorand Mainnet (algorand:mainnet)
+        - Ethereum L1 (eip155:1)
+        - Arbitrum One (eip155:42161)
         - N/A
+  - type: textarea
+    id: headers_or_response
+    attributes:
+      label: Gateway Response & Headers
+      description: Include HTTP status code, PAYMENT-REQUIRED challenge headers, or error JSON returned.
   - type: textarea
     id: additional
     attributes:
       label: Additional Context
-      description: Any error logs, screenshots, or other relevant info.
+      description: Any server logs, trace IDs, or deployment environment context.
