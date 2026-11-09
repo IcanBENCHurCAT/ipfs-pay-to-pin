@@ -118,3 +118,8 @@
 
 **Learning:** Official GitHub Actions workflows modernize their core action runtime dependencies over time (e.g., migrating runner internals to Node 24 and ESM). While actions like `actions/checkout` and `actions/setup-node` were already standardized on `v7`, `actions/setup-python` was still pinned to `v5`. Upgrading `actions/setup-python` to major version `v7` maintains full backward compatibility for `pip` dependency caching while aligning runner action versions across TypeScript and Python CI jobs.
 **Action:** When auditing GitHub Actions workflows, keep first-party GitHub action suites (`checkout`, `setup-node`, `setup-python`) synchronized on their stable modern releases while ensuring all cache configuration parameters remain functional.
+
+## 2026-11-09 - Component-Scoped Issue Templates for Multi-Language SDKs and Gateway
+
+**Learning:** When a repository provides both a backend API service (Gateway) and multi-language client SDKs (TypeScript and Python) with blank issues disabled (`blank_issues_enabled: false`), having generic bug templates causes confusion and incomplete reports. If only the Python SDK has a specialized template while TypeScript SDK issues fall back to a generic template, contributors and autonomous agents lack guided fields for runtime environment (Node vs Python), specific SDK versions, package imports, and network headers.
+**Action:** Provide dedicated, component-scoped GitHub issue form templates (`[GATEWAY BUG] `, `[TS SDK BUG] `, `[Python SDK BUG] `) with tailored prompts and labels for each tier of the project architecture.
