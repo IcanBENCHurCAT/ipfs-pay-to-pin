@@ -39,3 +39,7 @@
 ## 2025-08-24 - Explicit PinNotFoundError for Missing Resources
 **Learning:** Throwing a generic `GatewayError` for 404 responses makes it difficult for agents to programmatically detect when a pin has expired or never existed. Consumers have to inspect the internal HTTP status code or message string, which leads to fragile error handling.
 **Action:** Always provide explicit, custom error types (e.g. `PinNotFoundError`) extending base errors (like `GatewayError`) for clear resource state failure modes like 404s, so consuming agents can conditionally recover or adjust their logic immediately based on error names.
+
+## 2026-11-09 - Explicit Custom Errors for Distinct Failure Phases
+**Learning:** Throwing generic errors or leaking underlying HTTP client errors (like `AxiosError`) during the final payment settlement hurts AX, as agents cannot easily differentiate a failed pre-flight challenge from a failed post-payment settlement.
+**Action:** Always provide custom error classes (e.g. `PaymentSettlementError`) for distinct failure phases and catch/wrap underlying HTTP errors so consuming agents have clear context for programmatic recovery.

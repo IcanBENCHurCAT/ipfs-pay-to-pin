@@ -221,6 +221,22 @@ export class PinNotFoundError extends GatewayError {
 }
 
 /**
+ * Error thrown when a paid upload or renewal request fails during final settlement.
+ */
+export class PaymentSettlementError extends GatewayError {
+  /**
+   * Constructs a PaymentSettlementError.
+   * @param {string} message - The error message detailing the settlement failure.
+   * @param {number} [status] - Optional HTTP status code associated with the error.
+   */
+  constructor(message: string, status?: number) {
+    super(message, status);
+    this.name = 'PaymentSettlementError';
+    Object.setPrototypeOf(this, PaymentSettlementError.prototype);
+  }
+}
+
+/**
  * 1-Line Multi-Chain Client SDK for IPFS Pay-to-Pin Gateway
  * Enables autonomous AI agents and applications to pin files to IPFS via Base L2, Solana, or Algorand microUSDC x402 payments.
  */
@@ -416,6 +432,7 @@ export class IpfsPayToPinClient {
    * @throws {GatewayError} If network fails or gateway returns unexpected status.
    * @throws {InsufficientBudgetError} If requested x402 payment price exceeds `maxPriceUsdc`.
    * @throws {PaymentDeclinedError} If user explicit `confirmPrice` callback rejects payment.
+   * @throws {PaymentSettlementError} If the final settlement request fails.
    *
    * @example
    * const client = new IpfsPayToPinClient({ mnemonic: process.env.MNEMONIC });
@@ -488,13 +505,16 @@ export class IpfsPayToPinClient {
     const paymentHeaders = this.x402HttpClient.encodePaymentSignatureHeader(paymentPayload);
 
     // 5. Submit paid request
-    const paidRes = await axios.post(pinUrl, payload, {
-      headers: {
-        ...paymentHeaders
-      }
-    });
-
-    return paidRes.data;
+    try {
+      const paidRes = await axios.post(pinUrl, payload, {
+        headers: {
+          ...paymentHeaders
+        }
+      });
+      return paidRes.data;
+    } catch (err: any) {
+      throw new PaymentSettlementError(`Upload settlement failed (${err?.response?.status || 'network error'}): ${err?.response?.data?.message || err?.message}`, err?.response?.status);
+    }
   }
 
   /**
@@ -535,6 +555,7 @@ export class IpfsPayToPinClient {
    * @throws {GatewayError} If network fails or gateway returns unexpected status.
    * @throws {InsufficientBudgetError} If requested x402 renewal price exceeds `maxPriceUsdc`.
    * @throws {PaymentDeclinedError} If user explicit `confirmPrice` callback rejects renewal.
+   * @throws {PaymentSettlementError} If the final settlement request fails.
    *
    * @example
    * const result = await client.renewPin('bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi');
@@ -585,13 +606,16 @@ export class IpfsPayToPinClient {
     const paymentPayload = await this.x402ClientInstance.createPaymentPayload(challenge as any);
     const paymentHeaders = this.x402HttpClient.encodePaymentSignatureHeader(paymentPayload);
 
-    const paidRes = await axios.post(renewUrl, payload, {
-      headers: {
-        ...paymentHeaders
-      }
-    });
-
-    return paidRes.data;
+    try {
+      const paidRes = await axios.post(renewUrl, payload, {
+        headers: {
+          ...paymentHeaders
+        }
+      });
+      return paidRes.data;
+    } catch (err: any) {
+      throw new PaymentSettlementError(`Renewal settlement failed (${err?.response?.status || 'network error'}): ${err?.response?.data?.message || err?.message}`, err?.response?.status);
+    }
   }
 }
 
