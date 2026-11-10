@@ -123,3 +123,8 @@
 
 **Learning:** When a repository provides both a backend API service (Gateway) and multi-language client SDKs (TypeScript and Python) with blank issues disabled (`blank_issues_enabled: false`), having generic bug templates causes confusion and incomplete reports. If only the Python SDK has a specialized template while TypeScript SDK issues fall back to a generic template, contributors and autonomous agents lack guided fields for runtime environment (Node vs Python), specific SDK versions, package imports, and network headers.
 **Action:** Provide dedicated, component-scoped GitHub issue form templates (`[GATEWAY BUG] `, `[TS SDK BUG] `, `[Python SDK BUG] `) with tailored prompts and labels for each tier of the project architecture.
+
+## 2026-11-09 - Document and Test PaymentSettlementError in TypeScript SDK
+
+**Learning:** When custom error classes (such as `PaymentSettlementError`) are introduced into an SDK to wrap post-payment failures, documentation in `sdk/README.md` and unit tests in `sdk/src/index.test.ts` must be updated concurrently. Without README documentation and code examples, consuming autonomous agents and human developers cannot discover the error class for programmatic recovery. Furthermore, unit tests that mock both initial 402 challenges and subsequent settlement failures ensure that regressions cannot slip through undetected.
+**Action:** Whenever a new domain error class is added to an SDK, immediately document it in the package README with usage examples and add unit tests exercising both its instantiation properties and its invocation during failed operations.
