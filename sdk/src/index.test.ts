@@ -5,6 +5,7 @@ import {
   ConfigurationError,
   GatewayError,
   PinNotFoundError,
+  PaymentSettlementError,
   InsufficientBudgetError,
   PaymentDeclinedError,
 } from './index.js';
@@ -449,6 +450,53 @@ describe('IpfsPayToPinClient', () => {
       await client.pinFile({ filename: 'arbitrum.txt', data: 'hello' });
       expect(confirmPrice).toHaveBeenCalledWith(0.01, 'arbitrum.txt', 'eip155:42161');
     });
+
+    it('throws PaymentSettlementError when paid upload request fails during settlement', async () => {
+      const challengePayload = {
+        accepts: [
+          {
+            scheme: 'exact',
+            network: 'eip155:8453',
+            amount: '10000',
+            payTo: '0x1111111111111111111111111111111111111111',
+          },
+        ],
+      };
+      const headerVal = Buffer.from(JSON.stringify(challengePayload)).toString('base64');
+
+      const mock402Error = {
+        response: {
+          status: 402,
+          headers: {
+            'payment-required': headerVal,
+          },
+        },
+      };
+
+      const mockSettlementError = {
+        response: {
+          status: 500,
+          data: { message: 'Settlement execution failed' },
+        },
+      };
+
+      mockedAxios.post
+        .mockRejectedValueOnce(mock402Error)
+        .mockRejectedValueOnce(mockSettlementError);
+
+      const client = new IpfsPayToPinClient({
+        evmPrivateKey: MOCK_EVM_KEY,
+      });
+
+      vi.spyOn((client as any).x402ClientInstance, 'createPaymentPayload').mockResolvedValueOnce({
+        x402Version: 2,
+        payload: { sig: 'mock-sig' },
+      });
+
+      await expect(
+        client.pinFile({ filename: 'fail-settle.txt', data: 'hello' })
+      ).rejects.toThrow(PaymentSettlementError);
+    });
   });
 
   describe('renewPin', () => {
@@ -626,6 +674,51 @@ describe('IpfsPayToPinClient', () => {
       await expect(client.renewPin('bafybeideclined...')).rejects.toThrow(PaymentDeclinedError);
       expect(confirmPrice).toHaveBeenCalledWith(0.005, 'Renewal for CID bafybeideclined...', 'eip155:8453');
     });
+
+    it('throws PaymentSettlementError when renewal request fails during paid settlement', async () => {
+      const challengePayload = {
+        accepts: [
+          {
+            scheme: 'exact',
+            network: 'eip155:8453',
+            amount: '5000',
+            payTo: '0x1111111111111111111111111111111111111111',
+          },
+        ],
+      };
+      const headerVal = Buffer.from(JSON.stringify(challengePayload)).toString('base64');
+
+      const mock402Error = {
+        response: {
+          status: 402,
+          headers: {
+            'payment-required': headerVal,
+          },
+        },
+      };
+
+      const mockSettlementError = {
+        response: {
+          status: 502,
+          data: { message: 'Bad Gateway during renewal settlement' },
+        },
+      };
+
+      mockedAxios.post
+        .mockRejectedValueOnce(mock402Error)
+        .mockRejectedValueOnce(mockSettlementError);
+
+      const client = new IpfsPayToPinClient({
+        evmPrivateKey: MOCK_EVM_KEY,
+      });
+
+      vi.spyOn((client as any).x402ClientInstance, 'createPaymentPayload').mockResolvedValueOnce({
+        x402Version: 2,
+        payload: { sig: 'mock-renew-sig' },
+      });
+
+      await expect(client.renewPin('bafybeifailrenew...')).rejects.toThrow(PaymentSettlementError);
+    });
   });
 
   describe('Custom Error Classes', () => {
@@ -654,6 +747,14 @@ describe('IpfsPayToPinClient', () => {
       expect(err5).toBeInstanceOf(GatewayError);
       expect(err5.name).toBe('PinNotFoundError');
       expect(err5.status).toBe(404);
+
+      const err6 = new PaymentSettlementError('Settlement failed', 500);
+      expect(err6).toBeInstanceOf(Error);
+      expect(err6).toBeInstanceOf(GatewayError);
+      expect(err6).toBeInstanceOf(PaymentSettlementError);
+      expect(err6.name).toBe('PaymentSettlementError');
+      expect(err6.message).toBe('Settlement failed');
+      expect(err6.status).toBe(500);
     });
   });
 });
