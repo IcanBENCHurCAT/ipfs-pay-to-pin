@@ -94,6 +94,10 @@ export async function webhookRateLimiterMiddleware(c: Context, next: Next) {
     ip = extractedIp || c.req.header('x-real-ip');
   }
 
+  if (!ip && trustProxy && c.req.header('x-forwarded-for')) {
+    ip = 'unknown-ip'; // Prevent fallback to proxy's native IP if header was purely structural
+  }
+
   // Fallback to native IP if proxy headers are not present or not trusted.
   ip = ip || nativeIp || 'unknown-ip';
 
