@@ -52,6 +52,7 @@ body:
         - Solana Mainnet
         - Algorand Mainnet
         - Ethereum L1
+        - Arbitrum One
         - N/A
   - type: textarea
     id: additional

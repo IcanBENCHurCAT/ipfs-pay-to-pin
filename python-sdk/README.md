@@ -1,6 +1,6 @@
 # IPFS Pay-to-Pin Python SDK (`ipfs-pay-to-pin-client`)
 
-Python client library for pinning files to IPFS via standard HTTP 402 Payment Required microUSDC micropayments across **Base L2, Solana, and Algorand**.
+Python client library for pinning files to IPFS via standard HTTP 402 Payment Required microUSDC micropayments across **Base L2, Arbitrum One, Solana, Algorand, and Ethereum L1**.
 
 - **Live Gateway API**: `https://pay-to-pin.duckdns.org`
 - **Protocol Standard**: HTTP `402 Payment Required` via x402 specification
@@ -13,7 +13,7 @@ Python client library for pinning files to IPFS via standard HTTP 402 Payment Re
 # Basic install
 pip install ipfs-pay-to-pin-client
 
-# Install with EVM support (Base L2 gasless EIP-3009)
+# Install with EVM support (Base L2 and Arbitrum One gasless EIP-3009, Ethereum L1)
 pip install "ipfs-pay-to-pin-client[evm]"
 
 # Install with all multi-chain signers
@@ -29,7 +29,7 @@ pip install "ipfs-pay-to-pin-client[all]"
 ```python
 from ipfs_pay_to_pin_client import IpfsPayToPinClient
 
-# Option A: Base L2 / EVM Private Key (Gasless EIP-3009 transfer)
+# Option A: EVM Private Key (Base L2 and Arbitrum One gasless EIP-3009 transfer, Ethereum L1)
 client = IpfsPayToPinClient(
     gateway_url="https://pay-to-pin.duckdns.org",
     evm_private_key="0xYourBaseEvmPrivateKey..."
@@ -135,7 +135,7 @@ except PayToPinError as e:
 ## Features
 
 - Automatic multi-chain x402 402 Payment Required challenge handler
-- Native support for Base L2 (EIP-3009 gasless permits), Solana Mainnet, and Algorand Mainnet
+- Native support for Base L2 and Arbitrum One (EIP-3009 gasless permits), Solana Mainnet, Algorand Mainnet, and Ethereum L1
 - Annual pin renewal extensions with `renew_pin` (50% early renewal discount)
 - Automated network steering prioritizing zero-gas / lowest-fee options
 - Maximum price ceiling enforcement (`max_price_usdc`)
