@@ -234,7 +234,9 @@ app.use("*", bodyLimit({
 // Hono parses the body on every call to req.json(). The @x402/hono middleware checks the
 // body multiple times to calculate dynamic prices across different payment networks.
 // Caching the result prevents repeatedly parsing 20MB JSON payloads which blocks the event loop.
-export const jsonMemoizationMiddleware = async (c: any, next: () => Promise<void>) => {
+// ⚡ Bolt: Uses a synchronous function wrapper instead of `async` returning `next()` directly
+// to avoid V8 async/await microtask overhead when resolving the cached promise.
+export const jsonMemoizationMiddleware = (c: any, next: () => Promise<void>) => {
     const originalJson = c.req.json.bind(c.req);
     let jsonPromise: Promise<any> | null = null;
 
@@ -245,7 +247,7 @@ export const jsonMemoizationMiddleware = async (c: any, next: () => Promise<void
         return jsonPromise as Promise<T>;
     };
 
-    await next();
+    return next();
 };
 
 app.use("*", jsonMemoizationMiddleware);
