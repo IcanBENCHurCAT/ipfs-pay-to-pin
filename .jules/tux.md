@@ -69,27 +69,27 @@
 **Learning:** When client SDKs map response dictionaries to model dataclasses (e.g. `PinResponse`), ensure all key fields documented in gateway responses (such as `gateway_url` and `expires_at`) are supported with safe fallbacks (`res_json.get("expires_at") or res_json.get("pin_expires_at", "")`). Omitting `gateway_url` or using strict single-key lookups causes empty strings or attribute errors for consuming agents.
 **Action:** Always verify client SDK model dataclasses against gateway API responses and maintain fallback key lookups for response field variations across direct and payment-flow routes.
 
-## 2026-11-10 - Fix Invalid Actions Version in GitHub Workflows
+## 2026-10-27 - Fix Invalid Actions Version in GitHub Workflows
 
 **Learning:** Hardcoding future or non-existent action versions like `actions/checkout@v7` breaks GitHub Actions workflow runners immediately at setup time. Standardizing on stable major versions (e.g. `actions/checkout@v4`) prevents workflow initialization failures.
 **Action:** Periodically verify GitHub Actions action version tags against official releases and ensure workflows use valid, published action tags across all CI/CD pipeline definitions.
 
-## 2026-11-15 - Connect Python CLI Test Suite and Dependencies in CI Workflows
+## 2026-10-28 - Connect Python CLI Test Suite and Dependencies in CI Workflows
 
 **Learning:** Standalone CLI tools and scripts outside subpackage roots (e.g., `scripts/cli.py` and `tests/test_cli.py`) can easily become orphaned from CI pipelines if `pytest` is invoked strictly inside a subpackage subdirectory (e.g. `cd python-sdk && pytest`). In addition, optional CLI dependencies like `click` and `keyring` must be declared in package manifests (`pyproject.toml`) and environment variables like `PYTHONPATH=..` must be explicitly passed in CI steps so top-level imports resolve reliably.
 **Action:** Always declare optional CLI dependencies under `[project.optional-dependencies]` in `pyproject.toml`, include them in `dev`, and pass `PYTHONPATH=..` when running top-level script test suites alongside subpackage test suites in GitHub Actions workflows.
 
-## 2026-11-20 - Enable Pip Dependency Caching in GitHub Actions Workflows
+## 2026-10-29 - Enable Pip Dependency Caching in GitHub Actions Workflows
 
 **Learning:** When using `actions/setup-python@v5` in GitHub Actions CI across multi-version matrix jobs (e.g. Python 3.11, 3.12, 3.13), configuring `cache: 'pip'` alongside `cache-dependency-path: 'python-sdk/pyproject.toml'` allows GitHub Actions to automatically restore cached pip wheels and packages across workflow runs, avoiding redundant package downloads and accelerating pipeline execution.
 **Action:** Always specify `cache: 'pip'` and `cache-dependency-path` in `actions/setup-python@v5` steps when testing or building Python subpackages with `pyproject.toml` or `requirements.txt`.
 
-## 2026-11-25 - Implement PinNotFoundError in Python SDK to Align with TS SDK Error Hierarchy
+## 2026-10-30 - Implement PinNotFoundError in Python SDK to Align with TS SDK Error Hierarchy
 
 **Learning:** The TypeScript SDK defines `PinNotFoundError` extending `GatewayError` (status 404) for programmatic handling of missing/expired CIDs. In multi-language client SDKs, mirroring error class hierarchies (e.g., `PinNotFoundError` extending `PinningFailedError` with `status_code = 404`) enables autonomous agents using Python to detect resource non-existence programmatically without regex pattern matching on error strings or catching uncaught HTTP exceptions.
 **Action:** Always export `PinNotFoundError` in `__init__.py` and catch HTTP 404 status codes in client methods (`get_status`, `renew_pin`) to throw `PinNotFoundError` consistently across SDK runtimes.
 
-## 2026-11-26 - Mock x402 Payment Payload Generation in TypeScript SDK Unit Tests
+## 2026-11-01 - Mock x402 Payment Payload Generation in TypeScript SDK Unit Tests
 
 **Learning:** Testing the complete client SDK payment orchestration pipeline (`selectBestAcceptOption`, `maxPriceUsdc` cap checks, `confirmPrice` approval/rejection callbacks, `preferredNetwork` routing, and header encoding) requires mocking HTTP 402 responses with valid `PAYMENT-REQUIRED` headers. However, executing `x402ClientInstance.createPaymentPayload` during unit tests introduces deep dependencies on specific multi-chain signing schemes and EIP-712 / AVM payload schemas. Spying on `(client as any).x402ClientInstance.createPaymentPayload` allows comprehensive unit verification of the entire client control flow and budget guardrails in isolation without coupling tests to external chain cryptographic signers.
 **Action:** When adding unit tests for x402 client SDK payment lifecycles, isolate protocol payload signing with `vi.spyOn(client.x402ClientInstance, 'createPaymentPayload')` while using real base64 challenge headers to thoroughly test challenge parsing, price validation, callbacks, and header assembly.
