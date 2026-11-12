@@ -133,3 +133,9 @@
 
 **Learning:** When multi-chain support expands (such as adding Arbitrum One and Ethereum L1 alongside Base L2, Solana, and Algorand), issue reporting templates and package documentation must remain synchronized across language SDKs. While the Gateway API and TypeScript SDK templates and READMEs included Arbitrum One, the Python SDK bug template omitted Arbitrum One from its network dropdown, and the Python SDK README only listed Base, Solana, and Algorand despite `client.py` having full support for `eip155:42161` and `eip155:1`. Incomplete issue dropdowns and documentation create friction for contributors and autonomous agents attempting to report bugs or integrate supported chains.
 **Action:** Ensure all supported payment networks across client SDK implementations are consistently represented in component issue form dropdowns (`.github/ISSUE_TEMPLATE/*`) and accurately documented in package READMEs across every language ecosystem.
+
+## 2026-11-11 - Journal entries are now date-stamped by scripts/journal.py
+
+Paragraph 1 (Learning): Journal entries in .jules/ were repeatedly misdated when agents wrote the heading date by hand, including entries dated weeks or years in the future; the heading date is prose to a language model, not data.
+
+Paragraph 2 (Action): scripts/journal.py now stamps the real current date (America/New_York) from the system clock when appending an entry, and skills/journal-entry/SKILL.md plus AGENTS.md section 7 make its use mandatory. There is deliberately no --date option.

@@ -109,3 +109,24 @@ ipfs-pay-to-pin/
   `solana-foundation/pay-skills` adding it as
   `providers/icanbenchurcat/ipfs-pay-to-pin/PAY.md`. Their CI probes every
   endpoint and blocks merge unless each returns a valid Solana 402 challenge.
+
+## 7. Journal entries (.jules/)
+
+- Journal entries in `.jules/` (bolt.md, palette.md, sentinel.md, tux.md)
+  **must** be written with `scripts/journal.py`. Never type a journal
+  heading date by hand: hand-written dates were repeatedly wrong,
+  including entries dated weeks or years in the future, and future-dated
+  entries block PRs at review.
+- The script stamps the real current date (America/New_York) from the
+  system clock. You supply only the title and the entry text:
+
+  ```bash
+  python3 scripts/journal.py bolt --title "[Short title]" \
+    --learning "..." --action "..."
+  python3 scripts/journal.py tux --title "Short title" --body-file entry.md
+  ```
+
+- Before opening a PR, run `python3 scripts/journal.py --check-last
+  <your-persona>` and make sure your journal's latest entry is not
+  future-dated.
+- Full guidance: `skills/journal-entry/SKILL.md`.
