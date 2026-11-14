@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { execSync } from 'child_process';
+import { execSync, execFileSync } from 'child_process';
 import { createClient } from '@supabase/supabase-js';
 
 const rootDir = process.cwd();
@@ -140,14 +140,22 @@ try {
       console.log('⏳ Waiting for cloud-init and pulling latest code on VM (this might take a few minutes)...');
       
       const sshKeyPath = path.join(process.env.USERPROFILE || process.env.HOME || 'C:/Users/Garret', '.ssh', 'id_ed25519');
-      const scpCommand = `scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ${sshKeyPath} ${envPath} ubuntu@${publicIp}:/tmp/.env`;
-      const sshCommand = `ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i ${sshKeyPath} ubuntu@${publicIp} "sudo cloud-init status --wait || true; sudo cp /tmp/.env /opt/ipfs-pay-to-pin/.env && cd /opt/ipfs-pay-to-pin && sudo git pull && sudo docker compose -f docker-compose.yml up -d --build"`;
-      
+      const sshOpts = ['-o', 'StrictHostKeyChecking=no', '-o', 'UserKnownHostsFile=/dev/null', '-i', sshKeyPath];
+      const remoteHost = `ubuntu@${publicIp}`;
+
       try {
         console.log('📤 Syncing .env file to VM...');
-        execSync(scpCommand, { stdio: 'inherit' });
+        execFileSync('scp', [...sshOpts, envPath, `${remoteHost}:/tmp/.env`], { stdio: 'inherit' });
         console.log('🔄 Rebuilding docker containers in-place...');
-        execSync(sshCommand, { stdio: 'inherit' });
+        execFileSync(
+          'ssh',
+          [
+            ...sshOpts,
+            remoteHost,
+            'sudo cloud-init status --wait || true; sudo cp /tmp/.env /opt/ipfs-pay-to-pin/.env && cd /opt/ipfs-pay-to-pin && sudo git pull && sudo docker compose -f docker-compose.yml up -d --build',
+          ],
+          { stdio: 'inherit' }
+        );
         console.log('✅ In-place code update and Docker build finished successfully!');
       } catch (sshErr: any) {
         console.warn('⚠️ SSH update failed. The VM might still be booting or SSH is not ready yet.', sshErr.message);
