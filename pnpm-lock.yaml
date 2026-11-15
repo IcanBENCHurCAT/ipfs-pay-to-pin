@@ -18,8 +18,8 @@ importers:
         specifier: ^2.1.6
         version: 2.1.6(hono@4.13.16)
       '@hono/swagger-ui':
-        specifier: ^0.6.1
-        version: 0.6.1(hono@4.13.16)
+        specifier: ^0.6.2
+        version: 0.6.2(hono@4.13.16)
       '@supabase/supabase-js':
         specifier: ^2.118.0
         version: 2.118.0
@@ -296,8 +296,8 @@ packages:
     peerDependencies:
       hono: ^4 || ^5.0.0-0
 
-  '@hono/swagger-ui@0.6.1':
-    resolution: {integrity: sha512-sJTvldu1GPeEPfyeLG7gRj+W4vEuD+JDi+JjJ3TJs/DvMUtBLs0KJO5yokGegWWdy5qrbdnQGekbhgNRmPmYKQ==}
+  '@hono/swagger-ui@0.6.2':
+    resolution: {integrity: sha512-EDLlBS+LwpAhhh5K45YH85Yyk9GJuD2E7rKdjTZsBObksXaBz+8jPsen5XZqOS9unw6H1CDq0LKzp0c51K6lsA==}
     peerDependencies:
       hono: '>=4.0.0'
 
@@ -2433,7 +2433,7 @@ snapshots:
     dependencies:
       hono: 4.13.16
 
-  '@hono/swagger-ui@0.6.1(hono@4.13.16)':
+  '@hono/swagger-ui@0.6.2(hono@4.13.16)':
     dependencies:
       hono: 4.13.16
 
