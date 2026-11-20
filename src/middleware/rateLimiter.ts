@@ -124,8 +124,8 @@ export async function rateLimiterMiddleware(c: Context, next: Next) {
   c.header('X-RateLimit-Remaining', Math.max(0, MAX_REQUESTS - record.count).toString());
   c.header('X-RateLimit-Reset', Math.ceil(record.resetTime / 1000).toString());
 
-  // >= instead of > so exactly 60 requests are allowed (not 61)
-  if (record.count >= MAX_REQUESTS) {
+  // 1-based counting starts at 1, so > allows requests 1..60 and blocks the 61st
+  if (record.count > MAX_REQUESTS) {
     return c.json({
       error: "Too Many Requests",
       message: "Rate limit exceeded. Maximum 60 requests per minute allowed."

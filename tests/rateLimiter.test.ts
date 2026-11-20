@@ -117,12 +117,12 @@ describe('rateLimiterMiddleware', () => {
       headers: { 'x-forwarded-for': 'spoofed-attacker-ip, real-client-ip' }
     });
 
-    // Make 59 requests with real-client-ip
-    for (let i = 0; i < 59; i++) {
+    // Make 60 requests with real-client-ip
+    for (let i = 0; i < 60; i++) {
       await rateLimiterMiddleware(context, nextMock);
     }
 
-    // 60th request from the same chain should be blocked under 'real-client-ip'
+    // 61st request from the same chain should be blocked under 'real-client-ip'
     const { context: ctxBlock, getJsonResponse } = createMockContext({
       headers: { 'x-forwarded-for': 'different-spoofed-ip, real-client-ip' }
     });
@@ -134,8 +134,8 @@ describe('rateLimiterMiddleware', () => {
     const nextMock: Next = vi.fn().mockResolvedValue(undefined);
     const ip = '192.168.1.100';
 
-    // Send 59 requests (the max is 60 requests per minute)
-    for (let i = 1; i < 60; i++) {
+    // Send 60 requests (requests 1-60 should all succeed; X-RateLimit-Remaining reaches '0' on the 60th)
+    for (let i = 1; i <= 60; i++) {
       const { context, headersSet, getJsonResponse } = createMockContext({ ipRaw: ip });
       await rateLimiterMiddleware(context, nextMock);
 
@@ -144,8 +144,9 @@ describe('rateLimiterMiddleware', () => {
       expect(headersSet['X-RateLimit-Remaining']).toBe((60 - i).toString());
       expect(headersSet['X-RateLimit-Reset']).toBeDefined();
     }
+    expect(nextMock).toHaveBeenCalledTimes(60);
 
-    // 60th request: blocked with 429
+    // 61st request: blocked with 429
     const { context, headersSet, getJsonResponse } = createMockContext({ ipRaw: ip });
     await rateLimiterMiddleware(context, nextMock);
 
