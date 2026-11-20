@@ -383,6 +383,30 @@ OpenAPI specification available at \`/openapi.json\`.
 `;
 
 app.get("/", (c) => {
+    c.header("Vary", "Accept");
+    const accept = c.req.header("accept") ?? "";
+    if (accept.toLowerCase().includes("text/html")) {
+        const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPFS Pay-to-Pin Gateway</title>
+    <meta name="description" content="Pay-per-request infrastructure API that solves one of the biggest bottlenecks in the AI industry: giving autonomous agents reliable access to decentralized IPFS storage.">
+    <meta property="og:title" content="IPFS Pay-to-Pin Gateway">
+    <meta property="og:description" content="Pay-per-request infrastructure API that solves one of the biggest bottlenecks in the AI industry: giving autonomous agents reliable access to decentralized IPFS storage.">
+</head>
+<body style="font-family: sans-serif; padding: 2rem;">
+    <h1>IPFS Pay-to-Pin Gateway</h1>
+    <p>Status: <strong style="color: green;">online</strong></p>
+    <p>Service: IPFS Pay-to-Pin Gateway (@x402/hono)</p>
+    <p>Network: ${networkEnv}</p>
+    <p>Escrow: <code>${escrowAddress}</code></p>
+</body>
+</html>`;
+        return c.html(html);
+    }
+
     c.header("Cache-Control", "public, max-age=3600, s-maxage=86400");
     return c.text(agentOnboardingPrompt);
 });
@@ -947,28 +971,6 @@ app.get("/openapi.json", (c) => {
 });
 
 app.get("/docs", swaggerUI({ url: "/openapi.json" }));
-
-app.get("/", (c) => {
-    const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IPFS Pay-to-Pin Gateway</title>
-    <meta name="description" content="Pay-per-request infrastructure API that solves one of the biggest bottlenecks in the AI industry: giving autonomous agents reliable access to decentralized IPFS storage.">
-    <meta property="og:title" content="IPFS Pay-to-Pin Gateway">
-    <meta property="og:description" content="Pay-per-request infrastructure API that solves one of the biggest bottlenecks in the AI industry: giving autonomous agents reliable access to decentralized IPFS storage.">
-</head>
-<body style="font-family: sans-serif; padding: 2rem;">
-    <h1>IPFS Pay-to-Pin Gateway</h1>
-    <p>Status: <strong style="color: green;">online</strong></p>
-    <p>Service: IPFS Pay-to-Pin Gateway (@x402/hono)</p>
-    <p>Network: ${networkEnv}</p>
-    <p>Escrow: <code>${escrowAddress}</code></p>
-</body>
-</html>`;
-    return c.html(html);
-});
 
 // Circuit breaker check BEFORE payment middleware for both /pin and /renew
 app.use("/api/v1/pin", circuitBreakerMiddleware);
