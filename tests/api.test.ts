@@ -268,4 +268,47 @@ describe('API Integration Tests', () => {
         expect(data2).toEqual({ hello: 'world' });
         expect(parseCount).toBe(1);
     });
+
+    it('T031: GET / returns HTML landing page with OpenGraph tags when Accept includes text/html', async () => {
+        const res = await app.request('/', {
+            headers: {
+                'Accept': 'text/html,application/xhtml+xml'
+            }
+        });
+        expect(res.status).toBe(200);
+        expect(res.headers.get('content-type')).toContain('text/html');
+        expect(res.headers.get('vary')).toContain('Accept');
+
+        const html = await res.text();
+        expect(html).toContain('<meta property="og:title" content="IPFS Pay-to-Pin Gateway">');
+        expect(html).toContain('<meta property="og:description"');
+        expect(html).toContain('Status:');
+        expect(html).toContain('online');
+        expect(html).toContain('Network:');
+        expect(html).toContain('Escrow:');
+    });
+
+    it('T032: GET / returns agentOnboardingPrompt as text/plain by default and for Accept: text/plain', async () => {
+        const defaultRes = await app.request('/');
+        expect(defaultRes.status).toBe(200);
+        expect(defaultRes.headers.get('content-type')).toContain('text/plain');
+        expect(defaultRes.headers.get('cache-control')).toBe('public, max-age=3600, s-maxage=86400');
+        expect(defaultRes.headers.get('vary')).toContain('Accept');
+
+        const defaultBody = await defaultRes.text();
+        expect(defaultBody).toContain('# IPFS Pay-to-Pin Gateway — Agent Reference');
+        expect(defaultBody).toContain('POST /api/v1/pin');
+
+        const plainRes = await app.request('/', {
+            headers: {
+                'Accept': 'text/plain'
+            }
+        });
+        expect(plainRes.status).toBe(200);
+        expect(plainRes.headers.get('content-type')).toContain('text/plain');
+        expect(plainRes.headers.get('cache-control')).toBe('public, max-age=3600, s-maxage=86400');
+
+        const plainBody = await plainRes.text();
+        expect(plainBody).toBe(defaultBody);
+    });
 });
