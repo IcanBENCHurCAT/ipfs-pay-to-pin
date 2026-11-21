@@ -2,6 +2,8 @@
 
 import json
 import os
+import stat
+import tempfile
 from pathlib import Path
 from unittest import mock
 
@@ -81,7 +83,7 @@ class TestConfigLoadSave:
 
     def test_config_file_permissions(self, mock_config_dir):
         from src.ipfs_pin_cli.cli import _set_config
-        
+
         _set_config("gateway", "https://test.com")
         config_file = mock_config_dir / "config.json"
         # File should exist and be readable
@@ -89,6 +91,113 @@ class TestConfigLoadSave:
         content = config_file.read_text()
         data = json.loads(content)
         assert "gateway" in data
+        assert list(mock_config_dir.glob("*.tmp")) == []
+        if os.name != "nt":
+            assert stat.S_IMODE(mock_config_dir.stat().st_mode) == 0o700
+            assert stat.S_IMODE(config_file.stat().st_mode) == 0o600
+
+    def test_save_config_atomic_write_no_leftover_tmp(self, mock_config_dir):
+        import src.ipfs_pin_cli.cli as cli_mod
+
+        mkstemp_calls = []
+        replace_calls = []
+        real_mkstemp = tempfile.mkstemp
+        real_replace = os.replace
+
+        def spy_mkstemp(*args, **kwargs):
+            fd, path = real_mkstemp(*args, **kwargs)
+            mkstemp_calls.append((path, kwargs))
+            return fd, path
+
+        def spy_replace(src, dst):
+            replace_calls.append((Path(src), Path(dst)))
+            return real_replace(src, dst)
+
+        with (
+            mock.patch.object(cli_mod.tempfile, "mkstemp", side_effect=spy_mkstemp),
+            mock.patch.object(cli_mod.os, "replace", side_effect=spy_replace),
+        ):
+            cli_mod._save_config({"gateway": "https://atomic.gw"})
+
+        assert len(mkstemp_calls) == 1
+        tmp_path_str, mk_kwargs = mkstemp_calls[0]
+        assert mk_kwargs["dir"] == mock_config_dir
+        assert mk_kwargs["prefix"] == ".config."
+        assert mk_kwargs["suffix"] == ".tmp"
+        assert replace_calls == [(Path(tmp_path_str), mock_config_dir / "config.json")]
+        assert list(mock_config_dir.glob("*.tmp")) == []
+        assert json.loads((mock_config_dir / "config.json").read_text()) == {
+            "gateway": "https://atomic.gw"
+        }
+
+    def test_save_config_enforces_restrictive_permissions_with_secrets(self, mock_config_dir):
+        import src.ipfs_pin_cli.cli as cli_mod
+
+        config_file = mock_config_dir / "config.json"
+        config_file.write_text('{"gateway": "https://old.gw"}')
+        if os.name != "nt":
+            os.chmod(mock_config_dir, 0o755)
+            os.chmod(config_file, 0o644)
+
+        secrets_cfg = {
+            "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+            "evm_private_key": "0x1111111111111111111111111111111111111111111111111111111111111111",
+            "solana_private_key": "5MaiiCavjCmn9Hs1o3eznqDEhRwxo7pXiAYez7keQUviUkauRiTMD8DrESdrNjN8zd9mTmVhRvBJeg5vhyvgrAhG",
+        }
+
+        events = []
+        real_replace = os.replace
+
+        def track_chmod(path, mode):
+            events.append(("chmod", os.fspath(path), mode))
+
+        def track_replace(src, dst):
+            events.append(("replace", os.fspath(src), os.fspath(dst)))
+            return real_replace(src, dst)
+
+        with (
+            mock.patch.object(cli_mod.os, "name", "posix"),
+            mock.patch.object(cli_mod.os, "chmod", side_effect=track_chmod),
+            mock.patch.object(cli_mod.os, "replace", side_effect=track_replace),
+        ):
+            cli_mod._save_config(secrets_cfg)
+
+        config_dir_str = os.fspath(mock_config_dir)
+        config_file_str = os.fspath(config_file)
+        chmod_dir = [e for e in events if e[0] == "chmod" and e[1] == config_dir_str]
+        assert chmod_dir == [("chmod", config_dir_str, 0o700)]
+        replace_idx = next(i for i, e in enumerate(events) if e[0] == "replace")
+        tmp_path = events[replace_idx][1]
+        assert ("chmod", tmp_path, 0o600) in events[:replace_idx]
+        assert ("chmod", config_file_str, 0o600) in events[replace_idx + 1 :]
+
+        if os.name != "nt":
+            os.chmod(mock_config_dir, 0o755)
+            os.chmod(config_file, 0o644)
+            cli_mod._save_config(secrets_cfg)
+            assert stat.S_IMODE(mock_config_dir.stat().st_mode) == 0o700
+            assert stat.S_IMODE(config_file.stat().st_mode) == 0o600
+
+    @pytest.mark.parametrize("fail_stage", ["dump", "replace"])
+    def test_save_config_cleanup_on_error(self, mock_config_dir, fail_stage):
+        import src.ipfs_pin_cli.cli as cli_mod
+
+        initial_cfg = {"gateway": "https://initial.gw"}
+        cli_mod._save_config(initial_cfg)
+        config_file = mock_config_dir / "config.json"
+
+        if fail_stage == "dump":
+            patch_ctx = mock.patch("json.dump", side_effect=RuntimeError("disk full"))
+            expected_exc = RuntimeError
+        else:
+            patch_ctx = mock.patch.object(cli_mod.os, "replace", side_effect=OSError("replace failed"))
+            expected_exc = OSError
+
+        with patch_ctx, pytest.raises(expected_exc):
+            cli_mod._save_config({"mnemonic": "secret words"})
+
+        assert list(mock_config_dir.glob("*.tmp")) == []
+        assert json.loads(config_file.read_text()) == initial_cfg
 
 
 # ---------------------------------------------------------------------------

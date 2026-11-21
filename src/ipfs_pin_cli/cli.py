@@ -19,6 +19,7 @@ Usage examples:
 import base64
 import os
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -47,9 +48,16 @@ CONFIG_DIR = Path.home() / ".config" / "ipfs-pin"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
 
+def _ensure_config_dir() -> None:
+    """Ensure CONFIG_DIR exists with restrictive owner-only permissions."""
+    CONFIG_DIR.mkdir(parents=True, exist_ok=True, mode=0o700)
+    if os.name != "nt":
+        os.chmod(CONFIG_DIR, 0o700)
+
+
 def _load_config() -> dict:
     """Load CLI config from JSON file, creating the directory if needed."""
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    _ensure_config_dir()
     if CONFIG_FILE.exists():
         try:
             import json
@@ -61,11 +69,30 @@ def _load_config() -> dict:
 
 
 def _save_config(cfg: dict) -> None:
-    """Persist CLI config to JSON file."""
+    """Persist CLI config to JSON file atomically with owner-only permissions."""
     import json
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(cfg, f, indent=2)
+
+    _ensure_config_dir()
+    fd, tmp_path = tempfile.mkstemp(dir=CONFIG_DIR, prefix=".config.", suffix=".tmp")
+    fd_owned = False
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            fd_owned = True
+            json.dump(cfg, f, indent=2)
+        if os.name != "nt":
+            os.chmod(tmp_path, 0o600)
+        os.replace(tmp_path, CONFIG_FILE)
+        if os.name != "nt":
+            os.chmod(CONFIG_FILE, 0o600)
+    except Exception:
+        if not fd_owned:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+        if os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        raise
 
 
 def _get_config(key: str, default: str | None = None) -> str | None:
