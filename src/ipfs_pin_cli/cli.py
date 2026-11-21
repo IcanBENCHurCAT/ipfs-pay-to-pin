@@ -150,6 +150,8 @@ def _resolve_client(
     mnemonic: Optional[str] = None,
     evm_pk: Optional[str] = None,
     solana_pk: Optional[str] = None,
+    assume_yes: bool = False,
+    **_kwargs,
 ) -> "IpfsPayToPinClient | None":
     """Build an IpfsPayToPinClient from CLI args and config.
 
@@ -259,9 +261,9 @@ def pin(ctx, file_path, filename, max_price, assume_yes):
         return click.get_current_context().fail("Cannot create client — configure a wallet first.")
 
     fp = Path(file_path).resolve()
-    fname = filename or fp.name
+    label = f"{fp} (as {filename})" if filename else str(fp)
 
-    click.echo(click.style(f"📦 Pinning {fp}...", fg="cyan"))
+    click.echo(click.style(f"📦 Pinning {label}...", fg="cyan"))
 
     try:
         resp = client.pin_file(str(fp), max_price_usdc=max_price)
@@ -336,7 +338,7 @@ def cmd_status(ctx, cid):
         elif status == "unpinned":
             click.echo(click.style(f"⚠️  {status}", fg="yellow"))
         else:
-            click.echo(click.style(f"• {status}", fg="grey"))
+            click.echo(click.style(f"• {status}", fg="bright_black"))
     except Exception as e:
         _print_error(str(e))
         sys.exit(1)
@@ -431,15 +433,15 @@ def list_pins(ctx):
                     cid = pin.get("cid", "unknown")
                     status = pin.get("status", "?")
                     created = pin.get("created_at", "")
-                    click.echo(f"  {click.style(cid, fg='grey')}")
+                    click.echo(f"  {click.style(cid, fg='bright_black')}")
                     click.echo(f"    status: {click.style(status, fg='green') if status == 'pinned' else status}")
                     if created:
                         click.echo(f"    created: {created}")
                     click.echo("")
             else:
-                click.echo(click.style("No pins found.", fg="grey"))
+                click.echo(click.style("No pins found.", fg="bright_black"))
         elif resp.status_code == 404:
-            click.echo(click.style("No pins endpoint available. Try connecting to a gateway with Supabase.", fg="grey"))
+            click.echo(click.style("No pins endpoint available. Try connecting to a gateway with Supabase.", fg="bright_black"))
         else:
             _print_error(f"Failed to list pins ({resp.status_code}): {resp.text}")
             sys.exit(1)
@@ -498,7 +500,7 @@ def config_set(ctx, key, value):
                         _set_config(key, value)
                 else:
                     click.echo(click.style("⚠️  keyring package not installed. Storing in plaintext config.", fg="yellow"))
-                    click.echo(click.style("    Install with: pip install keyring", fg="darkgrey"))
+                    click.echo(click.style("    Install with: pip install keyring", fg="bright_black"))
                     _set_config(key, value)
             else:
                 _set_config(key, value)
@@ -524,8 +526,13 @@ def config_get(key):
     """Get a config value (masks secrets)."""
     cfg = _load_config()
     if key:
+        key_map = {
+            "evm": "evm_private_key",
+            "solana": "solana_private_key",
+        }
+        key = key_map.get(key.lower(), key.lower())
         val = cfg.get(key, "[not set]")
-        if key in ("mnemonic", "evm_private_key", "solana_private_key") and val != "[STORED_IN_KEYRING]":
+        if key in ("mnemonic", "evm_private_key", "solana_private_key") and val not in ("[STORED_IN_KEYRING]", "[not set]"):
             val = val[:4] + "..." + val[-4:] if len(val) > 8 else "***"
             click.echo(f"{key}: {val} (truncated)")
         else:
@@ -561,15 +568,27 @@ def config_clear(ctx, assume_yes):
 
 
 @cli.command("completion")
-@click.argument("shell", type=click.Choice(["bash", "zsh", "fish", "powershell"]))
+@click.argument("shell", type=click.Choice(["bash", "zsh", "fish"]))
 def completion(shell):
     """Generate shell completion script."""
     if click is None:
-        click.echo("Error: click package not installed", file=sys.stderr)
+        sys.stderr.write("Error: click package not installed\n")
         return
     try:
-        from click.shell_completion import install as click_install
-        click_install(cli, shell, "_ipfs_pin_complete")
+        from click.shell_completion import BashComplete, FishComplete, ZshComplete
+
+        shell_class = {
+            "bash": BashComplete,
+            "zsh": ZshComplete,
+            "fish": FishComplete,
+        }[shell]
+        comp = shell_class(
+            cli=cli,
+            ctx_args={"color": False},
+            prog_name="ipfs-pin",
+            complete_var="_IPFS_PIN_COMPLETE",
+        )
+        click.echo(comp.source())
     except Exception as e:
         click.echo(click.style(f"Failed to generate completion: {e}", fg="red"))
 
@@ -581,7 +600,7 @@ def completion(shell):
 def main():
     """Main entry point for the ipfs-pin CLI."""
     if click is None:
-        click.echo("Error: 'click' package is required. Install with: pip install click", file=sys.stderr)
+        sys.stderr.write("Error: 'click' package is required. Install with: pip install click\n")
         sys.exit(1)
 
     cli(obj={})

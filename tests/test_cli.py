@@ -18,7 +18,7 @@ def mock_config_dir(tmp_path):
     test_dir = tmp_path / ".config" / "ipfs-pin"
     test_dir.mkdir(parents=True)
     
-    import scripts.cli as cli_mod
+    import src.ipfs_pin_cli.cli as cli_mod
     original_config_dir = cli_mod.CONFIG_DIR
     original_config_file = cli_mod.CONFIG_FILE
     
@@ -54,12 +54,12 @@ class TestConfigLoadSave:
     """Tests for config file loading and saving."""
 
     def test_load_empty_config(self, mock_config_dir):
-        from scripts.cli import _load_config
+        from src.ipfs_pin_cli.cli import _load_config
         result = _load_config()
         assert result == {}
 
     def test_load_existing_config(self, mock_config_dir):
-        from scripts.cli import _load_config, _save_config
+        from src.ipfs_pin_cli.cli import _load_config, _save_config
         
         test_cfg = {"gateway": "https://test.gw", "mnemonic": "test123"}
         _save_config(test_cfg)
@@ -68,19 +68,19 @@ class TestConfigLoadSave:
         assert result["mnemonic"] == "test123"
 
     def test_set_and_get_config(self, mock_config_dir):
-        from scripts.cli import _get_config, _set_config
+        from src.ipfs_pin_cli.cli import _get_config, _set_config
         
         _set_config("gateway", "https://example.com")
         assert _get_config("gateway") == "https://example.com"
 
     def test_set_config_with_none(self, mock_config_dir):
-        from scripts.cli import _get_config, _set_config
+        from src.ipfs_pin_cli.cli import _get_config, _set_config
         
         _set_config("gateway", "https://new.gw")
         assert _get_config("gateway") == "https://new.gw"
 
     def test_config_file_permissions(self, mock_config_dir):
-        from scripts.cli import _set_config
+        from src.ipfs_pin_cli.cli import _set_config
         
         _set_config("gateway", "https://test.com")
         config_file = mock_config_dir / "config.json"
@@ -100,7 +100,7 @@ class TestSecretStorage:
 
     def test_store_and_retrieve_secret_with_keyring(self, mock_config_dir):
         """Test storing and retrieving secrets when keyring is available."""
-        from scripts.cli import (
+        from src.ipfs_pin_cli.cli import (
             _get_config,
             _set_config,
             _store_secret,
@@ -117,7 +117,7 @@ class TestSecretStorage:
         assert _get_config("test_key") == "test_value"
 
     def test_retrieve_nonexistent_secret(self, mock_config_dir):
-        from scripts.cli import _retrieve_secret
+        from src.ipfs_pin_cli.cli import _retrieve_secret
         
         result = _retrieve_secret("nonexistent_key")
         assert result is None
@@ -132,7 +132,7 @@ class TestClientResolution:
 
     def test_resolve_client_no_wallet(self, mock_config_dir, cli_runner):
         """Client creation should fail with no wallet config."""
-        from scripts.cli import _resolve_client
+        from src.ipfs_pin_cli.cli import _resolve_client
         
         # No config set up
         result = _resolve_client(gateway="https://test.gw")
@@ -140,7 +140,7 @@ class TestClientResolution:
 
     def test_resolve_client_with_mocked_sdk(self, mock_config_dir, cli_runner):
         """Client should be created when SDK is available."""
-        from scripts.cli import _resolve_client
+        from src.ipfs_pin_cli.cli import _resolve_client
         
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
@@ -167,30 +167,30 @@ class TestColors:
     """Tests for color output helpers."""
 
     def test_colors_init(self):
-        from scripts.cli import _Colors
+        from src.ipfs_pin_cli.cli import _Colors
         _Colors.init(force=True)  # Force enable for tests (no TTY)
         assert _Colors._enabled is True
 
     def test_colors_success(self):
-        from scripts.cli import _Colors
+        from src.ipfs_pin_cli.cli import _Colors
         _Colors.init()
         result = _Colors.success("done")
         assert "done" in result
 
     def test_colors_error(self):
-        from scripts.cli import _Colors
+        from src.ipfs_pin_cli.cli import _Colors
         _Colors.init()
         result = _Colors.error("fail")
         assert "fail" in result
 
     def test_colors_warning(self):
-        from scripts.cli import _Colors
+        from src.ipfs_pin_cli.cli import _Colors
         _Colors.init()
         result = _Colors.warning("warn")
         assert "warn" in result
 
     def test_colors_info(self):
-        from scripts.cli import _Colors
+        from src.ipfs_pin_cli.cli import _Colors
         _Colors.init()
         result = _Colors.info("info")
         assert "info" in result
@@ -204,61 +204,61 @@ class TestCLICommands:
     """Tests for CLI command groups and help text."""
 
     def test_cli_help(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["--help"])
         assert result.exit_code == 0
         assert "ipfs-pin" in result.output.lower() or "pin" in result.output.lower()
 
     def test_cli_pin_help(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["pin", "--help"])
         assert result.exit_code == 0
         assert "FILE_PATH" in result.output
 
     def test_cli_pin_url_help(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["pin-url", "--help"])
         assert result.exit_code == 0
         assert "URL" in result.output
 
     def test_cli_status_help(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["status", "--help"])
         assert result.exit_code == 0
 
     def test_cli_renew_help(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["renew", "--help"])
         assert result.exit_code == 0
 
     def test_cli_unpin_help(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["unpin", "--help"])
         assert result.exit_code == 0
 
     def test_cli_list_help(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["--help"])
         assert result.exit_code == 0
         assert "list" in result.output.lower()
 
     def test_cli_config_help(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["config", "--help"])
         assert result.exit_code == 0
 
     def test_cli_config_set_help(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["config", "set", "--help"])
         assert result.exit_code == 0
 
     def test_cli_config_get_help(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["config", "get", "--help"])
         assert result.exit_code == 0
 
     def test_cli_config_clear_help(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["config", "clear", "--help"])
         assert result.exit_code == 0
 
@@ -271,19 +271,19 @@ class TestConfigCommands:
     """Tests for config subcommands."""
 
     def test_config_set_gateway(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["config", "set", "gateway", "https://test.gw"])
         assert result.exit_code == 0
         assert "Configured: gateway" in result.output or "Configured" in result.output
 
     def test_config_set_invalid_gateway(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["config", "set", "gateway", "not-a-url"])
         assert result.exit_code == 0  # Still exits 0, but shows error
         assert "http://" in result.output or "https://" in result.output
 
     def test_config_get(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         # First set a config value
         cli_runner.invoke(cli, ["config", "set", "gateway", "https://test.gw"])
         # Then get it
@@ -291,12 +291,12 @@ class TestConfigCommands:
         assert result.exit_code == 0
 
     def test_config_get_all(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["config", "get"])
         assert result.exit_code == 0
 
     def test_config_clear(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         # Set a value first
         cli_runner.invoke(cli, ["config", "set", "gateway", "https://test.gw"])
         # Clear it with --yes flag (click uses --yes for assume_yes)
@@ -312,7 +312,7 @@ class TestPinCommand:
     """Tests for the pin command."""
 
     def test_pin_no_wallet(self, cli_runner, mock_config_dir, sample_file):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["pin", str(sample_file)])
         assert result.exit_code != 0  # Should fail without wallet
         output_lower = result.output.lower() if result.output else ""
@@ -321,7 +321,7 @@ class TestPinCommand:
 
     def test_pin_with_mocked_client(self, cli_runner, mock_config_dir, sample_file):
         """Test pin command with mocked SDK client."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         
         mock_resp = mock.MagicMock()
         mock_resp.cid = "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae"
@@ -334,7 +334,7 @@ class TestPinCommand:
         mock_client.pin_file.return_value = mock_resp
         mock_client.gateway_url = "https://test.gw"
         
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
             # Pass matching keys to avoid TypeError from _resolve_client()
             result = cli_runner.invoke(
                 cli,
@@ -353,12 +353,12 @@ class TestPinUrlCommand:
     """Tests for the pin-url command."""
 
     def test_pin_url_no_wallet(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["pin-url", "https://example.com/file.txt"])
         assert result.exit_code != 0
 
     def test_pin_url_with_mocked_client(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         
         mock_resp = mock.MagicMock()
         mock_resp.cid = "bafybeif2cnotuxu3s2akplodekh7ig3xy9gzqb6h2xqf5g2bfe52xh2vmy"
@@ -375,8 +375,8 @@ class TestPinUrlCommand:
         mock_download.content = b"Hello, World! This is a test file."
         mock_download.raise_for_status = mock.MagicMock()
         
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
-            with mock.patch("scripts.cli.requests.get", return_value=mock_download):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
+            with mock.patch("src.ipfs_pin_cli.cli.requests.get", return_value=mock_download):
                 result = cli_runner.invoke(
                     cli,
                     ["pin-url", "https://example.com/file.txt", "--yes"],
@@ -393,12 +393,12 @@ class TestStatusCommand:
     """Tests for the status command."""
 
     def test_status_no_wallet(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["status", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae"])
         assert result.exit_code != 0
 
     def test_status_with_mocked_client(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         
         mock_client = mock.MagicMock()
         mock_client.get_status.return_value = {
@@ -410,7 +410,7 @@ class TestStatusCommand:
         }
         mock_client.gateway_url = "https://test.gw"
         
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
             result = cli_runner.invoke(
                 cli,
                 ["status", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae"],
@@ -428,12 +428,12 @@ class TestRenewCommand:
     """Tests for the renew command."""
 
     def test_renew_no_wallet(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["renew", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae"])
         assert result.exit_code != 0
 
     def test_renew_with_mocked_client(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         
         mock_resp = mock.MagicMock()
         mock_resp.cid = "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae"
@@ -446,7 +446,7 @@ class TestRenewCommand:
         mock_client.renew_pin.return_value = mock_resp
         mock_client.gateway_url = "https://test.gw"
         
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
             result = cli_runner.invoke(
                 cli,
                 ["renew", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae", "--yes"],
@@ -464,7 +464,7 @@ class TestUnpinCommand:
     """Tests for the unpin command."""
 
     def test_unpin_no_wallet(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["unpin", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae"])
         assert result.exit_code != 0
 
@@ -477,7 +477,7 @@ class TestVersion:
     """Tests for version display."""
 
     def test_version_flag(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["--version"])
         assert result.exit_code == 0
         assert "ipfs-pin" in result.output.lower() or "0.1.0" in result.output
@@ -493,7 +493,7 @@ class TestIntegration:
     def test_successful_pin_flow(self, cli_runner, mock_config_dir):
         """Test a full pin flow with mocked SDK and config."""
         # Setup config
-        from scripts.cli import _set_config, cli
+        from src.ipfs_pin_cli.cli import _set_config, cli
         _set_config("gateway", "https://mock.gateway.com")
         _set_config("mnemonic", "test mnemonic phrase")
         
@@ -508,7 +508,7 @@ class TestIntegration:
         mock_client.pin_file.return_value = mock_resp
         mock_client.gateway_url = "https://mock.gateway.com"
         
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
             result = cli_runner.invoke(
                 cli,
                 ["pin", "-"],
@@ -527,14 +527,14 @@ class TestCompletionCommand:
     """Tests for the ipfs-pin completion command."""
 
     def test_completion_help(self, cli_runner):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["completion", "--help"])
         assert result.exit_code == 0
         assert "shell" in result.output.lower()
 
     def test_completion_generate_bash(self, cli_runner):
         """Test generating bash completion script."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["completion", "bash"])
         assert result.exit_code == 0
         # Completion output should contain IPFS_PIN or ipfs_pin
@@ -542,19 +542,19 @@ class TestCompletionCommand:
 
     def test_completion_generate_zsh(self, cli_runner):
         """Test generating zsh completion script."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["completion", "zsh"])
         assert result.exit_code == 0
 
     def test_completion_generate_fish(self, cli_runner):
         """Test generating fish completion script."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["completion", "fish"])
         assert result.exit_code == 0
 
     def test_completion_invalid_shell(self, cli_runner):
         """Test that invalid shell choices are rejected."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["completion", "invalid"])
         # Click's Choice should reject invalid values
         assert result.exit_code != 0
@@ -568,13 +568,13 @@ class TestUnpinCommand:
     """Tests for the unpin command."""
 
     def test_unpin_no_wallet(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["unpin", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae"])
         assert result.exit_code != 0
 
     def test_unpin_with_mocked_client(self, cli_runner, mock_config_dir):
         """Test unpin command with mocked HTTP response."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
@@ -583,8 +583,8 @@ class TestUnpinCommand:
         mock_resp.status_code = 200
         mock_resp.text = ""
         
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
-            with mock.patch("scripts.cli.requests.delete", return_value=mock_resp):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
+            with mock.patch("src.ipfs_pin_cli.cli.requests.delete", return_value=mock_resp):
                 result = cli_runner.invoke(
                     cli,
                     ["unpin", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae", "--yes"],
@@ -595,7 +595,7 @@ class TestUnpinCommand:
 
     def test_unpin_api_failure(self, cli_runner, mock_config_dir):
         """Test unpin when the API returns an error."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
@@ -604,8 +604,8 @@ class TestUnpinCommand:
         mock_resp.status_code = 500
         mock_resp.text = "Internal Server Error"
         
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
-            with mock.patch("scripts.cli.requests.delete", return_value=mock_resp):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
+            with mock.patch("src.ipfs_pin_cli.cli.requests.delete", return_value=mock_resp):
                 result = cli_runner.invoke(
                     cli,
                     ["unpin", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae", "--yes"],
@@ -623,13 +623,13 @@ class TestListPinsCommand:
     """Tests for the ipfs-pin list command."""
 
     def test_list_no_wallet(self, cli_runner, mock_config_dir):
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         result = cli_runner.invoke(cli, ["list"])
         assert result.exit_code != 0
 
     def test_list_empty(self, cli_runner, mock_config_dir):
         """Test list command with empty results."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
@@ -638,8 +638,8 @@ class TestListPinsCommand:
         mock_resp.status_code = 200
         mock_resp.json.return_value = []
         
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
-            with mock.patch("scripts.cli.requests.get", return_value=mock_resp):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
+            with mock.patch("src.ipfs_pin_cli.cli.requests.get", return_value=mock_resp):
                 result = cli_runner.invoke(
                     cli,
                     ["list"],
@@ -650,7 +650,7 @@ class TestListPinsCommand:
 
     def test_list_with_pins(self, cli_runner, mock_config_dir):
         """Test list command with pin results."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
@@ -665,8 +665,8 @@ class TestListPinsCommand:
             },
         ]
         
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
-            with mock.patch("scripts.cli.requests.get", return_value=mock_resp):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
+            with mock.patch("src.ipfs_pin_cli.cli.requests.get", return_value=mock_resp):
                 result = cli_runner.invoke(
                     cli,
                     ["list"],
@@ -677,7 +677,7 @@ class TestListPinsCommand:
 
     def test_list_no_endpoint(self, cli_runner, mock_config_dir):
         """Test list command when endpoint is not available (404)."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
         
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
@@ -686,8 +686,8 @@ class TestListPinsCommand:
         mock_resp.status_code = 404
         mock_resp.text = "Not Found"
         
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
-            with mock.patch("scripts.cli.requests.get", return_value=mock_resp):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
+            with mock.patch("src.ipfs_pin_cli.cli.requests.get", return_value=mock_resp):
                 result = cli_runner.invoke(
                     cli,
                     ["list"],
@@ -706,7 +706,7 @@ class TestMain:
 
     def test_main_import(self):
         """Test that main can be imported."""
-        import scripts.cli as cli_mod
+        import src.ipfs_pin_cli.cli as cli_mod
         assert hasattr(cli_mod, "main")
         assert callable(cli_mod.main)
 
@@ -720,13 +720,13 @@ class TestEdgeCases:
 
     def test_pin_sdk_network_error(self, cli_runner, mock_config_dir, sample_file):
         """Test pin command when SDK client raises a network error."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
 
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
         mock_client.pin_file.side_effect = Exception("Network error: connection refused")
 
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
             result = cli_runner.invoke(
                 cli,
                 ["pin", str(sample_file), "--yes"],
@@ -737,13 +737,13 @@ class TestEdgeCases:
 
     def test_pin_sdk_unauthorized_error(self, cli_runner, mock_config_dir, sample_file):
         """Test pin command when SDK client raises an auth error."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
 
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
         mock_client.pin_file.side_effect = Exception("401 Unauthorized: invalid wallet")
 
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
             result = cli_runner.invoke(
                 cli,
                 ["pin", str(sample_file), "--yes"],
@@ -754,7 +754,7 @@ class TestEdgeCases:
 
     def test_pin_url_download_failure(self, cli_runner, mock_config_dir):
         """Test pin-url when HTTP download fails (404)."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
 
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
@@ -762,8 +762,8 @@ class TestEdgeCases:
         mock_resp = mock.MagicMock()
         mock_resp.raise_for_status.side_effect = Exception("404 Not Found")
 
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
-            with mock.patch("scripts.cli.requests.get", return_value=mock_resp):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
+            with mock.patch("src.ipfs_pin_cli.cli.requests.get", return_value=mock_resp):
                 result = cli_runner.invoke(
                     cli,
                     ["pin-url", "https://example.com/missing.txt", "--yes"],
@@ -774,13 +774,13 @@ class TestEdgeCases:
 
     def test_renew_sdk_error(self, cli_runner, mock_config_dir):
         """Test renew command when SDK raises an error."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
 
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
         mock_client.renew_pin.side_effect = Exception("Pin not found")
 
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
             result = cli_runner.invoke(
                 cli,
                 ["renew", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae", "--yes"],
@@ -791,13 +791,13 @@ class TestEdgeCases:
 
     def test_status_sdk_error(self, cli_runner, mock_config_dir):
         """Test status command when SDK raises an error."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
 
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
         mock_client.get_status.side_effect = Exception("Gateway timeout")
 
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
             result = cli_runner.invoke(
                 cli,
                 ["status", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae"],
@@ -810,10 +810,10 @@ class TestEdgeCases:
         """Test that IPFS_PIN_GATEWAY_URL env var is used for gateway resolution."""
         import os
 
-        from scripts.cli import _resolve_client
+        from src.ipfs_pin_cli.cli import _resolve_client
 
         with mock.patch.dict(os.environ, {"IPFS_PIN_GATEWAY_URL": "https://env-gateway.example.com"}):
-            with mock.patch("scripts.cli.requests", mock.MagicMock()):
+            with mock.patch("src.ipfs_pin_cli.cli.requests", mock.MagicMock()):
                 mock_client_cls = mock.MagicMock()
                 with mock.patch.dict("sys.modules", {
                     "ipfs_pay_to_pin_client": mock.MagicMock(
@@ -828,13 +828,13 @@ class TestEdgeCases:
 
     def test_resolve_client_fallback_default_gateway(self, mock_config_dir):
         """Test that default gateway is used when no config/env is set."""
-        from scripts.cli import _resolve_client
+        from src.ipfs_pin_cli.cli import _resolve_client
 
         # Ensure no env var is set
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("IPFS_PIN_GATEWAY_URL", None)
 
-            with mock.patch("scripts.cli.requests", mock.MagicMock()):
+            with mock.patch("src.ipfs_pin_cli.cli.requests", mock.MagicMock()):
                 mock_client_cls = mock.MagicMock()
                 with mock.patch.dict("sys.modules", {
                     "ipfs_pay_to_pin_client": mock.MagicMock(
@@ -850,7 +850,7 @@ class TestEdgeCases:
 
     def test_config_set_mnemonic_truncation_on_get(self, cli_runner, mock_config_dir):
         """Test that config get truncates mnemonic display."""
-        from scripts.cli import _set_config, cli
+        from src.ipfs_pin_cli.cli import _set_config, cli
 
         long_mnemonic = "abandon ability able about above absent absorb abstract absurd abuse access accident"
         _set_config("mnemonic", long_mnemonic)
@@ -862,7 +862,7 @@ class TestEdgeCases:
 
     def test_config_set_invalid_key(self, cli_runner, mock_config_dir):
         """Test that config set rejects invalid key names."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
 
         result = cli_runner.invoke(cli, ["config", "set", "invalid_key", "value"])
         assert result.exit_code == 0  # Command doesn't exit non-zero
@@ -872,7 +872,7 @@ class TestEdgeCases:
         """Test that FORCE_COLORS=1 overrides terminal detection."""
         import os
 
-        from scripts.cli import _Colors
+        from src.ipfs_pin_cli.cli import _Colors
 
         # Start fresh
         _Colors._enabled = False
@@ -883,7 +883,7 @@ class TestEdgeCases:
 
     def test_colors_disabled_outside_terminal(self):
         """Test that colors are disabled when not in a TTY."""
-        from scripts.cli import _Colors
+        from src.ipfs_pin_cli.cli import _Colors
 
         _Colors._enabled = False
         _Colors.init()  # No force, no TTY
@@ -898,7 +898,7 @@ class TestEdgeCases:
             # Force HAS_KEYRING = False by reloading the module
             import importlib
 
-            import scripts.cli as cli_mod
+            import src.ipfs_pin_cli.cli as cli_mod
             importlib.reload(cli_mod)
 
             with mock.patch.dict("sys.modules", {
@@ -917,7 +917,7 @@ class TestEdgeCases:
         import io
         import sys
 
-        import scripts.cli as cli_mod
+        import src.ipfs_pin_cli.cli as cli_mod
 
         # Capture stderr to verify error message
         stderr_capture = io.StringIO()
@@ -945,8 +945,8 @@ class TestEdgeCases:
 
     def test_config_set_evm_alias(self, cli_runner, mock_config_dir):
         """Test that 'evm' is accepted as alias for 'evm_private_key'."""
-        import scripts.cli as cli_mod
-        from scripts.cli import _load_config, cli
+        import src.ipfs_pin_cli.cli as cli_mod
+        from src.ipfs_pin_cli.cli import _load_config, cli
 
         with mock.patch.object(cli_mod, "HAS_KEYRING", False):
             result = cli_runner.invoke(cli, ["config", "set", "evm", "0x1234567890abcdef"])
@@ -956,8 +956,8 @@ class TestEdgeCases:
 
     def test_config_set_solana_alias(self, cli_runner, mock_config_dir):
         """Test that 'solana' is accepted as alias for 'solana_private_key'."""
-        import scripts.cli as cli_mod
-        from scripts.cli import _load_config, cli
+        import src.ipfs_pin_cli.cli as cli_mod
+        from src.ipfs_pin_cli.cli import _load_config, cli
 
         with mock.patch.object(cli_mod, "HAS_KEYRING", False):
             result = cli_runner.invoke(cli, ["config", "set", "solana", "5secretkey123"])
@@ -967,7 +967,7 @@ class TestEdgeCases:
 
     def test_config_get_all_shows_all_keys(self, cli_runner, mock_config_dir):
         """Test that config get without key shows all configured values."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
 
         cli_runner.invoke(cli, ["config", "set", "gateway", "https://example.com"])
         cli_runner.invoke(cli, ["config", "set", "evm", "0xabcdef"])
@@ -980,7 +980,7 @@ class TestEdgeCases:
     def test_completion_missing_click(self, cli_runner):
         """Test completion command when click is not available."""
 
-        import scripts.cli as cli_mod
+        import src.ipfs_pin_cli.cli as cli_mod
 
         # Temporarily remove click from the module
         original_click = getattr(cli_mod, 'click', None)
@@ -999,7 +999,7 @@ class TestEdgeCases:
     def test_main_missing_click(self):
         """Test main() prints error when click is not installed."""
 
-        import scripts.cli as cli_mod
+        import src.ipfs_pin_cli.cli as cli_mod
 
         # Temporarily remove click
         original_click = getattr(cli_mod, 'click', None)
@@ -1028,7 +1028,7 @@ class TestEdgeCases:
 
     def test_renew_confirm_prompt_cancellation(self, cli_runner, mock_config_dir):
         """Test that renew respects user declining the confirmation prompt."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
 
         mock_client = mock.MagicMock()
         mock_client.renew_pin.return_value = mock.MagicMock(
@@ -1038,7 +1038,7 @@ class TestEdgeCases:
             tx_id="tx123",
         )
 
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
             # Simulate user pressing 'n' to decline
             result = cli_runner.invoke(
                 cli,
@@ -1052,12 +1052,12 @@ class TestEdgeCases:
 
     def test_unpin_confirm_prompt_cancellation(self, cli_runner, mock_config_dir):
         """Test that unpin respects user declining the confirmation prompt."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
 
         mock_client = mock.MagicMock()
         mock_client.unpin_pin.return_value = mock.MagicMock()
 
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
             # Simulate user pressing 'n' to decline
             result = cli_runner.invoke(
                 cli,
@@ -1072,11 +1072,11 @@ class TestEdgeCases:
         """Test that _resolve_client checks keyring then config, then args."""
 
         # Set up config but no keyring (simulated)
-        with mock.patch("scripts.cli.keyring", None):
+        with mock.patch("src.ipfs_pin_cli.cli.keyring", None):
             with mock.patch.dict("sys.modules", {"keyring": None}):
                 import importlib
 
-                import scripts.cli as cli_mod
+                import src.ipfs_pin_cli.cli as cli_mod
                 importlib.reload(cli_mod)
 
                 cli_mod._set_config("mnemonic", "config-mnemonic-words")
@@ -1092,7 +1092,7 @@ class TestEdgeCases:
 
     def test_unpin_non_200_response(self, cli_runner, mock_config_dir):
         """Test unpin command when API returns non-200/204 status."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
 
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
@@ -1101,8 +1101,8 @@ class TestEdgeCases:
         mock_resp.status_code = 403
         mock_resp.text = "Forbidden: not authorized to unpin"
 
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
-            with mock.patch("scripts.cli.requests.delete", return_value=mock_resp):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
+            with mock.patch("src.ipfs_pin_cli.cli.requests.delete", return_value=mock_resp):
                 result = cli_runner.invoke(
                     cli,
                     ["unpin", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae", "--yes"],
@@ -1113,7 +1113,7 @@ class TestEdgeCases:
 
     def test_list_pins_api_error(self, cli_runner, mock_config_dir):
         """Test list command when API returns an error status."""
-        from scripts.cli import cli
+        from src.ipfs_pin_cli.cli import cli
 
         mock_client = mock.MagicMock()
         mock_client.gateway_url = "https://test.gw"
@@ -1122,8 +1122,8 @@ class TestEdgeCases:
         mock_resp.status_code = 503
         mock_resp.text = "Service Unavailable"
 
-        with mock.patch("scripts.cli._resolve_client", return_value=mock_client):
-            with mock.patch("scripts.cli.requests.get", return_value=mock_resp):
+        with mock.patch("src.ipfs_pin_cli.cli._resolve_client", return_value=mock_client):
+            with mock.patch("src.ipfs_pin_cli.cli.requests.get", return_value=mock_resp):
                 result = cli_runner.invoke(
                     cli,
                     ["list"],
@@ -1134,22 +1134,226 @@ class TestEdgeCases:
 
     def test_store_secret_keyring_failure(self, mock_config_dir):
         """Test _store_secret returns False when keyring throws."""
-        from scripts.cli import _store_secret
+        from src.ipfs_pin_cli.cli import _store_secret
 
         mock_keyring = mock.MagicMock()
         mock_keyring.set_password.side_effect = Exception("keyring backend error")
 
-        with mock.patch("scripts.cli.keyring", mock_keyring):
+        with mock.patch("src.ipfs_pin_cli.cli.keyring", mock_keyring):
             result = _store_secret("test", "secret")
             assert result is False
 
     def test_retrieve_secret_keyring_failure(self, mock_config_dir):
         """Test _retrieve_secret returns None when keyring throws."""
-        from scripts.cli import _retrieve_secret
+        from src.ipfs_pin_cli.cli import _retrieve_secret
 
         mock_keyring = mock.MagicMock()
         mock_keyring.get_password.side_effect = Exception("keyring backend error")
 
-        with mock.patch("scripts.cli.keyring", mock_keyring):
+        with mock.patch("src.ipfs_pin_cli.cli.keyring", mock_keyring):
             result = _retrieve_secret("test")
             assert result is None
+
+
+# ---------------------------------------------------------------------------
+# Regression tests: _resolve_client(**ctx.obj) & config get alias resolution
+# ---------------------------------------------------------------------------
+
+class TestResolveClientContextRegression:
+    """Invoke Click subcommands end-to-end without mocking _resolve_client."""
+
+    def test_pin_without_mocking_resolve_client(self, cli_runner, mock_config_dir, sample_file):
+        """Ensure _resolve_client(**ctx.obj) accepts assume_yes and all ctx.obj keys on pin."""
+        from src.ipfs_pin_cli.cli import _set_config, cli
+
+        _set_config("gateway", "https://test.gw")
+        _set_config("mnemonic", "test mnemonic words")
+
+        mock_resp = mock.MagicMock(
+            cid="bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae",
+            status="pinned",
+            pin_expires_at="2027-09-05T00:00:00Z",
+            tx_id="tx-pin-1",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.pin_file.return_value = mock_resp
+
+        with mock.patch("ipfs_pay_to_pin_client.IpfsPayToPinClient", return_value=mock_client) as mock_cls:
+            result = cli_runner.invoke(
+                cli,
+                ["--yes", "pin", str(sample_file), "--filename", "custom.txt"],
+            )
+
+        assert result.exit_code == 0, result.output
+        assert "Pin successful" in result.output
+        assert "custom.txt" in result.output
+        mock_cls.assert_called_once_with(
+            gateway_url="https://test.gw",
+            sender_mnemonic="test mnemonic words",
+            evm_private_key=None,
+            solana_private_key=None,
+        )
+        mock_client.pin_file.assert_called_once_with(str(sample_file.resolve()), max_price_usdc=None)
+
+    def test_pin_url_without_mocking_resolve_client(self, cli_runner, mock_config_dir):
+        """Ensure _resolve_client(**ctx.obj) succeeds for pin-url."""
+        from src.ipfs_pin_cli.cli import _set_config, cli
+
+        _set_config("gateway", "https://test.gw")
+        _set_config("mnemonic", "test mnemonic words")
+
+        mock_download = mock.MagicMock(content=b"hello ipfs")
+        mock_download.raise_for_status = mock.MagicMock()
+
+        mock_pin_resp = mock.MagicMock(
+            cid="bafybeif2cnotuxu3s2akplodekh7ig3xy9gzqb6h2xqf5g2bfe52xh2vmy",
+            status="pinned",
+            pin_expires_at="2027-09-05T00:00:00Z",
+            tx_id="tx-url-1",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.pin_bytes.return_value = mock_pin_resp
+
+        with (
+            mock.patch("ipfs_pay_to_pin_client.IpfsPayToPinClient", return_value=mock_client),
+            mock.patch("src.ipfs_pin_cli.cli.requests.get", return_value=mock_download),
+        ):
+            result = cli_runner.invoke(
+                cli,
+                ["--yes", "pin-url", "https://example.com/file.txt"],
+            )
+
+        assert result.exit_code == 0, result.output
+        assert "Pin successful" in result.output
+
+    def test_status_without_mocking_resolve_client(self, cli_runner, mock_config_dir):
+        """Ensure _resolve_client(**ctx.obj) handles --evm and --solana CLI options on status."""
+        from src.ipfs_pin_cli.cli import cli
+
+        mock_client = mock.MagicMock()
+        mock_client.get_status.return_value = {"status": "pinned"}
+
+        with mock.patch("ipfs_pay_to_pin_client.IpfsPayToPinClient", return_value=mock_client) as mock_cls:
+            result = cli_runner.invoke(
+                cli,
+                ["--gateway", "https://custom.gw", "--evm", "0xdeadbeef", "status", "bafy123"],
+            )
+
+        assert result.exit_code == 0, result.output
+        assert "pinned" in result.output
+        mock_cls.assert_called_once_with(
+            gateway_url="https://custom.gw",
+            sender_mnemonic=None,
+            evm_private_key="0xdeadbeef",
+            solana_private_key=None,
+        )
+
+    def test_renew_without_mocking_resolve_client(self, cli_runner, mock_config_dir):
+        """Ensure _resolve_client(**ctx.obj) succeeds for renew with root --yes."""
+        from src.ipfs_pin_cli.cli import _set_config, cli
+
+        _set_config("mnemonic", "test mnemonic words")
+
+        mock_resp = mock.MagicMock(
+            cid="bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae",
+            status="pinned",
+            pin_expires_at="2027-09-05T00:00:00Z",
+            tx_id="tx-renew-1",
+        )
+        mock_client = mock.MagicMock()
+        mock_client.renew_pin.return_value = mock_resp
+
+        with mock.patch("ipfs_pay_to_pin_client.IpfsPayToPinClient", return_value=mock_client):
+            result = cli_runner.invoke(
+                cli,
+                ["--yes", "renew", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae"],
+            )
+
+        assert result.exit_code == 0, result.output
+        assert "Pin successful" in result.output
+
+    def test_unpin_without_mocking_resolve_client(self, cli_runner, mock_config_dir):
+        """Ensure _resolve_client(**ctx.obj) succeeds for unpin with root --yes."""
+        from src.ipfs_pin_cli.cli import _set_config, cli
+
+        _set_config("mnemonic", "test mnemonic words")
+
+        mock_client = mock.MagicMock(gateway_url="https://test.gw")
+        mock_del_resp = mock.MagicMock(status_code=200, text="")
+
+        with (
+            mock.patch("ipfs_pay_to_pin_client.IpfsPayToPinClient", return_value=mock_client),
+            mock.patch("src.ipfs_pin_cli.cli.requests.delete", return_value=mock_del_resp),
+        ):
+            result = cli_runner.invoke(
+                cli,
+                ["--yes", "unpin", "bafybeigdyrzt5sdk7uth7sv5kqdk7es777oz6epffkivae"],
+            )
+
+        assert result.exit_code == 0, result.output
+        assert "Unpinned" in result.output
+
+    def test_list_without_mocking_resolve_client(self, cli_runner, mock_config_dir):
+        """Ensure _resolve_client(**ctx.obj) succeeds for list."""
+        from src.ipfs_pin_cli.cli import _set_config, cli
+
+        _set_config("mnemonic", "test mnemonic words")
+
+        mock_client = mock.MagicMock(gateway_url="https://test.gw")
+        mock_get_resp = mock.MagicMock(status_code=200)
+        mock_get_resp.json.return_value = []
+
+        with (
+            mock.patch("ipfs_pay_to_pin_client.IpfsPayToPinClient", return_value=mock_client),
+            mock.patch("src.ipfs_pin_cli.cli.requests.get", return_value=mock_get_resp),
+        ):
+            result = cli_runner.invoke(cli, ["list"])
+
+        assert result.exit_code == 0, result.output
+        assert "No pins found" in result.output
+
+    def test_config_get_evm_alias(self, cli_runner, mock_config_dir):
+        """Test that 'config get evm' normalizes alias to 'evm_private_key' and masks secret."""
+        import src.ipfs_pin_cli.cli as cli_mod
+        from src.ipfs_pin_cli.cli import cli
+
+        with mock.patch.object(cli_mod, "HAS_KEYRING", False):
+            cli_runner.invoke(cli, ["config", "set", "evm", "0x1234567890abcdef"])
+
+        result = cli_runner.invoke(cli, ["config", "get", "evm"])
+        assert result.exit_code == 0
+        assert "evm_private_key:" in result.output
+        assert "0x12...cdef" in result.output
+        assert "0x1234567890abcdef" not in result.output
+
+        result_upper = cli_runner.invoke(cli, ["config", "get", "EVM"])
+        assert result_upper.exit_code == 0
+        assert "evm_private_key:" in result_upper.output
+        assert "0x12...cdef" in result_upper.output
+
+    def test_config_get_solana_alias(self, cli_runner, mock_config_dir):
+        """Test that 'config get solana' normalizes alias to 'solana_private_key' and masks secret."""
+        import src.ipfs_pin_cli.cli as cli_mod
+        from src.ipfs_pin_cli.cli import cli
+
+        with mock.patch.object(cli_mod, "HAS_KEYRING", False):
+            cli_runner.invoke(cli, ["config", "set", "solana", "5secretkey123456"])
+
+        result = cli_runner.invoke(cli, ["config", "get", "solana"])
+        assert result.exit_code == 0
+        assert "solana_private_key:" in result.output
+        assert "5sec...3456" in result.output
+        assert "5secretkey123456" not in result.output
+
+        result_upper = cli_runner.invoke(cli, ["config", "get", "SOLANA"])
+        assert result_upper.exit_code == 0
+        assert "solana_private_key:" in result_upper.output
+        assert "5sec...3456" in result_upper.output
+
+    def test_config_get_evm_unset(self, cli_runner, mock_config_dir):
+        """Test that 'config get evm' reports [not set] cleanly when unconfigured."""
+        from src.ipfs_pin_cli.cli import cli
+
+        result = cli_runner.invoke(cli, ["config", "get", "evm"])
+        assert result.exit_code == 0
+        assert "evm_private_key: [not set]" in result.output
