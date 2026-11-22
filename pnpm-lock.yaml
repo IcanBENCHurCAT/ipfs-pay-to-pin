@@ -33,8 +33,8 @@ importers:
         specifier: ^2.30.0
         version: 2.30.0
       '@x402/evm':
-        specifier: ^2.30.0
-        version: 2.30.0(typescript@7.0.2)
+        specifier: ^2.31.0
+        version: 2.31.0(typescript@7.0.2)
       '@x402/extensions':
         specifier: ^2.30.0
         version: 2.30.0(typescript@7.0.2)
@@ -107,8 +107,8 @@ importers:
         specifier: ^2.30.0
         version: 2.30.0
       '@x402/evm':
-        specifier: ^2.30.0
-        version: 2.30.0(typescript@7.0.2)
+        specifier: ^2.31.0
+        version: 2.31.0(typescript@7.0.2)
       '@x402/svm':
         specifier: ^2.28.0
         version: 2.28.0(@solana/kit@5.5.1(typescript@7.0.2))(@solana/sysvars@5.5.1(typescript@7.0.2))(typescript@7.0.2)
@@ -1445,8 +1445,11 @@ packages:
   '@x402/core@2.30.0':
     resolution: {integrity: sha512-gvMxCum2QlNI6jI/3NL1jdrmOgtX9sWEWxSIOmeI67/5ndOJvYOtP7JZLSO8o8af+O+A+Vhhjza1NCda0yVppg==}
 
-  '@x402/evm@2.30.0':
-    resolution: {integrity: sha512-/iaEB820OPJb1JkUqaCTq90FwjbmBB/rAFaH7ZAL2AmcesSVPO/FjdHD2wmXqBzXkEnPG9f6m1SuNpCtVlA9LQ==}
+  '@x402/core@2.31.0':
+    resolution: {integrity: sha512-7ToCOwHfftfFEERW5Mp6Fc5U1+JrtCLTkbQnEVsBl13IutltP9lWIBYi/J+zy8vQWaLUmACq8A2qywzdt/RRIQ==}
+
+  '@x402/evm@2.31.0':
+    resolution: {integrity: sha512-CCOqou/7f0/5kKQXlcVvWbiVnFmk/CqaSCs8YkJ2GPzxDYoQD13iKAjo0Uv7y/dVlkkOH0p/eJVxgcrO6aagbw==}
 
   '@x402/extensions@2.30.0':
     resolution: {integrity: sha512-Lqu8hYkFAIhzarWa8V1272tyolFAW7WjHrxQ7we5P0fEZ8oMXOq1hna2X0FXQetZoOFzBDwSWBBMsrqE8ZzvcQ==}
@@ -1916,16 +1919,16 @@ packages:
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
 
-  ox@0.14.59:
-    resolution: {integrity: sha512-Y+DPEQScTEGKteQATjtytE1JRQ5cg1R2+DvYQ/lbhUCm/xS9n0Jnkkf2AqQyIntefQxs8xY6dZ+kyNZ7zf2FzA==}
+  ox@0.14.63:
+    resolution: {integrity: sha512-TSKYN151boL1Aq/vsFrd8Buvd7v+oTQr8V7z4f4QQTSMB+ohD8cbNbHCtKRLI0Gs8LuYKirf5qvElTKVIFe2jw==}
     peerDependencies:
       typescript: '>=5.4.0'
     peerDependenciesMeta:
       typescript:
         optional: true
 
-  ox@0.14.63:
-    resolution: {integrity: sha512-TSKYN151boL1Aq/vsFrd8Buvd7v+oTQr8V7z4f4QQTSMB+ohD8cbNbHCtKRLI0Gs8LuYKirf5qvElTKVIFe2jw==}
+  ox@0.14.67:
+    resolution: {integrity: sha512-6v6UlwgsmiyTujZp0aVDuN8uIBAtl/QZadBADFRZ2zp1+CM9TqDzd+rPKJ5PYvWPlCvz8JvoO9dTr42+1PhBhA==}
     peerDependencies:
       typescript: '>=5.4.0'
     peerDependenciesMeta:
@@ -2161,8 +2164,8 @@ packages:
   undici-types@8.9.0:
     resolution: {integrity: sha512-KTDyRTYX8sWmKXAikPHHSyc63CRPETMctyjKFupcC6OBLXT3xsN0e9aF7m+mIXutFWpUXuedtowG7iLOzp0kQg==}
 
-  viem@2.57.16:
-    resolution: {integrity: sha512-+4uaUw3NfkqjaqsZp8Zci94K33oc9rv7mIUgvPduJxsY/tI0ASi2YkaXoUVSBGfdIw/QPWuVnIf9LTFf35IoMg==}
+  viem@2.57.17:
+    resolution: {integrity: sha512-yIMqNoKoVAMwX+zVbqkxfqq7qbGHmKXZidh/xfVpiPTJlAbbDDdDIMH5dDQWxhZcj56L8tPOwsIIxF618P+TOg==}
     peerDependencies:
       mppx: '>=0.17.0'
       typescript: '>=5.0.4'
@@ -2172,8 +2175,8 @@ packages:
       typescript:
         optional: true
 
-  viem@2.57.17:
-    resolution: {integrity: sha512-yIMqNoKoVAMwX+zVbqkxfqq7qbGHmKXZidh/xfVpiPTJlAbbDDdDIMH5dDQWxhZcj56L8tPOwsIIxF618P+TOg==}
+  viem@2.58.4:
+    resolution: {integrity: sha512-zeYi2PliKbmJVbIvudHZrYJLh1XMXci6GBJznQLjhhGPGl9L7Hp/LmelpXhOM9VvlXwnvfW7/2PCgpjnc2j8MQ==}
     peerDependencies:
       mppx: '>=0.17.0'
       typescript: '>=5.0.4'
@@ -3502,10 +3505,14 @@ snapshots:
     dependencies:
       zod: 4.6.7
 
-  '@x402/evm@2.30.0(typescript@7.0.2)':
+  '@x402/core@2.31.0':
     dependencies:
-      '@x402/core': 2.30.0
-      viem: 2.57.16(typescript@7.0.2)(zod@4.6.7)
+      zod: 4.6.7
+
+  '@x402/evm@2.31.0(typescript@7.0.2)':
+    dependencies:
+      '@x402/core': 2.31.0
+      viem: 2.58.4(typescript@7.0.2)(zod@4.6.7)
       zod: 4.6.7
     transitivePeerDependencies:
       - bufferutil
@@ -3951,7 +3958,7 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
-  ox@0.14.59(typescript@7.0.2)(zod@4.6.7):
+  ox@0.14.63(typescript@7.0.2)(zod@4.6.7):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
       '@noble/ciphers': 1.3.0
@@ -3966,7 +3973,7 @@ snapshots:
     transitivePeerDependencies:
       - zod
 
-  ox@0.14.63(typescript@7.0.2)(zod@4.6.7):
+  ox@0.14.67(typescript@7.0.2)(zod@4.6.7):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
       '@noble/ciphers': 1.3.0
@@ -4272,23 +4279,6 @@ snapshots:
 
   undici-types@8.9.0: {}
 
-  viem@2.57.16(typescript@7.0.2)(zod@4.6.7):
-    dependencies:
-      '@noble/curves': 1.9.1
-      '@noble/hashes': 1.8.0
-      '@scure/bip32': 1.7.0
-      '@scure/bip39': 1.6.0
-      abitype: 1.2.3(typescript@7.0.2)(zod@4.6.7)
-      isows: 1.0.7(ws@8.21.0)
-      ox: 0.14.59(typescript@7.0.2)(zod@4.6.7)
-      ws: 8.21.0
-    optionalDependencies:
-      typescript: 7.0.2
-    transitivePeerDependencies:
-      - bufferutil
-      - utf-8-validate
-      - zod
-
   viem@2.57.17(typescript@7.0.2)(zod@4.6.7):
     dependencies:
       '@noble/curves': 1.9.1
@@ -4298,6 +4288,23 @@ snapshots:
       abitype: 1.2.3(typescript@7.0.2)(zod@4.6.7)
       isows: 1.0.7(ws@8.21.0)
       ox: 0.14.63(typescript@7.0.2)(zod@4.6.7)
+      ws: 8.21.0
+    optionalDependencies:
+      typescript: 7.0.2
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
+      - zod
+
+  viem@2.58.4(typescript@7.0.2)(zod@4.6.7):
+    dependencies:
+      '@noble/curves': 1.9.1
+      '@noble/hashes': 1.8.0
+      '@scure/bip32': 1.7.0
+      '@scure/bip39': 1.6.0
+      abitype: 1.2.3(typescript@7.0.2)(zod@4.6.7)
+      isows: 1.0.7(ws@8.21.0)
+      ox: 0.14.67(typescript@7.0.2)(zod@4.6.7)
       ws: 8.21.0
     optionalDependencies:
       typescript: 7.0.2
